@@ -5,13 +5,13 @@ using UnityEngine;
 namespace TBSGameCore
 {
     [Serializable]
-    public class SavableEntityRegistration
+    public class SavableInstanceRegistration
     {
         [SerializeField]
         public int id;
         [SerializeField]
-        public SavableEntity instance;
-        public SavableEntityRegistration(int id, SavableEntity instance)
+        public SavableInstance instance;
+        public SavableInstanceRegistration(int id, SavableInstance instance)
         {
             this.id = id;
             this.instance = instance;

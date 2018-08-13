@@ -2,9 +2,9 @@
 
 namespace TBSGameCore
 {
-    public abstract class SavableEntity : MonoBehaviour, ISavable
+    public abstract class SavableInstance : MonoBehaviour, ISavable
     {
-        public abstract SavableEntityData data
+        public abstract SavableInstanceData data
         {
             get;
         }
@@ -16,9 +16,9 @@ namespace TBSGameCore
                 data.id = value;
             }
         }
-        public SavableEntityReference reference
+        public SavableInstanceReference reference
         {
-            get { return new SavableEntityReference(id); }
+            get { return new SavableInstanceReference(id); }
         }
         public ILoadableData save()
         {
@@ -38,10 +38,10 @@ namespace TBSGameCore
             if (id == 0)
             {
                 //没有注册，注册ID。
-                Game saveManager = this.findInstance<Game>();
+                SaveManager saveManager = this.findInstance<SaveManager>();
                 if (saveManager == null)
                 {
-                    saveManager = new GameObject("SaveManager").AddComponent<Game>();
+                    saveManager = new GameObject("SaveManager").AddComponent<SaveManager>();
                 }
                 id = saveManager.allocate(this);
                 _checked = true;
@@ -49,12 +49,12 @@ namespace TBSGameCore
             else if (!_checked)
             {
                 //已经注册，没有检查，检查是否实际上丢失了注册。
-                Game saveManager = this.findInstance<Game>();
+                SaveManager saveManager = this.findInstance<SaveManager>();
                 if (saveManager == null)
                 {
-                    saveManager = new GameObject("SaveManager").AddComponent<Game>();
+                    saveManager = new GameObject("SaveManager").AddComponent<SaveManager>();
                 }
-                SavableEntity other = saveManager.getInstanceById<SavableEntity>(id);
+                SavableInstance other = saveManager.getInstanceById<SavableInstance>(id);
                 if (other == null)
                 {
                     //有ID但是丢失引用，重新分配引用

@@ -7,7 +7,7 @@ using UnityEngine.SceneManagement;
 namespace TBSGameCore
 {
     [Serializable]
-    public abstract class SavableEntityData : ILoadableData
+    public abstract class SavableInstanceData : ILoadableData
     {
         [SerializeField]
         public int id;

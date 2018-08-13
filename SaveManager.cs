@@ -11,14 +11,14 @@ using TBSGameCore;
 
 namespace TBSGameCore
 {
-    public abstract class Game : MonoBehaviour
+    public class SaveManager : MonoBehaviour
     {
         [Header("实体")]
         [SerializeField]
-        List<SavableEntityRegistration> _refs = new List<SavableEntityRegistration>();
+        List<SavableInstanceRegistration> _refs = new List<SavableInstanceRegistration>();
         [SerializeField]
         List<int> _IDPool = new List<int>();
-        public int allocate(SavableEntity instance)
+        public int allocate(SavableInstance instance)
         {
             int id = 0;
             if (_IDPool.Count > 0)
@@ -30,16 +30,16 @@ namespace TBSGameCore
             {
                 id = _refs.Count + 1;
             }
-            _refs.Add(new SavableEntityRegistration(id, instance));
+            _refs.Add(new SavableInstanceRegistration(id, instance));
             return id;
         }
-        protected void allocate(SavableEntity instance, int id)
+        protected void allocate(SavableInstance instance, int id)
         {
-            _refs.Add(new SavableEntityRegistration(id, instance));
+            _refs.Add(new SavableInstanceRegistration(id, instance));
         }
-        public void reallocate(int id, SavableEntity instance)
+        public void reallocate(int id, SavableInstance instance)
         {
-            SavableEntityRegistration r = _refs.Find(e => { return e.id == id; });
+            SavableInstanceRegistration r = _refs.Find(e => { return e.id == id; });
             if (r != null)
                 r.instance = instance;
             else
@@ -54,7 +54,7 @@ namespace TBSGameCore
         {
             FileInfo file = new FileInfo(path);
             string fileName = file.Name.Split('.')[0];
-            GameData data = save(fileName);
+            SaveData data = save(fileName);
             using (FileStream stream = new FileStream(path, FileMode.Create))
             {
                 BinaryFormatter binaryFormatter = new BinaryFormatter();
@@ -73,11 +73,9 @@ namespace TBSGameCore
                 return bytes;
             }
         }
-        protected abstract GameData getGameData();
-        protected abstract void setGameData(GameData gameData);
-        private GameData save(string name)
+        private SaveData save(string name)
         {
-            GameData data = getGameData();
+            SaveData data = new SaveData();
             data.name = name;
             data.date = DateTime.Now;
             data.savedObjects = new List<ILoadableData>((this).findInstances<ISavable>().Select(e => { return e.save(); }));
@@ -91,7 +89,7 @@ namespace TBSGameCore
                 using (FileStream stream = new FileStream(path, FileMode.Open))
                 {
                     BinaryFormatter binaryFormatter = new BinaryFormatter();
-                    GameData data = binaryFormatter.Deserialize(stream) as GameData;
+                    SaveData data = binaryFormatter.Deserialize(stream) as SaveData;
                     if (data != null)
                     {
                         load(data);
@@ -106,27 +104,27 @@ namespace TBSGameCore
                 ms.Write(bytes, 0, bytes.Length);
                 ms.Position = 0;
                 BinaryFormatter bf = new BinaryFormatter();
-                GameData data = bf.Deserialize(ms) as GameData;
+                SaveData data = bf.Deserialize(ms) as SaveData;
                 if (data != null)
                 {
                     load(data);
                 }
             }
         }
-        Dictionary<int, SavableEntityData> _loadingObjects = null;
+        Dictionary<int, SavableInstanceData> _loadingObjects = null;
         /// <summary>
         /// 加载存档数据。
         /// </summary>
         /// <param name="data"></param>
-        private void load(GameData data)
+        private void load(SaveData data)
         {
             //先加载对所有SavableInstance的引用。
-            _loadingObjects = new Dictionary<int, SavableEntityData>();
+            _loadingObjects = new Dictionary<int, SavableInstanceData>();
             foreach (ILoadableData d in data.savedObjects)
             {
-                if (d is SavableEntityData)
+                if (d is SavableInstanceData)
                 {
-                    _loadingObjects.Add((d as SavableEntityData).id, d as SavableEntityData);
+                    _loadingObjects.Add((d as SavableInstanceData).id, d as SavableInstanceData);
                 }
             }
             //再逐个读取。
@@ -135,20 +133,19 @@ namespace TBSGameCore
                 loadInstance(d, gameObject.scene);
             }
             _loadingObjects = null;
-            setGameData(data);
         }
         private ISavable loadInstance(ILoadableData d, Scene scene)
         {
             ISavable s = d.load(scene);
-            if (d is SavableEntityData && s is SavableEntity)
+            if (d is SavableInstanceData && s is SavableInstance)
             {
-                allocate(s as SavableEntity, (d as SavableEntityData).id);
+                allocate(s as SavableInstance, (d as SavableInstanceData).id);
             }
             return s;
         }
-        public T getInstanceById<T>(int id, bool intcludeNotLoaded = false) where T : SavableEntity
+        public T getInstanceById<T>(int id, bool intcludeNotLoaded = false) where T : SavableInstance
         {
-            SavableEntityRegistration reference = _refs.Find(e => { return e.id == id; });
+            SavableInstanceRegistration reference = _refs.Find(e => { return e.id == id; });
             if (reference != null)
                 return reference.instance as T;
             else if (intcludeNotLoaded && _loadingObjects != null && _loadingObjects.ContainsKey(id))
@@ -172,8 +169,8 @@ namespace TBSGameCore
         [ContextMenu("全部重新注册")]
         private void re_RegisterAll()
         {
-            SavableEntity[] instances = this.findInstances<SavableEntity>();
-            _refs = new List<SavableEntityRegistration>(instances.Length);
+            SavableInstance[] instances = this.findInstances<SavableInstance>();
+            _refs = new List<SavableInstanceRegistration>(instances.Length);
             _IDPool = new List<int>();
             for (int i = 0; i < instances.Length; i++)
             {

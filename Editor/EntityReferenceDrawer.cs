@@ -8,7 +8,7 @@ using GameFramework;
 
 namespace TBSGameCore
 {
-    [CustomPropertyDrawer(typeof(SavableEntityReference))]
+    [CustomPropertyDrawer(typeof(SavableInstanceReference))]
     [CanEditMultipleObjects]
     public class EntityReferenceDrawer : PropertyDrawer
     {
@@ -33,8 +33,8 @@ namespace TBSGameCore
                 MonoBehaviour behaviour = property.serializedObject.targetObject as MonoBehaviour;
                 if (behaviour != null)
                 {
-                    SavableEntity instance = behaviour.findObject<Game>().getInstanceById<SavableEntity>(idProperty.intValue);
-                    instance = EditorGUI.ObjectField(position, label, instance, typeof(SavableEntity), true) as SavableEntity;
+                    SavableInstance instance = behaviour.findObject<SaveManager>().getInstanceById<SavableInstance>(idProperty.intValue);
+                    instance = EditorGUI.ObjectField(position, label, instance, typeof(SavableInstance), true) as SavableInstance;
                     if (instance != null)
                         idProperty.intValue = instance.id;
                     else
