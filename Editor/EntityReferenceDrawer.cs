@@ -4,8 +4,6 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-using GameFramework;
-
 namespace TBSGameCore
 {
     [CustomPropertyDrawer(typeof(SavableEntityReference))]
@@ -33,7 +31,7 @@ namespace TBSGameCore
                 MonoBehaviour behaviour = property.serializedObject.targetObject as MonoBehaviour;
                 if (behaviour != null)
                 {
-                    SavableEntity instance = behaviour.findObject<Game>().getInstanceById<SavableEntity>(idProperty.intValue);
+                    SavableEntity instance = behaviour.findInstance<Game>().getInstanceById<SavableEntity>(idProperty.intValue);
                     instance = EditorGUI.ObjectField(position, label, instance, typeof(SavableEntity), true) as SavableEntity;
                     if (instance != null)
                         idProperty.intValue = instance.id;
