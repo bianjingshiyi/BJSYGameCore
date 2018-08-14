@@ -46,7 +46,7 @@ namespace TBSGameCore
                 MonoBehaviour behaviour = property.serializedObject.targetObject as MonoBehaviour;
                 if (behaviour != null)
                 {
-                    SavableInstance instance = behaviour.findObject<SaveManager>().getInstanceById<SavableInstance>(idProperty.intValue);
+                    SavableInstance instance = behaviour.findObject<SaveManager>().getInstanceById(idProperty.intValue);
                     instance = EditorGUI.ObjectField(position, label, instance, typeof(SavableInstance), true) as SavableInstance;
                     if (instance != null)
                         idProperty.intValue = instance.id;

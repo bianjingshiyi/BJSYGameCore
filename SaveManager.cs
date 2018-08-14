@@ -64,18 +64,6 @@ namespace TBSGameCore
                 return null;
             }
         }
-        public T getInstanceById<T>(int id, bool intcludeNotLoaded = false) where T : SavableInstance
-        {
-            SavableInstanceRegistration reference = _instances.Find(e => { return e.id == id; });
-            if (reference != null)
-                return reference.instance as T;
-            else if (intcludeNotLoaded && _loadingObjects != null && _loadingObjects.ContainsKey(id))
-            {
-                return loadInstance(_loadingObjects[id], gameObject.scene) as T;
-            }
-            else
-                return null;
-        }
         #endregion
         #region Save
         public void saveAsFile(string path)
@@ -103,12 +91,39 @@ namespace TBSGameCore
         }
         private SaveData save(string name)
         {
-            SaveData data = new SaveData();
-            data.name = name;
-            data.date = DateTime.Now;
-            data.instances = new List<SavableInstanceData>(this.findInstances<SavableInstance>().Select(e => { return new SavableInstanceData() { id = e.id, path = e.path }; }));
-            data.savedData = new List<ILoadableData>((this).findInstances<ISavable>().Select(e => { return e.save(); }));
+            SaveData data = new SaveData
+            {
+                name = name,
+                date = DateTime.Now,
+                instances = new List<SavableInstanceData>(),
+                savedObjects = new List<SaveObjectData>()
+            };
+            GameObject[] roots = gameObject.scene.GetRootGameObjects();
+            for (int i = 0; i < roots.Length; i++)
+            {
+                findAndSaveObject(data, roots[i].transform, null, "", "");
+            }
             return data;
+        }
+        private void findAndSaveObject(SaveData data, Transform transform, SavableInstance current, string path, string relative)
+        {
+            SavableInstance instance = transform.GetComponent<SavableInstance>();
+            if (instance != null)
+            {
+                data.instances.Add(new SavableInstanceData() { id = instance.id, path = path });
+                current = instance;
+                relative = "";
+            }
+            ISavable[] objs = transform.GetComponents<ISavable>();
+            for (int i = 0; i < objs.Length; i++)
+            {
+                data.savedObjects.Add(new SaveObjectData() { id = current != null ? current.id : 0, path = relative, data = objs[i].save() });
+            }
+            for (int i = 0; i < transform.childCount; i++)
+            {
+                Transform child = transform.GetChild(i);
+                findAndSaveObject(data, child, current, path + '/' + child.gameObject.name, relative + '/' + child.gameObject.name);
+            }
         }
         #endregion
         #region Load
@@ -142,7 +157,6 @@ namespace TBSGameCore
                 }
             }
         }
-        Dictionary<int, SavableInstanceData> _loadingObjects = null;
         /// <summary>
         /// 加载存档数据。
         /// </summary>
@@ -152,44 +166,18 @@ namespace TBSGameCore
             //先加载对所有SavableInstance。
             for (int i = 0; i < data.instances.Count; i++)
             {
-                SavableInstanceRegistration registration = _instances.FirstOrDefault(e => { return e.id == data.instances[i].id; });
-                if (registration != null)
-                {
-
-                }
-                else
-                {
-                    SavableInstance.create(data.instances[i].id, gameObject.scene, data.instances[i].path);
-                }
+                SavableInstance instance = SavableInstance.create(data.instances[i].id, gameObject.scene, data.instances[i].path);
+                allocate(instance, data.instances[i].id);
             }
-            _loadingObjects = new Dictionary<int, SavableInstanceData>();
-            foreach (ILoadableData d in data.savedData)
+            //再加载别的。
+            for (int i = 0; i < data.savedObjects.Count; i++)
             {
-                if (d is SavableInstanceData)
-                {
-                    _loadingObjects.Add((d as SavableInstanceData).id, d as SavableInstanceData);
-                }
+                loadInstance(data.savedObjects[i], gameObject.scene);
             }
-            //再逐个读取。
-            foreach (ILoadableData d in data.savedData)
-            {
-                loadInstance(d, gameObject.scene);
-            }
-            _loadingObjects = null;
         }
-        private SavableInstance loadInstance(SavableInstanceData d, Scene scene)
+        private ISavable loadInstance(SaveObjectData obj, Scene scene)
         {
-            SavableInstance instance = SavableInstance.create(d.id, scene, d.path);
-            allocate(instance, instance.id);
-            return instance;
-        }
-        private ISavable loadInstance(ILoadableData d, Scene scene)
-        {
-            ISavable s = d.load(scene);
-            if (d is SavableInstanceData && s is SavableInstance)
-            {
-                allocate(s as SavableInstance, (d as SavableInstanceData).id);
-            }
+            ISavable s = obj.data.load(scene, obj.id, obj.path);
             return s;
         }
         #endregion

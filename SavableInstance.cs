@@ -65,7 +65,7 @@ namespace TBSGameCore
                 {
                     saveManager = new GameObject("SaveManager").AddComponent<SaveManager>();
                 }
-                SavableInstance other = saveManager.getInstanceById<SavableInstance>(id);
+                SavableInstance other = saveManager.getInstanceById(id);
                 if (other == null)
                 {
                     //有ID但是丢失引用，重新分配引用
