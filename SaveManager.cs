@@ -11,11 +11,13 @@ using TBSGameCore;
 
 namespace TBSGameCore
 {
+    [ExecuteInEditMode]
     public class SaveManager : MonoBehaviour
     {
+        #region Instance
         [Header("实体")]
         [SerializeField]
-        List<SavableInstanceRegistration> _refs = new List<SavableInstanceRegistration>();
+        List<SavableInstanceRegistration> _instances = new List<SavableInstanceRegistration>();
         [SerializeField]
         List<int> _IDPool = new List<int>();
         public int allocate(SavableInstance instance)
@@ -28,18 +30,18 @@ namespace TBSGameCore
             }
             else
             {
-                id = _refs.Count + 1;
+                id = _instances.Count + 1;
             }
-            _refs.Add(new SavableInstanceRegistration(id, instance));
+            _instances.Add(new SavableInstanceRegistration(id, instance));
             return id;
         }
         protected void allocate(SavableInstance instance, int id)
         {
-            _refs.Add(new SavableInstanceRegistration(id, instance));
+            _instances.Add(new SavableInstanceRegistration(id, instance));
         }
         public void reallocate(int id, SavableInstance instance)
         {
-            SavableInstanceRegistration r = _refs.Find(e => { return e.id == id; });
+            SavableInstanceRegistration r = _instances.Find(e => { return e.id == id; });
             if (r != null)
                 r.instance = instance;
             else
@@ -47,9 +49,35 @@ namespace TBSGameCore
         }
         public void deallocateAt(int index)
         {
-            _IDPool.Add(_refs[index].id);
-            _refs.RemoveAt(index);
+            _IDPool.Add(_instances[index].id);
+            _instances.RemoveAt(index);
         }
+        public SavableInstance getInstanceById(int id)
+        {
+            SavableInstanceRegistration reference = _instances.Find(e => { return e.id == id; });
+            if (reference != null)
+            {
+                return reference.instance;
+            }
+            else
+            {
+                return null;
+            }
+        }
+        public T getInstanceById<T>(int id, bool intcludeNotLoaded = false) where T : SavableInstance
+        {
+            SavableInstanceRegistration reference = _instances.Find(e => { return e.id == id; });
+            if (reference != null)
+                return reference.instance as T;
+            else if (intcludeNotLoaded && _loadingObjects != null && _loadingObjects.ContainsKey(id))
+            {
+                return loadInstance(_loadingObjects[id], gameObject.scene) as T;
+            }
+            else
+                return null;
+        }
+        #endregion
+        #region Save
         public void saveAsFile(string path)
         {
             FileInfo file = new FileInfo(path);
@@ -78,9 +106,12 @@ namespace TBSGameCore
             SaveData data = new SaveData();
             data.name = name;
             data.date = DateTime.Now;
-            data.savedObjects = new List<ILoadableData>((this).findInstances<ISavable>().Select(e => { return e.save(); }));
+            data.instances = new List<SavableInstanceData>(this.findInstances<SavableInstance>().Select(e => { return new SavableInstanceData() { id = e.id, path = e.path }; }));
+            data.savedData = new List<ILoadableData>((this).findInstances<ISavable>().Select(e => { return e.save(); }));
             return data;
         }
+        #endregion
+        #region Load
         public void loadFromFile(string path)
         {
             FileInfo file = new FileInfo(path);
@@ -118,9 +149,21 @@ namespace TBSGameCore
         /// <param name="data"></param>
         private void load(SaveData data)
         {
-            //先加载对所有SavableInstance的引用。
+            //先加载对所有SavableInstance。
+            for (int i = 0; i < data.instances.Count; i++)
+            {
+                SavableInstanceRegistration registration = _instances.FirstOrDefault(e => { return e.id == data.instances[i].id; });
+                if (registration != null)
+                {
+
+                }
+                else
+                {
+                    SavableInstance.create(data.instances[i].id, gameObject.scene, data.instances[i].path);
+                }
+            }
             _loadingObjects = new Dictionary<int, SavableInstanceData>();
-            foreach (ILoadableData d in data.savedObjects)
+            foreach (ILoadableData d in data.savedData)
             {
                 if (d is SavableInstanceData)
                 {
@@ -128,11 +171,17 @@ namespace TBSGameCore
                 }
             }
             //再逐个读取。
-            foreach (ILoadableData d in data.savedObjects)
+            foreach (ILoadableData d in data.savedData)
             {
                 loadInstance(d, gameObject.scene);
             }
             _loadingObjects = null;
+        }
+        private SavableInstance loadInstance(SavableInstanceData d, Scene scene)
+        {
+            SavableInstance instance = SavableInstance.create(d.id, scene, d.path);
+            allocate(instance, instance.id);
+            return instance;
         }
         private ISavable loadInstance(ILoadableData d, Scene scene)
         {
@@ -143,23 +192,12 @@ namespace TBSGameCore
             }
             return s;
         }
-        public T getInstanceById<T>(int id, bool intcludeNotLoaded = false) where T : SavableInstance
+        #endregion
+        protected void Update()
         {
-            SavableInstanceRegistration reference = _refs.Find(e => { return e.id == id; });
-            if (reference != null)
-                return reference.instance as T;
-            else if (intcludeNotLoaded && _loadingObjects != null && _loadingObjects.ContainsKey(id))
+            for (int i = 0; i < _instances.Count; i++)
             {
-                return loadInstance(_loadingObjects[id], gameObject.scene) as T;
-            }
-            else
-                return null;
-        }
-        protected void OnDrawGizmos()
-        {
-            for (int i = 0; i < _refs.Count; i++)
-            {
-                if (_refs[i].instance == null)
+                if (_instances[i].instance == null)
                 {
                     deallocateAt(i);
                     i--;
@@ -170,11 +208,11 @@ namespace TBSGameCore
         private void re_RegisterAll()
         {
             SavableInstance[] instances = this.findInstances<SavableInstance>();
-            _refs = new List<SavableInstanceRegistration>(instances.Length);
+            _instances = new List<SavableInstanceRegistration>(instances.Length);
             _IDPool = new List<int>();
             for (int i = 0; i < instances.Length; i++)
             {
-                instances[i].data.id = allocate(instances[i]);
+                instances[i].id = allocate(instances[i]);
             }
         }
     }

@@ -1,41 +1,52 @@
 ﻿using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace TBSGameCore
 {
-    public abstract class SavableInstance : MonoBehaviour, ISavable
+    [ExecuteInEditMode]
+    public class SavableInstance : MonoBehaviour
     {
-        public abstract SavableInstanceData data
-        {
-            get;
-        }
+        [SerializeField]
+        int _id = 0;
         public int id
         {
-            get { return data.id; }
-            private set
+            get { return _id; }
+            internal set
             {
-                data.id = value;
+                _id = value;
+            }
+        }
+        public string path
+        {
+            get
+            {
+                if (transform.parent == null)
+                    return gameObject.name;
+                else
+                {
+                    string path = gameObject.name;
+                    for (Transform parent = transform.parent; parent != null; parent = parent.parent)
+                    {
+                        path = parent.gameObject.name + "/" + path;
+                    }
+                    return path;
+                }
             }
         }
         public SavableInstanceReference reference
         {
-            get { return new SavableInstanceReference(id); }
+            get { return new SavableInstanceReference(id, path); }
         }
-        public ILoadableData save()
+        public static SavableInstance create(int id, Scene scene, string path)
         {
-            data.path = gameObject.name;
-            for (Transform parent = transform.parent; parent != null; parent = parent.parent)
-            {
-                data.path = parent.gameObject.name + '/' + data.path;
-            }
-            return data;
+            SavableInstance instance = scene.createGameObjectAtPath(path).AddComponent<SavableInstance>();
+            instance._id = id;
+            return instance;
         }
-#if UNITY_EDITOR
         bool _checked = false;
-#endif
-        protected void OnDrawGizmos()
+        protected void Update()
         {
-#if UNITY_EDITOR
-            if (id == 0)
+            if (id <= 0)
             {
                 //没有注册，注册ID。
                 SaveManager saveManager = this.findInstance<SaveManager>();
@@ -66,7 +77,6 @@ namespace TBSGameCore
                     id = saveManager.allocate(this);
                 }
             }
-#endif
         }
     }
 }
