@@ -33,15 +33,36 @@ namespace TBSGameCore
                 }
             }
         }
-        public SavableInstanceReference reference
+        public InstanceReference reference
         {
-            get { return new SavableInstanceReference(id, path); }
+            get { return new InstanceReference(id, path); }
         }
         public static SavableInstance create(int id, Scene scene, string path)
         {
-            SavableInstance instance = scene.createGameObjectAtPath(path).AddComponent<SavableInstance>();
+            SavableInstance instance = scene.newGameObjectAt(path).AddComponent<SavableInstance>();
             instance._id = id;
             return instance;
+        }
+        public GameObject findChild(string path)
+        {
+            string[] names = path.Split('/');
+            if (names.Length > 0)
+            {
+                Transform child = transform.Find(names[0]);
+                for (int i = 1; i < names.Length; i++)
+                {
+                    if (child != null)
+                        child = child.Find(names[i]);
+                    else
+                        break;
+                }
+                if (child != null)
+                    return child.gameObject;
+                else
+                    return null;
+            }
+            else
+                return null;
         }
         bool _checked = false;
         protected void Update()
