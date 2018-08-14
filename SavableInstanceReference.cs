@@ -12,6 +12,36 @@ namespace TBSGameCore
     {
         public int id;
         public string path;
+        public SavableInstanceReference(GameObject go)
+        {
+            path = go.name;
+            for (Transform parent = go.transform.parent; parent != null; parent = parent.parent)
+            {
+                SavableInstance instance = parent.GetComponent<SavableInstance>();
+                if (instance == null)
+                    path = parent.gameObject.name + '/' + path;
+                else
+                {
+                    id = instance.id;
+                    break;
+                }
+            }
+        }
+        public SavableInstanceReference(Component component)
+        {
+            path = component.gameObject.name;
+            for (Transform parent = component.transform.parent; parent != null; parent = parent.parent)
+            {
+                SavableInstance instance = parent.GetComponent<SavableInstance>();
+                if (instance == null)
+                    path = parent.gameObject.name + '/' + path;
+                else
+                {
+                    id = instance.id;
+                    break;
+                }
+            }
+        }
         public SavableInstanceReference(int id, string path = "")
         {
             this.id = id;
