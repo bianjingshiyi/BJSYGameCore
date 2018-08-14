@@ -39,7 +39,7 @@ namespace TBSGameCore
         }
         public static SavableInstance create(int id, Scene scene, string path)
         {
-            SavableInstance instance = scene.createGameObjectAtPath(path).AddComponent<SavableInstance>();
+            SavableInstance instance = scene.newGameObjectAt(path).AddComponent<SavableInstance>();
             instance._id = id;
             return instance;
         }

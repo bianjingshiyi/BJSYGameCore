@@ -25,7 +25,7 @@ namespace TBSGameCore
             }
             return path;
         }
-        public static Transform getTransformAtPath(this Scene scene, string path)
+        public static T findInstanceAt<T>(this Scene scene,string path) where T : Component
         {
             if (!string.IsNullOrEmpty(path))
             {
@@ -43,7 +43,7 @@ namespace TBSGameCore
                             else
                                 return null;
                         }
-                        return child;
+                        return child.GetComponent<T>();
                     }
                     else
                         return null;
@@ -54,15 +54,7 @@ namespace TBSGameCore
             else
                 return null;
         }
-        public static Transform getTransformAtPath(this Component component, string path)
-        {
-            return component.gameObject.scene.getTransformAtPath(path);
-        }
-        public static Transform getTransformAtPath(this GameObject gameObject, string path)
-        {
-            return gameObject.scene.getTransformAtPath(path);
-        }
-        public static T instantiateAtPath<T>(this Scene scene, T prefab, string path) where T : Component
+        public static T instantiateAt<T>(this Scene scene, T prefab, string path) where T : Component
         {
             if (!string.IsNullOrEmpty(path))
             {
@@ -83,7 +75,7 @@ namespace TBSGameCore
                         if (child != null)
                         {
                             T instance = Component.Instantiate(prefab, child);
-                            instance.name = names[names.Length - 1];
+                            instance.gameObject.name = names[names.Length - 1];
                             return instance;
                         }
                         else
@@ -102,7 +94,7 @@ namespace TBSGameCore
             else
                 return null;
         }
-        public static GameObject createGameObjectAtPath(this Scene scene, string path)
+        public static GameObject newGameObjectAt(this Scene scene, string path)
         {
             if (!string.IsNullOrEmpty(path))
             {
