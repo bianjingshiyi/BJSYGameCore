@@ -101,7 +101,7 @@ namespace TBSGameCore
             GameObject[] roots = gameObject.scene.GetRootGameObjects();
             for (int i = 0; i < roots.Length; i++)
             {
-                findAndSaveObject(data, roots[i].transform, null, "", "");
+                findAndSaveObject(data, roots[i].transform, null, roots[i].name, null);
             }
             return data;
         }
@@ -112,17 +112,17 @@ namespace TBSGameCore
             {
                 data.instances.Add(new SavableInstanceData() { id = instance.id, path = path });
                 current = instance;
-                relative = "";
+                relative = null;
             }
             ISavable[] objs = transform.GetComponents<ISavable>();
             for (int i = 0; i < objs.Length; i++)
             {
-                data.savedObjects.Add(new SaveObjectData() { id = current != null ? current.id : 0, path = relative, data = objs[i].save() });
+                data.savedObjects.Add(new SaveObjectData() { id = current != null ? current.id : 0, path = current != null ? relative : path, data = objs[i].save() });
             }
             for (int i = 0; i < transform.childCount; i++)
             {
                 Transform child = transform.GetChild(i);
-                findAndSaveObject(data, child, current, path + '/' + child.gameObject.name, relative + '/' + child.gameObject.name);
+                findAndSaveObject(data, child, current, path + '/' + child.gameObject.name, relative == null ? child.gameObject.name : (relative + '/' + child.gameObject.name));
             }
         }
         #endregion
@@ -177,7 +177,7 @@ namespace TBSGameCore
         }
         private ISavable loadInstance(SaveObjectData obj, Scene scene)
         {
-            ISavable s = obj.data.load(scene, obj.id, obj.path);
+            ISavable s = obj.data.load(this, obj.id, obj.path);
             return s;
         }
         #endregion

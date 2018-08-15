@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 
 using UnityEngine;
@@ -18,6 +19,17 @@ namespace TBSGameCore
                     return t;
             }
             return default(T);
+        }
+        public static Component findInstance(this Scene scene, Type type)
+        {
+            GameObject[] objs = scene.GetRootGameObjects();
+            for (int i = 0; i < objs.Length; i++)
+            {
+                Component instance = objs[i].GetComponentInChildren(type, true);
+                if (instance != null)
+                    return instance;
+            }
+            return null;
         }
         public static T[] findInstances<T>(this Scene scene)
         {

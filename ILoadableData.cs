@@ -5,6 +5,6 @@ namespace TBSGameCore
 {
     public interface ILoadableData
     {
-        ISavable load(Scene scene, int id, string path);
+        ISavable load(SaveManager saveManager, int id, string path);
     }
 }
