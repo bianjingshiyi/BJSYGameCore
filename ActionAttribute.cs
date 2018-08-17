@@ -5,13 +5,13 @@ using UnityEngine;
 namespace TBSGameCore
 {
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
-    public class FuncAttribute : PropertyAttribute
+    public class ActionAttribute : PropertyAttribute
     {
-        public string funcName { get; private set; }
+        public string actionName { get; private set; }
         public string desc { get; private set; }
-        public FuncAttribute(string funcName, string desc)
+        public ActionAttribute(string actionName, string desc)
         {
-            this.funcName = funcName;
+            this.actionName = actionName;
             this.desc = desc;
         }
     }

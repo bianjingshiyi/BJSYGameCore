@@ -10,7 +10,7 @@ namespace TBSGameCore
 {
     public static class FuncStringDrawer
     {
-        public static string drawTypedFuncString(Rect position, GUIContent label, string value, Type returnType, UnityEngine.Object targetObject, string path, out float height)
+        public static string drawTypedFuncString(Rect position, GUIContent label, string value, Type returnType, UnityEngine.Object targetObject, Dictionary<string, bool> dicIsExpanded, string path, Dictionary<Type, List<Method>> dicFuncOfReturnType, out float height)
         {
             //切割字符串得到类型与真正的值
             int type = 0;
@@ -40,7 +40,7 @@ namespace TBSGameCore
             switch (type)
             {
                 case 2:
-                    if (GUI.Button(typePosition, "M"))
+                    if (GUI.Button(typePosition, "F"))
                     {
                         type = 0;
                         realValue = null;
@@ -66,40 +66,34 @@ namespace TBSGameCore
             valuePosition.width -= 20;
             valuePosition.height = 16;
             if (type == 2)
-                realValue = drawFuncString(valuePosition, label, realValue, returnType, targetObject, path, out height);
+                realValue = drawFuncString(valuePosition, label, realValue, returnType, targetObject, dicIsExpanded, path, dicFuncOfReturnType, out height);
             else if (type == 1)
                 realValue = drawVariableString(valuePosition, label, realValue, returnType, targetObject, out height);
             else
-                realValue = drawConstString(valuePosition, label, realValue, returnType, out height);
+                realValue = drawConstString(valuePosition, label, realValue, returnType, targetObject, out height);
             //重新组合类型和真值得到值
             return type.ToString() + realValue;
         }
-        private static string drawConstString(Rect position, GUIContent label, string value, Type returnType, out float height)
+        private static string drawConstString(Rect position, GUIContent label, string value, Type returnType, UnityEngine.Object targetObject, out float height)
         {
             if (returnType == typeof(int))
             {
                 height = EditorGUI.GetPropertyHeight(SerializedPropertyType.Integer, label);
-                int intValue;
-                if (!int.TryParse(value, out intValue))
-                    intValue = 0;
+                int intValue = TriggerParser.parseInt(value);
                 intValue = EditorGUI.IntField(position, label, intValue);
                 return intValue.ToString();
             }
             else if (returnType == typeof(float))
             {
                 height = EditorGUI.GetPropertyHeight(SerializedPropertyType.Float, label);
-                float floatValue;
-                if (!float.TryParse(value, out floatValue))
-                    floatValue = 0;
+                float floatValue = TriggerParser.parseFloat(value);
                 floatValue = EditorGUI.FloatField(position, label, floatValue);
                 return floatValue.ToString();
             }
             else if (returnType == typeof(bool))
             {
                 height = EditorGUI.GetPropertyHeight(SerializedPropertyType.Boolean, label);
-                bool boolValue;
-                if (!bool.TryParse(value, out boolValue))
-                    boolValue = false;
+                bool boolValue = TriggerParser.parseBool(value);
                 boolValue = EditorGUI.Toggle(position, label, boolValue);
                 return boolValue.ToString();
             }
@@ -107,6 +101,19 @@ namespace TBSGameCore
             {
                 height = EditorGUI.GetPropertyHeight(SerializedPropertyType.String, label);
                 return EditorGUI.TextField(position, label, value);
+            }
+            else if (returnType.IsSubclassOf(typeof(Component)))
+            {
+                height = EditorGUI.GetPropertyHeight(SerializedPropertyType.ObjectReference, label);
+                InstanceReference instanceValue = TriggerParser.parseInstanceReference(value);
+                Component component;
+                if (targetObject is Component)
+                    component = instanceValue.findInstanceIn((targetObject as Component).gameObject.scene, returnType);
+                else
+                    component = null;
+                component = EditorGUI.ObjectField(position, label, component, returnType, true) as Component;
+                instanceValue = new InstanceReference(component);
+                return instanceValue.ToString();
             }
             else
             {
@@ -156,100 +163,73 @@ namespace TBSGameCore
                 return null;
             }
         }
-        static Dictionary<string, bool> _dicIsExpanded;
-        private static string drawFuncString(Rect position, GUIContent label, string value, Type returnType, UnityEngine.Object targetObject, string path, out float height)
+        public static string drawActionString(Rect position, GUIContent label, string value, UnityEngine.Object targetObject, Dictionary<string, bool> dicIsExpanded, string path, List<Method> actionList, Dictionary<Type, List<Method>> dicFuncOfReturnType, out float height)
         {
-            //Name(0123,1VarName,2FuncName(0234))，分解字符串
-            if (_dicIsExpanded == null)
-                _dicIsExpanded = new Dictionary<string, bool>();
-            string funcName;
+            string className;
+            string methodName;
             string[] args;
-            parseFunc(value, out funcName, out args);
-            Func[] funcs = getFuncOfType(returnType, targetObject.GetType().Assembly);
-            if (funcs.Length > 0)
+            TriggerParser.parseAction(value, out className, out methodName, out args);
+            Method[] actions = getActions(targetObject.GetType().Assembly, actionList);
+            if (actions.Length > 0)
             {
-                //转换方法为索引
-                int index = Array.FindIndex(funcs, e => { return e.funcName == funcName; });
+                //检查与获取值
+                int index = Array.FindIndex(actions, e => { return e.objType.FullName == className && e.info.Name == methodName; });
                 if (index < 0)
                     index = 0;
-                funcName = funcs[index].funcName;
-                Func func = funcs[index];
+                Method action = actions[index];
+                //绘制GUI
                 Rect valuePosition = new Rect(position);
                 valuePosition.width = position.width - 16;
-                //GUI
+                valuePosition.height = 16;
+                Rect labelPosition = new Rect(valuePosition);
+                labelPosition.width = valuePosition.width / 2;
+                Rect buttonPosition = new Rect(valuePosition);
+                buttonPosition.width = valuePosition.width / 2;
+                buttonPosition.x += valuePosition.width / 2;
                 GenericMenu menu = new GenericMenu();
-                for (int i = 0; i < funcs.Length; i++)
+                for (int i = 0; i < actions.Length; i++)
                 {
-                    menu.AddItem(new GUIContent(funcs[i].funcName), false, e =>
+                    menu.AddItem(new GUIContent(actions[i].name), false, e =>
                     {
-                        //更换方法
-                        Debug.Log("更换方法");
-                        funcName = (e as Func).funcName;
-                        func = (e as Func);
-                        args = new string[0];
-                    }, funcs[i]);
+                        action = (e as Method);
+                        index = Array.IndexOf(actions, e);
+                    }, actions[i]);
                 }
-                if (label != null)
-                {
-                    Rect labelPosition = new Rect(valuePosition);
-                    labelPosition.width = valuePosition.width / 2;
-                    Rect buttonPosition = new Rect(valuePosition);
-                    buttonPosition.x += valuePosition.width / 2;
-                    buttonPosition.width = valuePosition.width / 2;
-                    EditorGUI.LabelField(labelPosition, label);
-                    if (GUI.Button(buttonPosition, new GUIContent(func.desc)))
-                    {
-                        menu.DropDown(buttonPosition);
-                    }
-                }
-                else
-                {
-                    if (GUI.Button(valuePosition, new GUIContent(func.desc)))
-                    {
-                        menu.DropDown(valuePosition);
-                    }
-                }
-                Parameter[] paras = func.getParameters();
-                if (args.Length != paras.Length)
-                {
-                    string[] newArgs = new string[paras.Length];
-                    for (int i = 0; i < newArgs.Length; i++)
-                    {
-                        if (i < args.Length)
-                            newArgs[i] = args[i];
-                    }
-                    args = newArgs;
-                }
+                EditorGUI.LabelField(labelPosition, label);
+                if (GUI.Button(buttonPosition, new GUIContent(action.desc)))
+                    menu.DropDown(buttonPosition);
+                height = 16;
                 //绘制参数
-                if (!string.IsNullOrEmpty(path) && paras.Length > 0)
+                Parameter[] paras = action.getParameters();
+                if (args.Length != paras.Length)
+                    args = new string[paras.Length];
+                if (paras.Length > 0)
                 {
                     Rect foldPosition = new Rect(position);
-                    foldPosition.x = position.x + (position.width);
+                    foldPosition.x += position.width;
                     foldPosition.width = 16;
-                    bool isExpanded = _dicIsExpanded.ContainsKey(path) ? _dicIsExpanded[path] : false;
+                    foldPosition.height = 16;
+                    bool isExpanded = dicIsExpanded.ContainsKey(path) ? dicIsExpanded[path] : false;
                     isExpanded = EditorGUI.Foldout(foldPosition, isExpanded, "");
-                    _dicIsExpanded[path] = isExpanded;
+                    dicIsExpanded[path] = isExpanded;
                     if (isExpanded)
                     {
-                        height = 16;
                         Rect argPosition = new Rect(position);
                         argPosition.x = position.x + 16;
-                        float argHeight = 16;
-                        argPosition.y += argHeight;
+                        argPosition.y += 16;
+                        argPosition.width = position.width - 16;
+                        argPosition.height = 16;
+                        float argHeight;
                         for (int i = 0; i < paras.Length; i++)
                         {
-                            args[i] = drawTypedFuncString(argPosition, new GUIContent(paras[i].name), args[i], paras[i].type, targetObject, path + '/' + paras[i].name, out argHeight);
+                            args[i] = drawTypedFuncString(argPosition, new GUIContent(paras[i].name), args[i], paras[i].type, targetObject, dicIsExpanded, path + '/' + paras[i].name, dicFuncOfReturnType, out argHeight);
                             argPosition.y += argHeight;
                             height += argHeight;
                         }
                     }
-                    else
-                        height = 16;
                 }
-                else
-                    height = 16;
-                //拼接字符串
-                value = funcName + '(';
+                //返回值
+                value = action.objType.FullName + '.' + action.info.Name + '(';
                 for (int i = 0; i < args.Length; i++)
                 {
                     value += args[i];
@@ -261,62 +241,131 @@ namespace TBSGameCore
             }
             else
             {
-                if (label != null)
-                    EditorGUI.LabelField(position, label, new GUIContent("没有该返回类型的函数"));
-                else
-                    EditorGUI.LabelField(position, new GUIContent("没有该返回类型的函数"));
+                EditorGUI.LabelField(position, label, new GUIContent("没有动作"));
                 height = 16;
                 return null;
             }
         }
-        private static void parseFunc(string value, out string name, out string[] args)
+        private static Method[] getActions(Assembly assembly, List<Method> actionList)
         {
-            name = null;
-            args = new string[0];
-            if (value == null)
-                return;
-            int b = -1;
-            List<string> argList = new List<string>();
-            int startIndex = 0;
-            for (int i = 0; i < value.Length; i++)
+            if (actionList.Count == 0)
             {
-                if (value[i] == '(')
+                foreach (Type type in assembly.GetTypes())
                 {
-                    if (b == -1)
+                    foreach (MethodInfo method in type.GetMethods())
                     {
-                        name = value.Substring(0, i);
-                        b = 0;
-                        startIndex = i + 1;
-                    }
-                    b++;
-                }
-                else if (value[i] == ')')
-                {
-                    b--;
-                    if (b == 0)
-                    {
-                        if (startIndex < i)
+                        ActionAttribute att = method.GetCustomAttribute<ActionAttribute>();
+                        if (att != null)
                         {
-                            string arg = value.Substring(startIndex, i - startIndex);
-                            argList.Add(arg);
+                            actionList.Add(new Method(type, method, att.actionName, att.desc));
                         }
                     }
                 }
-                else if (value[i] == ',' && b == 1)
-                {
-                    string arg = value.Substring(startIndex, i - startIndex);
-                    argList.Add(arg);
-                    startIndex = i + 1;
-                }
             }
-            args = argList.ToArray();
+            return actionList.ToArray();
         }
-        static Dictionary<Type, List<Func>> _dicFuncOfReturnType = null;
-        private static Func[] getFuncOfType(Type returnType, Assembly assembly)
+        private static string drawFuncString(Rect position, GUIContent label, string value, Type returnType, UnityEngine.Object targetObject, Dictionary<string, bool> dicIsExpanded, string path, Dictionary<Type, List<Method>> dicFuncOfReturnType, out float height)
         {
-            if (_dicFuncOfReturnType == null)
+            //Name(0123,1VarName,2FuncName(0234))，分解字符串
+            if (dicIsExpanded == null)
+                dicIsExpanded = new Dictionary<string, bool>();
+            string className;
+            string methodName;
+            string[] args;
+            TriggerParser.parseFunc(value, out className, out methodName, out args);
+            Method[] funcs = getFuncOfType(returnType, targetObject.GetType().Assembly, dicFuncOfReturnType);
+            if (funcs.Length > 0)
             {
-                _dicFuncOfReturnType = new Dictionary<Type, List<Func>>();
+                //转换方法为索引
+                int index = Array.FindIndex(funcs, e => { return e.objType.FullName == className && e.info.Name == methodName; });
+                if (index < 0)
+                {
+                    index = 0;
+                    args = new string[funcs[index].info.GetParameters().Length];
+                }
+                Method func = funcs[index];
+                Rect valuePosition = new Rect(position);
+                valuePosition.width = position.width - 16;
+                //GUI
+                GenericMenu menu = new GenericMenu();
+                for (int i = 0; i < funcs.Length; i++)
+                {
+                    menu.AddItem(new GUIContent(funcs[i].name), false, e =>
+                    {
+                        //更换方法
+                        func = (e as Method);
+                        args = new string[(e as Method).info.GetParameters().Length];
+                    }, funcs[i]);
+                }
+                Rect labelPosition = new Rect(valuePosition);
+                labelPosition.width = valuePosition.width / 2;
+                Rect buttonPosition = new Rect(valuePosition);
+                buttonPosition.x += valuePosition.width / 2;
+                buttonPosition.width = valuePosition.width / 2;
+                EditorGUI.LabelField(labelPosition, label);
+                if (GUI.Button(buttonPosition, new GUIContent(func.desc)))
+                    menu.DropDown(buttonPosition);
+                //绘制参数
+                Parameter[] paras = func.getParameters();
+                if (args.Length != paras.Length)
+                {
+                    string[] newArgs = new string[paras.Length];
+                    for (int i = 0; i < newArgs.Length; i++)
+                    {
+                        if (i < args.Length)
+                            newArgs[i] = args[i];
+                    }
+                    args = newArgs;
+                }
+                if (!string.IsNullOrEmpty(path) && paras.Length > 0)
+                {
+                    Rect foldPosition = new Rect(position);
+                    foldPosition.x = position.x + (position.width);
+                    foldPosition.width = 16;
+                    bool isExpanded = dicIsExpanded.ContainsKey(path) ? dicIsExpanded[path] : false;
+                    isExpanded = EditorGUI.Foldout(foldPosition, isExpanded, "");
+                    dicIsExpanded[path] = isExpanded;
+                    if (isExpanded)
+                    {
+                        height = 16;
+                        Rect argPosition = new Rect(position);
+                        argPosition.x = position.x + 16;
+                        float argHeight = 16;
+                        argPosition.y += argHeight;
+                        for (int i = 0; i < paras.Length; i++)
+                        {
+                            args[i] = drawTypedFuncString(argPosition, new GUIContent(paras[i].name), args[i], paras[i].type, targetObject, dicIsExpanded, path + '/' + paras[i].name, dicFuncOfReturnType, out argHeight);
+                            argPosition.y += argHeight;
+                            height += argHeight;
+                        }
+                    }
+                    else
+                        height = 16;
+                }
+                else
+                    height = 16;
+                //拼接字符串
+                value = func.objType.FullName + '.' + func.info.Name + '(';
+                for (int i = 0; i < args.Length; i++)
+                {
+                    value += args[i];
+                    if (i < args.Length - 1)
+                        value += ',';
+                }
+                value += ')';
+                return value;
+            }
+            else
+            {
+                EditorGUI.LabelField(position, label, new GUIContent("没有该返回类型的函数"));
+                height = 16;
+                return null;
+            }
+        }
+        private static Method[] getFuncOfType(Type returnType, Assembly assembly, Dictionary<Type, List<Method>> dicFuncOfReturnType)
+        {
+            if (dicFuncOfReturnType.Count == 0)
+            {
                 foreach (Type type in assembly.GetTypes())
                 {
                     foreach (MethodInfo method in type.GetMethods())
@@ -324,29 +373,29 @@ namespace TBSGameCore
                         FuncAttribute att = method.GetCustomAttribute<FuncAttribute>();
                         if (att != null)
                         {
-                            if (!_dicFuncOfReturnType.ContainsKey(method.ReturnType))
-                                _dicFuncOfReturnType.Add(method.ReturnType, new List<Func>());
-                            _dicFuncOfReturnType[method.ReturnType].Add(new Func(type, method, att.funcName, att.description));
+                            if (!dicFuncOfReturnType.ContainsKey(method.ReturnType))
+                                dicFuncOfReturnType.Add(method.ReturnType, new List<Method>());
+                            dicFuncOfReturnType[method.ReturnType].Add(new Method(type, method, att.funcName, att.desc));
                         }
                     }
                 }
             }
-            if (_dicFuncOfReturnType.ContainsKey(returnType))
-                return _dicFuncOfReturnType[returnType].ToArray();
+            if (dicFuncOfReturnType.ContainsKey(returnType))
+                return dicFuncOfReturnType[returnType].ToArray();
             else
-                return new Func[0];
+                return new Method[0];
         }
-        class Func
+        public class Method
         {
             public Type objType { get; private set; }
-            public string funcName { get; private set; }
+            public string name { get; private set; }
             public string desc { get; private set; }
             public MethodInfo info { get; private set; }
-            public Func(Type objType, MethodInfo info, string funcName, string desc)
+            public Method(Type objType, MethodInfo info, string funcName, string desc)
             {
                 this.objType = objType;
                 this.info = info;
-                this.funcName = funcName;
+                this.name = funcName;
                 this.desc = desc;
             }
             public Parameter[] getParameters()
@@ -363,7 +412,7 @@ namespace TBSGameCore
                 return paraList.ToArray();
             }
         }
-        class Parameter
+        public class Parameter
         {
             public Type type { get; private set; }
             public string name { get; private set; }

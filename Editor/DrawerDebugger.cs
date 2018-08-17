@@ -14,6 +14,7 @@ namespace TBSGameCore
         protected void OnGUI()
         {
             TriggerFuncDrawer.disable = GUILayout.Toggle(TriggerFuncDrawer.disable, "TriggerFunc");
+            TriggerActionDrawer.disable = GUILayout.Toggle(TriggerActionDrawer.disable, "TriggerAction");
         }
     }
 }
