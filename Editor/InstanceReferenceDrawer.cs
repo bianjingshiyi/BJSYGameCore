@@ -27,7 +27,7 @@ namespace TBSGameCore
         Type _refType = null;
         void init()
         {
-            RefTypeAttribute att = fieldInfo.GetCustomAttributes(typeof(RefTypeAttribute), false).FirstOrDefault(e => { return e is RefTypeAttribute; }) as RefTypeAttribute;
+            TypeAttribute att = fieldInfo.GetCustomAttributes(typeof(TypeAttribute), false).FirstOrDefault(e => { return e is TypeAttribute; }) as TypeAttribute;
             if (att != null)
             {
                 _refType = att.type;
