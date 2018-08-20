@@ -45,6 +45,8 @@ namespace TBSGameCore
         }
         public GameObject findChild(string path)
         {
+            if (string.IsNullOrEmpty(path))
+                return gameObject;
             string[] names = path.Split('/');
             if (names.Length > 0)
             {
