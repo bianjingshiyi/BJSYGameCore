@@ -14,10 +14,12 @@ namespace TBSGameCore
         float _height = 16;
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
-            return disable ? EditorGUI.GetPropertyHeight(property, label, true) : _height;
+            Type returnType = TriggerFuncDrawer.returnType != null ? TriggerFuncDrawer.returnType : getCustomReturnType();
+            if (_drawer == null)
+                _drawer = new TypedFuncStringDrawer(property.serializedObject.targetObject);
+            return disable ? EditorGUI.GetPropertyHeight(property, label, true) : _drawer.height;
         }
-        Dictionary<string, bool> _dicIsExpanded;
-        Dictionary<Type, List<FuncStringDrawer.Method>> _dicFuncOfReturnType;
+        TypedFuncStringDrawer _drawer = null;
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             if (!disable)
@@ -26,11 +28,9 @@ namespace TBSGameCore
                 Type returnType = TriggerFuncDrawer.returnType != null ? TriggerFuncDrawer.returnType : getCustomReturnType();
                 if (returnType != null)
                 {
-                    if (_dicIsExpanded == null)
-                        _dicIsExpanded = new Dictionary<string, bool>();
-                    if (_dicFuncOfReturnType == null)
-                        _dicFuncOfReturnType = new Dictionary<Type, List<FuncStringDrawer.Method>>();
-                    prop.stringValue = FuncStringDrawer.drawTypedFuncString(position, label, prop.stringValue, returnType, property.serializedObject.targetObject, _dicIsExpanded, label.text, _dicFuncOfReturnType, out _height);
+                    if (_drawer == null)
+                        _drawer = new TypedFuncStringDrawer(property.serializedObject.targetObject);
+                    prop.stringValue = _drawer.draw(position, label, prop.stringValue, returnType);
                 }
                 else
                     EditorGUI.LabelField(position, label, new GUIContent("必须用TypeAttribute指定类型"));

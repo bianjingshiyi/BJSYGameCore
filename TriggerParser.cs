@@ -62,9 +62,10 @@ namespace TBSGameCore
                 {
                     if (b == -1)
                     {
-                        methodName = value.Substring(startIndex, i - startIndex);
-                        b = 0;
+                        if (startIndex < i)
+                            methodName = value.Substring(startIndex, i - startIndex);
                         startIndex = i + 1;
+                        b = 0;
                     }
                     b++;
                 }
@@ -74,22 +75,34 @@ namespace TBSGameCore
                     if (b == 0)
                     {
                         if (startIndex < i)
-                        {
-                            string arg = value.Substring(startIndex, i - startIndex);
-                            argList.Add(arg);
-                        }
+                            argList.Add(value.Substring(startIndex, i - startIndex));
+                        else
+                            argList.Add(null);
                     }
                 }
                 else if (value[i] == ',' && b == 1)
                 {
-                    string arg = value.Substring(startIndex, i - startIndex);
-                    argList.Add(arg);
+                    if (startIndex < i)
+                        argList.Add(value.Substring(startIndex, i - startIndex));
+                    else
+                        argList.Add(null);
                     startIndex = i + 1;
                 }
             }
             args = argList.ToArray();
         }
-        public static void parseAction(string value, out string className, out string methodName, out string[] args)
+        public static void parseAction(string value, out string formatName)
+        {
+            formatName = null;
+            if (value == null)
+                return;
+            for (int i = 0; i < value.Length; i++)
+            {
+                if (value[i] == '(')
+                    formatName = value.Substring(0, i);
+            }
+        }
+        public static void parseReflectedAction(string value, out string className, out string methodName, out string[] args)
         {
             className = null;
             methodName = null;
@@ -110,8 +123,9 @@ namespace TBSGameCore
                 {
                     if (b == -1)
                     {
-                        methodName = value.Substring(startIndex, i - startIndex);
                         b = 0;
+                        if (startIndex < i)
+                            methodName = value.Substring(startIndex, i - startIndex);
                         startIndex = i + 1;
                     }
                     b++;
@@ -122,20 +136,111 @@ namespace TBSGameCore
                     if (b == 0)
                     {
                         if (startIndex < i)
-                        {
-                            string arg = value.Substring(startIndex, i - startIndex);
-                            argList.Add(arg);
-                        }
+                            argList.Add(value.Substring(startIndex, i - startIndex));
+                        else
+                            argList.Add(null);
                     }
                 }
                 else if (value[i] == ',' && b == 1)
                 {
-                    string arg = value.Substring(startIndex, i - startIndex);
-                    argList.Add(arg);
+                    if (startIndex < i)
+                        argList.Add(value.Substring(startIndex, i - startIndex));
+                    else
+                        argList.Add(null);
                     startIndex = i + 1;
                 }
             }
             args = argList.ToArray();
+        }
+        public static void parseActions(string value, out string[] actions)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                actions = new string[0];
+                return;
+            }
+            List<string> actionList = new List<string>();
+            int startIndex = 0;
+            int b = 0;
+            for (int i = 0; i < value.Length; i++)
+            {
+                if (value[i] == '{')
+                    b++;
+                else if (value[i] == ';' && b == 0)
+                {
+                    actionList.Add(value.Substring(startIndex, i - startIndex));
+                    startIndex = i + 1;
+                }
+                else if (value[i] == '}')
+                    b--;
+            }
+            actions = actionList.ToArray();
+        }
+        public static void parseIf(string value, out string condition, out string thenActions, out string elseActions)
+        {
+            condition = null;
+            thenActions = null;
+            elseActions = null;
+            if (value == null)
+                return;
+            int b0 = 0;
+            int b1 = 0;
+            int b2 = 0;
+            int startIndex = 0;
+            for (int i = 0; i < value.Length; i++)
+            {
+                if (b0 > 0)
+                {
+                    if (value[i] == '(')
+                    {
+                        b0++;
+                        startIndex = i + 1;
+                    }
+                    else if (value[i] == ')')
+                    {
+                        b0--;
+                        if (b0 == 0)
+                        {
+                            condition = value.Substring(startIndex, i - startIndex);
+                            b0 = -1;
+                        }
+                    }
+                }
+                else if (b1 > 0)
+                {
+                    if (value[i] == '{')
+                    {
+                        b1++;
+                        startIndex = i + 1;
+                    }
+                    else if (value[i] == '}')
+                    {
+                        b1--;
+                        if (b1 == 0)
+                        {
+                            thenActions = value.Substring(startIndex, i - startIndex);
+                            b1 = -1;
+                        }
+                    }
+                }
+                else if (b2 > 0)
+                {
+                    if (value[i] == '{')
+                    {
+                        b2++;
+                        startIndex = i + 1;
+                    }
+                    else if (value[i] == '}')
+                    {
+                        b2--;
+                        if (b2 == 0)
+                        {
+                            elseActions = value.Substring(startIndex, i - startIndex);
+                            b2 = -1;
+                        }
+                    }
+                }
+            }
         }
     }
 }
