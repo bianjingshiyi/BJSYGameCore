@@ -4,15 +4,15 @@ using UnityEngine;
 
 namespace TBSGameCore
 {
-    [AttributeUsage(AttributeTargets.Field, AllowMultiple = false, Inherited = true)]
-    public class RefTypeAttribute : PropertyAttribute
+    [AttributeUsage(AttributeTargets.Field, Inherited = false, AllowMultiple = false)]
+    sealed class FuncTypeAttribute : PropertyAttribute
     {
         Type _type;
         public Type type
         {
             get { return _type; }
         }
-        public RefTypeAttribute(Type type)
+        public FuncTypeAttribute(Type type)
         {
             _type = type;
         }

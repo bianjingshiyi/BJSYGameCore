@@ -14,57 +14,6 @@ namespace TBSGameCore
     [ExecuteInEditMode]
     public class SaveManager : MonoBehaviour
     {
-        #region Instance
-        [Header("实体")]
-        [SerializeField]
-        List<SavableInstanceRegistration> _instances = new List<SavableInstanceRegistration>();
-        [SerializeField]
-        List<int> _IDPool = new List<int>();
-        public int allocate(SavableInstance instance)
-        {
-            int id = 0;
-            if (_IDPool.Count > 0)
-            {
-                id = _IDPool[_IDPool.Count - 1];
-                _IDPool.RemoveAt(_IDPool.Count - 1);
-            }
-            else
-            {
-                id = _instances.Count + 1;
-            }
-            _instances.Add(new SavableInstanceRegistration(id, instance));
-            return id;
-        }
-        protected void allocate(SavableInstance instance, int id)
-        {
-            _instances.Add(new SavableInstanceRegistration(id, instance));
-        }
-        public void reallocate(int id, SavableInstance instance)
-        {
-            SavableInstanceRegistration r = _instances.Find(e => { return e.id == id; });
-            if (r != null)
-                r.instance = instance;
-            else
-                Debug.LogWarning("重新分配ID失败！" + id + "没有被分配。", instance);
-        }
-        public void deallocateAt(int index)
-        {
-            _IDPool.Add(_instances[index].id);
-            _instances.RemoveAt(index);
-        }
-        public SavableInstance getInstanceById(int id)
-        {
-            SavableInstanceRegistration reference = _instances.Find(e => { return e.id == id; });
-            if (reference != null)
-            {
-                return reference.instance;
-            }
-            else
-            {
-                return null;
-            }
-        }
-        #endregion
         #region Save
         public void saveAsFile(string path)
         {
@@ -163,6 +112,11 @@ namespace TBSGameCore
         /// <param name="data"></param>
         private void load(SaveData data)
         {
+            //清除所有Instance。
+            for (int i = 0; i < _registrations.Count; i++)
+            {
+                Destroy(_registrations[i].instance.gameObject);
+            }
             //先加载对所有SavableInstance。
             for (int i = 0; i < data.instances.Count; i++)
             {
@@ -181,11 +135,12 @@ namespace TBSGameCore
             return s;
         }
         #endregion
+        #region Instance
         protected void Update()
         {
-            for (int i = 0; i < _instances.Count; i++)
+            for (int i = 0; i < _registrations.Count; i++)
             {
-                if (_instances[i].instance == null)
+                if (_registrations[i].instance == null)
                 {
                     deallocateAt(i);
                     i--;
@@ -196,12 +151,62 @@ namespace TBSGameCore
         private void re_RegisterAll()
         {
             SavableInstance[] instances = this.findInstances<SavableInstance>();
-            _instances = new List<SavableInstanceRegistration>(instances.Length);
+            _registrations = new List<SavableInstanceRegistration>(instances.Length);
             _IDPool = new List<int>();
             for (int i = 0; i < instances.Length; i++)
             {
                 instances[i].id = allocate(instances[i]);
             }
         }
+        public int allocate(SavableInstance instance)
+        {
+            int id = 0;
+            if (_IDPool.Count > 0)
+            {
+                id = _IDPool[_IDPool.Count - 1];
+                _IDPool.RemoveAt(_IDPool.Count - 1);
+            }
+            else
+            {
+                id = _registrations.Count + 1;
+            }
+            _registrations.Add(new SavableInstanceRegistration(id, instance));
+            return id;
+        }
+        protected void allocate(SavableInstance instance, int id)
+        {
+            _registrations.Add(new SavableInstanceRegistration(id, instance));
+        }
+        public void reallocate(int id, SavableInstance instance)
+        {
+            SavableInstanceRegistration r = _registrations.Find(e => { return e.id == id; });
+            if (r != null)
+                r.instance = instance;
+            else
+                Debug.LogWarning("重新分配ID失败！" + id + "没有被分配。", instance);
+        }
+        public void deallocateAt(int index)
+        {
+            _IDPool.Add(_registrations[index].id);
+            _registrations.RemoveAt(index);
+        }
+        public SavableInstance getInstanceById(int id)
+        {
+            SavableInstanceRegistration reference = _registrations.Find(e => { return e.id == id; });
+            if (reference != null)
+            {
+                return reference.instance;
+            }
+            else
+            {
+                return null;
+            }
+        }
+        [Header("实体")]
+        [SerializeField]
+        List<SavableInstanceRegistration> _registrations = new List<SavableInstanceRegistration>();
+        [SerializeField]
+        List<int> _IDPool = new List<int>();
+        #endregion
     }
 }
