@@ -56,6 +56,10 @@ namespace TBSGameCore
             this.id = id;
             this.path = path;
         }
+        public bool isNull
+        {
+            get { return id <= 0 && string.IsNullOrEmpty(path); }
+        }
         public T findInstanceIn<T>(SaveManager saveManager)
         {
             if (id > 0)

@@ -125,7 +125,7 @@ namespace TBSGameCore
                     isExpanded = EditorGUI.Foldout(foldPosition, isExpanded, "");
                     if (isExpanded)
                     {
-                        Rect argPosition = new Rect(position.x + 16, position.y + 16, position.width - 16, 16);
+                        Rect argPosition = new Rect(position.x + 16, position.y + 16, position.width, 16);
                         if (_argDrawers == null || _argDrawers.Length != paras.Length)
                         {
                             _argDrawers = new TypedFuncStringDrawer[paras.Length];

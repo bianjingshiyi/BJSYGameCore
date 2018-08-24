@@ -32,16 +32,20 @@ namespace TBSGameCore
                     return 16;
             }
         }
+        int _index = -1;
         public string drawActionString(Rect position, GUIContent label, string value)
         {
             if (actions.Length > 0)
             {
-                string formatName;
-                TriggerParser.parseAction(value, out formatName);
-                //检查与获取值
-                int index = Array.FindIndex(actions, e => { return e.formatName == formatName; });
-                if (index < 0)
-                    index = 0;
+                if (_index < 0)
+                {
+                    string formatName;
+                    TriggerParser.parseAction(value, out formatName);
+                    //检查与获取值
+                    _index = Array.FindIndex(actions, e => { return e.formatName == formatName; });
+                }
+                if (_index < 0)
+                    _index = 0;
                 //绘制GUI
                 GUIContent[] options = new GUIContent[actions.Length];
                 for (int i = 0; i < actions.Length; i++)
@@ -53,27 +57,27 @@ namespace TBSGameCore
                     Rect optionsPosition = new Rect(valuePosition.x + labelPosition.width, valuePosition.y, valuePosition.width / 3, valuePosition.height);
                     Rect descPosition = new Rect(valuePosition.x + labelPosition.width + optionsPosition.width, valuePosition.y, valuePosition.width / 3, valuePosition.height);
                     EditorGUI.LabelField(labelPosition, label);
-                    int newIndex = EditorGUI.Popup(optionsPosition, index, options);
-                    if (newIndex != index)
+                    int newIndex = EditorGUI.Popup(optionsPosition, _index, options);
+                    if (newIndex != _index)
                     {
-                        index = newIndex;
+                        _index = newIndex;
                         _drawer = null;
                     }
-                    EditorGUI.LabelField(descPosition, new GUIContent(actions[index].displayDesc));
+                    EditorGUI.LabelField(descPosition, new GUIContent(actions[_index].displayDesc));
                 }
                 else
                 {
                     Rect optionsPosition = new Rect(valuePosition.x, valuePosition.y, valuePosition.width / 2, valuePosition.height);
                     Rect descPosition = new Rect(valuePosition.x + optionsPosition.width + optionsPosition.width, valuePosition.y, valuePosition.width / 2, valuePosition.height);
-                    int newIndex = EditorGUI.Popup(optionsPosition, index, options);
-                    if (newIndex != index)
+                    int newIndex = EditorGUI.Popup(optionsPosition, _index, options);
+                    if (newIndex != _index)
                     {
-                        index = newIndex;
+                        _index = newIndex;
                         _drawer = null;
                     }
-                    EditorGUI.LabelField(descPosition, new GUIContent(actions[index].displayDesc));
+                    EditorGUI.LabelField(descPosition, new GUIContent(actions[_index].displayDesc));
                 }
-                Method action = actions[index];
+                Method action = actions[_index];
                 if (_drawer == null)
                     _drawer = AbstractActionDrawer.factory(action.formatName, this);
                 if (_drawer != null)

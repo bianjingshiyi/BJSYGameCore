@@ -30,7 +30,9 @@ namespace TBSGameCore
                 {
                     if (_drawer == null)
                         _drawer = new TypedFuncStringDrawer(property.serializedObject.targetObject);
+                    EditorGUI.BeginProperty(position, label, property);
                     prop.stringValue = _drawer.draw(position, label, prop.stringValue, returnType);
+                    EditorGUI.EndProperty();
                 }
                 else
                     EditorGUI.LabelField(position, label, new GUIContent("必须用TypeAttribute指定类型"));

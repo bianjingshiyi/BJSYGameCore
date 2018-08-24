@@ -24,7 +24,9 @@ namespace TBSGameCore
                 SerializedProperty prop = property.FindPropertyRelative("value");
                 if (_drawer == null)
                     _drawer = new ActionStringDrawer(property.serializedObject.targetObject);
+                EditorGUI.BeginProperty(position, label, property);
                 prop.stringValue = _drawer.drawActionString(position, label, prop.stringValue);
+                EditorGUI.EndProperty();
             }
             else
                 EditorGUI.PropertyField(position, property, label, true);

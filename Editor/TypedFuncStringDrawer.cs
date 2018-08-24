@@ -41,10 +41,7 @@ namespace TBSGameCore
                     realValue = value.Substring(1, value.Length - 1);
             }
             //绘制类型GUI，改变类型
-            Rect typePosition = new Rect(position);
-            typePosition.x = position.x + (position.width - 48);
-            typePosition.width = 48;
-            typePosition.height = 16;
+            Rect typePosition = new Rect(position.x + position.width - 48, position.y, 48, 16);
             int newType = EditorGUI.Popup(typePosition, type, new string[] { "常量", "变量", "表达式" });
             if (newType != type)
             {
@@ -52,15 +49,15 @@ namespace TBSGameCore
                 realValue = null;
                 _drawer = AbstractFuncStringDrawer.factory(type.ToString(), this);
             }
-            //绘制值GUI，改变值
-            Rect valuePosition = new Rect(position);
-            valuePosition.width -= 48;
-            valuePosition.height = 16;
             //自动生成Drawer
             if (_drawer == null)
                 _drawer = AbstractFuncStringDrawer.factory(type.ToString(), this);
             if (_drawer != null)
+            {
+                //绘制值GUI，改变值
+                Rect valuePosition = new Rect(position.x, position.y, position.width - 48, _drawer.height);
                 realValue = _drawer.draw(valuePosition, label, realValue, returnType);
+            }
             //重新组合类型和真值得到值
             return type.ToString() + realValue;
         }
