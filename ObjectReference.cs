@@ -9,6 +9,14 @@ namespace TBSGameCore
     public class ObjectReference
     {
         public int id;
+        public ObjectReference(int id)
+        {
+            this.id = id;
+        }
+        public static ObjectReference convert<T>(T obj,IObjectKeeper<T> keeper) where T : UnityEngine.Object
+        {
+            return new ObjectReference(keeper.getIdOfObject(obj));
+        }
         public T getValue<T>(IObjectKeeper<T> keeper) where T : UnityEngine.Object
         {
             if (keeper != null)

@@ -37,6 +37,12 @@ namespace TBSGameCore
         {
             get { return new InstanceReference(id, path); }
         }
+        public static SavableInstance create(SaveManager saveManager,string name)
+        {
+            SavableInstance instance = new GameObject(name).AddComponent<SavableInstance>();
+            instance.id = saveManager.allocate(instance);
+            return instance;
+        }
         public static SavableInstance create(int id, Scene scene, string path)
         {
             SavableInstance instance = scene.newGameObjectAt(path).AddComponent<SavableInstance>();
