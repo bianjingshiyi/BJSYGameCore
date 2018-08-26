@@ -11,5 +11,10 @@ namespace TBSGameCore
     {
         public int id;
         public string path;
+        public SavableInstanceData(int id, string path)
+        {
+            this.id = id;
+            this.path = path;
+        }
     }
 }
