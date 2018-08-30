@@ -124,10 +124,10 @@ namespace TBSGameCore
             UnityEngine.Object obj = null;
             if (idProp.intValue > 0)
             {
-                SaveManager saveManager = (property.serializedObject.targetObject as Component).gameObject.scene.findInstance<SaveManager>();
-                if (saveManager != null)
+                InstanceManager manager = (property.serializedObject.targetObject as Component).gameObject.scene.findInstance<InstanceManager>();
+                if (manager != null)
                 {
-                    SavableInstance instance = saveManager.getInstanceById(idProp.intValue);
+                    SavableInstance instance = manager.getInstanceById(idProp.intValue);
                     if (!string.IsNullOrEmpty(pathProp.stringValue))
                     {
                         GameObject child = instance.findChild(pathProp.stringValue);
@@ -149,7 +149,7 @@ namespace TBSGameCore
                 }
                 else
                 {
-                    GUI.Box(position, "场景里没有SaveManager");
+                    GUI.Box(position, "场景里没有" + nameof(InstanceManager));
                     obj = null;
                 }
             }

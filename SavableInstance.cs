@@ -37,18 +37,23 @@ namespace TBSGameCore
         {
             get { return new InstanceReference(id, path); }
         }
-        public static SavableInstance create(SaveManager saveManager,string name)
+        public static SavableInstance create(InstanceManager manager, string name)
         {
             SavableInstance instance = new GameObject(name).AddComponent<SavableInstance>();
-            instance.id = saveManager.allocate(instance);
+            instance.id = manager.allocate(instance);
             return instance;
         }
-        public static SavableInstance create(int id, Scene scene, string path)
+        public static SavableInstance create(Scene scene, string path, int id)
         {
             SavableInstance instance = scene.newGameObjectAt(path).AddComponent<SavableInstance>();
             instance._id = id;
             return instance;
         }
+        protected void Awake()
+        {
+            manager = this.findInstance<InstanceManager>();
+        }
+        InstanceManager manager { get; set; }
         public GameObject findChild(string path)
         {
             if (string.IsNullOrEmpty(path))
@@ -75,37 +80,35 @@ namespace TBSGameCore
         bool _checked = false;
         protected void Update()
         {
-            if (id <= 0)
+            if (manager != null)
             {
-                //没有注册，注册ID。
-                SaveManager saveManager = this.findInstance<SaveManager>();
-                if (saveManager == null)
+                if (id <= 0)
                 {
-                    saveManager = new GameObject("SaveManager").AddComponent<SaveManager>();
+                    //没有注册，注册ID。
+                    id = manager.allocate(this);
+                    _checked = true;
                 }
-                id = saveManager.allocate(this);
-                _checked = true;
-            }
-            else if (!_checked)
-            {
-                //已经注册，没有检查，检查是否实际上丢失了注册。
-                SaveManager saveManager = this.findInstance<SaveManager>();
-                if (saveManager == null)
+                else if (!_checked)
                 {
-                    saveManager = new GameObject("SaveManager").AddComponent<SaveManager>();
-                }
-                SavableInstance other = saveManager.getInstanceById(id);
-                if (other == null)
-                {
-                    //有ID但是丢失引用，重新分配引用
-                    saveManager.reallocate(id, this);
-                }
-                else if (other != this)
-                {
-                    //引用被别人占据了，重新注册
-                    id = saveManager.allocate(this);
+                    //已经注册，没有检查，检查是否实际上丢失了注册。
+                    SavableInstance other = manager.getInstanceById(id);
+                    if (other == null)
+                    {
+                        //有ID但是丢失引用，重新分配引用
+                        manager.reallocate(id, this);
+                    }
+                    else if (other != this)
+                    {
+                        //引用被别人占据了，重新注册
+                        id = manager.allocate(this);
+                    }
                 }
             }
+        }
+        protected void OnDestroy()
+        {
+            if (manager != null)
+                manager.dellocate(this);
         }
     }
 }

@@ -60,11 +60,11 @@ namespace TBSGameCore
         {
             get { return id <= 0 && string.IsNullOrEmpty(path); }
         }
-        public T findInstanceIn<T>(SaveManager saveManager)
+        public T findInstanceIn<T>(InstanceManager manager)
         {
             if (id > 0)
             {
-                SavableInstance instance = saveManager.getInstanceById(id);
+                SavableInstance instance = manager.getInstanceById(id);
                 if (string.IsNullOrEmpty(path))
                 {
                     return instance.GetComponent<T>();
@@ -86,7 +86,7 @@ namespace TBSGameCore
             else if (!string.IsNullOrEmpty(path))
             {
                 string[] names = path.Split('/');
-                GameObject root = saveManager.gameObject.scene.GetRootGameObjects().FirstOrDefault(e => { return e.name == names[0]; });
+                GameObject root = manager.gameObject.scene.GetRootGameObjects().FirstOrDefault(e => { return e.name == names[0]; });
                 if (root == null)
                     return default(T);
                 Transform parent = root.transform;
@@ -105,7 +105,7 @@ namespace TBSGameCore
         {
             if (id > 0)
             {
-                SavableInstance instance = scene.findInstance<SaveManager>().getInstanceById(id);
+                SavableInstance instance = scene.findInstance<InstanceManager>().getInstanceById(id);
                 if (string.IsNullOrEmpty(path))
                 {
                     return instance.GetComponent<T>();
@@ -146,7 +146,7 @@ namespace TBSGameCore
         {
             if (id > 0)
             {
-                SavableInstance instance = scene.findInstance<SaveManager>().getInstanceById(id);
+                SavableInstance instance = scene.findInstance<InstanceManager>().getInstanceById(id);
                 if (string.IsNullOrEmpty(path))
                 {
                     return instance.GetComponent(type);
