@@ -60,14 +60,26 @@ namespace TBSGameCore
             ISavable[] objs = transform.GetComponents<ISavable>();
             for (int i = 0; i < objs.Length; i++)
             {
-                LoadPriorityAttribute att = objs[i].GetType().GetCustomAttribute<LoadPriorityAttribute>();
-                data.savedObjects.Add(new SaveObjectData(current != null ? current.id : 0, current != null ? relative : path, att == null ? 0 : att.priority, objs[i].save()));
+                data.savedObjects.Add(new SaveObjectData(current != null ? current.id : 0, current != null ? relative : path, getTypePriority(objs[i].GetType()), objs[i].save()));
             }
             for (int i = 0; i < transform.childCount; i++)
             {
                 Transform child = transform.GetChild(i);
                 findAndSaveObject(data, child, current, path + '/' + child.gameObject.name, relative == null ? child.gameObject.name : (relative + '/' + child.gameObject.name));
             }
+        }
+        private float getTypePriority(Type type)
+        {
+            LoadPriorityAttribute att = type.GetCustomAttribute<LoadPriorityAttribute>();
+            if (att != null)
+                return att.priority;
+            LoadBeforeAttribute beforeAtt = type.GetCustomAttribute<LoadBeforeAttribute>();
+            if (beforeAtt != null)
+                return getTypePriority(beforeAtt.targetType) - 1;
+            LoadAfterAttribute afterAtt = type.GetCustomAttribute<LoadAfterAttribute>();
+            if (afterAtt != null)
+                return getTypePriority(afterAtt.targetType) + 1;
+            return 0;
         }
         #endregion
         #region Load

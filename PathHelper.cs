@@ -12,7 +12,7 @@ namespace TBSGameCore
             string path = component.gameObject.name;
             for (Transform parent = component.transform.parent; parent != null; parent = parent.parent)
             {
-                path = parent.gameObject.name + path;
+                path = parent.gameObject.name + "/" + path;
             }
             return path;
         }
@@ -21,9 +21,39 @@ namespace TBSGameCore
             string path = gameObject.name;
             for (Transform parent = gameObject.transform.parent; parent != null; parent = parent.parent)
             {
-                path = parent.gameObject.name + path;
+                path = parent.gameObject.name + "/" + path;
             }
             return path;
+        }
+        public static string getChildPath(this Transform transform, Transform child)
+        {
+            if (transform != child)
+            {
+                string path = child.gameObject.name;
+                for (Transform parent = child.parent; parent != null && parent != transform; parent = parent.parent)
+                {
+                    path = parent.gameObject.name + "/" + path;
+                }
+                return path;
+            }
+            else
+                return string.Empty;
+        }
+        public static Transform getChildAt(this Transform transform, string path)
+        {
+            if (!string.IsNullOrEmpty(path))
+            {
+                string[] names = path.Split('/');
+                for (int i = 0; i < names.Length; i++)
+                {
+                    transform = transform.Find(names[i]);
+                    if (transform == null)
+                        return null;
+                }
+                return transform;
+            }
+            else
+                return transform;
         }
         public static T findInstanceAt<T>(this Scene scene, string path) where T : Component
         {
