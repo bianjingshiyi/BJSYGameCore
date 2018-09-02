@@ -101,6 +101,14 @@ namespace TBSGameCore
                 }
             }
         }
+        SaveData loadingData
+        {
+            get; set;
+        }
+        public SaveObjectData[] loadingObjects
+        {
+            get { return loadingData.savedObjects.ToArray(); }
+        }
         /// <summary>
         /// 加载存档数据。
         /// </summary>
@@ -108,7 +116,8 @@ namespace TBSGameCore
         private void load(SaveData data)
         {
             //按照优先级排序
-            data.savedObjects.Sort((a, b) =>
+            loadingData = data;
+            loadingData.savedObjects.Sort((a, b) =>
             {
                 if (a.priority > b.priority)
                     return 1;
@@ -118,9 +127,9 @@ namespace TBSGameCore
                     return 0;
             });
             //再加载
-            for (int i = 0; i < data.savedObjects.Count; i++)
+            for (int i = 0; i < loadingData.savedObjects.Count; i++)
             {
-                loadInstance(data.savedObjects[i], gameObject.scene);
+                loadInstance(loadingData.savedObjects[i], gameObject.scene);
             }
         }
         private ISavable loadInstance(SaveObjectData obj, Scene scene)
