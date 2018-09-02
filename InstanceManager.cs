@@ -1,11 +1,11 @@
 ﻿using System;
+using System.Linq;
 using System.Collections.Generic;
 
 using UnityEngine;
 
 namespace TBSGameCore
 {
-    [LoadPriority(-64)]
     [ExecuteInEditMode]
     public class InstanceManager : MonoBehaviour, ISavable
     {
