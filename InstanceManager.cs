@@ -37,17 +37,26 @@ namespace TBSGameCore
             _registrations.Add(new SavableInstanceRegistration(id, instance));
             return id;
         }
-        protected void allocate(SavableInstance instance, int id)
-        {
-            _registrations.Add(new SavableInstanceRegistration(id, instance));
-        }
+        /// <summary>
+        /// 重新分配ID
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="instance"></param>
         public void reallocate(int id, SavableInstance instance)
         {
             SavableInstanceRegistration r = _registrations.Find(e => { return e.id == id; });
             if (r != null)
                 r.instance = instance;
             else
-                Debug.LogWarning("重新分配ID失败！" + id + "没有被分配。", instance);
+            {
+                if (data.idPool.Remove(id))
+                    _registrations.Add(new SavableInstanceRegistration(id, instance));
+                else
+                {
+                    //从来都没分配过这样的ID，那么你说有就有吧。
+                    _registrations.Add(new SavableInstanceRegistration(id, instance));
+                }
+            }
         }
         public SavableInstance getInstanceById(int id)
         {
@@ -83,13 +92,6 @@ namespace TBSGameCore
                 }
             }
         }
-        private void clearAllInstance()
-        {
-            for (int i = 0; i < _registrations.Count; i++)
-            {
-                Destroy(_registrations[i].instance.gameObject);
-            }
-        }
         public ILoadableData save()
         {
             cleanNullRegistrations();
@@ -102,6 +104,10 @@ namespace TBSGameCore
             }
             return _data;
         }
+        InstanceManagerData data
+        {
+            get { return _data; }
+        }
         [SerializeField]
         InstanceManagerData _data = new InstanceManagerData();
         [Serializable]
@@ -112,17 +118,7 @@ namespace TBSGameCore
             public ISavable load(SaveManager saveManager, int id, string path)
             {
                 InstanceManager manager = saveManager.findInstance<InstanceManager>();
-                //先清理所有实例
-                manager.clearAllInstance();
-                //再创建被保存的实例
-                if (instances != null)
-                {
-                    for (int i = 0; i < instances.Length; i++)
-                    {
-                        SavableInstance instance = SavableInstance.create(saveManager.gameObject.scene, instances[i].path, instances[i].id);
-                        manager._registrations.Add(new SavableInstanceRegistration(instance.id, instance));
-                    }
-                }
+                manager._data = this;
                 return manager;
             }
         }
