@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace TBSGameCore.TriggerSystem
 {
-    public class TriggerConstInt : TriggerConst<int>
+    public class TriggerConstString : TriggerConst<string>
     {
     }
 }

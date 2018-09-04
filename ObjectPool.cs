@@ -28,7 +28,7 @@ namespace TBSGameCore
             {
                 ObjectPoolPair p = _pool[_pool.Count - 1];
                 _pool.RemoveAt(_pool.Count - 1);
-                _instances.Add(p);//TODO:优化有序列表
+                _instances.Add(p);
                 instance = p.instance;
                 ID = p.id;
                 //设置实例状态
