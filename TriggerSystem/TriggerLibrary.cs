@@ -1,27 +1,30 @@
 ﻿using System;
+using System.Linq;
 using System.Reflection;
 using System.Collections.Generic;
+
+using UnityEngine;
 
 namespace TBSGameCore.TriggerSystem
 {
     public static class TriggerLibrary
     {
-        static Dictionary<Assembly, Dictionary<string, TriggerFuncDefine>> _dicLibrary = null;
+        static Dictionary<Assembly, Dictionary<string, TriggerMethodDefine>> _dicFuncLibrary = null;
         public static void load(Assembly assembly)
         {
-            if (_dicLibrary == null)
-                _dicLibrary = new Dictionary<Assembly, Dictionary<string, TriggerFuncDefine>>();
-            if (!_dicLibrary.ContainsKey(assembly))
+            if (_dicFuncLibrary == null)
+                _dicFuncLibrary = new Dictionary<Assembly, Dictionary<string, TriggerMethodDefine>>();
+            if (!_dicFuncLibrary.ContainsKey(assembly))
             {
-                _dicLibrary.Add(assembly, new Dictionary<string, TriggerFuncDefine>());
+                _dicFuncLibrary.Add(assembly, new Dictionary<string, TriggerMethodDefine>());
                 foreach (Type type in assembly.GetTypes())
                 {
                     foreach (MethodInfo method in type.GetMethods())
                     {
-                        TriggerFuncAttribute att = method.GetCustomAttribute<TriggerFuncAttribute>();
+                        TriggerMethodAttribute att = method.GetCustomAttribute<TriggerMethodAttribute>();
                         if (att != null)
                         {
-                            _dicLibrary[assembly].Add(att.idName, new TriggerFuncDefine(att, method));
+                            _dicFuncLibrary[assembly].Add(att.idName, new TriggerMethodDefine(att, method));
                         }
                     }
                 }
@@ -29,15 +32,15 @@ namespace TBSGameCore.TriggerSystem
         }
         public static bool isAssemblyLoaded(Assembly assembly)
         {
-            return _dicLibrary != null && _dicLibrary.ContainsKey(assembly);
+            return _dicFuncLibrary != null && _dicFuncLibrary.ContainsKey(assembly);
         }
-        public static TriggerFuncDefine getFuncDefine(string idName)
+        public static TriggerMethodDefine getMethodDefine(string idName)
         {
             if (string.IsNullOrEmpty(idName))
                 return null;
-            if (_dicLibrary != null)
+            if (_dicFuncLibrary != null)
             {
-                foreach (var adp in _dicLibrary)
+                foreach (var adp in _dicFuncLibrary)
                 {
                     if (adp.Value.ContainsKey(idName))
                         return adp.Value[idName];
@@ -47,14 +50,32 @@ namespace TBSGameCore.TriggerSystem
             else
                 return null;
         }
-        public static TriggerFuncDefine[] getFuncDefines()
+        public static TriggerMethodDefine[] getMethodDefines()
         {
-            List<TriggerFuncDefine> funcList = new List<TriggerFuncDefine>();
-            foreach (var adp in _dicLibrary)
+            List<TriggerMethodDefine> funcList = new List<TriggerMethodDefine>();
+            foreach (var adp in _dicFuncLibrary)
             {
                 funcList.AddRange(adp.Value.Values);
             }
             return funcList.ToArray();
+        }
+        public static TriggerMethodDefine[] getFuncDefines(Type returnType)
+        {
+            List<TriggerMethodDefine> funcList = new List<TriggerMethodDefine>();
+            foreach (var adp in _dicFuncLibrary)
+            {
+                funcList.AddRange(adp.Value.Values.Where(e => { return returnType.IsAssignableFrom(e.returnType) || e.returnType.IsSubclassOf(returnType); }));
+            }
+            return funcList.ToArray();
+        }
+        public static TriggerMethodDefine[] getActionDefines()
+        {
+            List<TriggerMethodDefine> actionList = new List<TriggerMethodDefine>();
+            foreach (var adp in _dicFuncLibrary)
+            {
+                actionList.AddRange(adp.Value.Values.Where(e => { return e.returnType == typeof(void); }));
+            }
+            return actionList.ToArray();
         }
     }
 }

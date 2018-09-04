@@ -1,58 +1,27 @@
 ﻿using System;
-using System.Reflection;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-
 using UnityEngine;
-using UnityEditor;
 
 namespace TBSGameCore.TriggerSystem
 {
-    [CustomPropertyDrawer(typeof(TriggerExpr))]
-    public class TriggerExprDrawer : PropertyDrawer
+    abstract class TriggerExprDrawer : TriggerObjectDrawer
     {
-        public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
+        /// <summary>
+        /// 绘制的目标的类型
+        /// </summary>
+        protected Type targetType { get; private set; }
+        /// <summary>
+        /// 绘制的目标的名字
+        /// </summary>
+        protected string targetName { get; private set; }
+        public TriggerExprDrawer(Component targetObject, Transform transform, Type targetType, string targetName) : base(targetObject, transform)
         {
-            if (_drawer == null)
-            {
-                Type exprType;
-                TypeAttribute att = fieldInfo.GetCustomAttribute<TypeAttribute>();
-                if (att != null)
-                    exprType = att.type;
-                else
-                    exprType = typeof(object);
-                Component targetObject = property.serializedObject.targetObject as Component;
-                _drawer = new TriggerTypedExprDrawer(targetObject, targetObject.transform, exprType, label.text);
-            }
-            return _drawer.height;
+            this.targetType = targetType;
+            this.targetName = targetName;
         }
-        TriggerTypedExprDrawer _drawer;
-        public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
+        public TriggerExprDrawer(TriggerObjectDrawer parent, Transform transform, Type targetType, string targetName) : base(parent, transform)
         {
-            EditorGUI.BeginProperty(position, label, property);
-            if (property.serializedObject.targetObject is Component)
-            {
-                //绘制类型
-                Type exprType;
-                TypeAttribute att = fieldInfo.GetCustomAttribute<TypeAttribute>();
-                if (att != null)
-                    exprType = att.type;
-                else
-                    exprType = typeof(object);
-                Component targetObject = property.serializedObject.targetObject as Component;
-                if (_drawer == null)
-                    _drawer = new TriggerTypedExprDrawer(targetObject, targetObject.transform, exprType, label.text);
-                TriggerExpr expr = property.objectReferenceValue as TriggerExpr;
-                expr = _drawer.draw(position, label, expr);
-                property.objectReferenceValue = expr;
-            }
-            else
-            {
-                EditorGUI.LabelField(position, label, new GUIContent("目前TriggerSystem只支持作为组件的成员字段！"));
-            }
-            EditorGUI.EndProperty();
+            this.targetType = targetType;
+            this.targetName = targetName;
         }
     }
 }

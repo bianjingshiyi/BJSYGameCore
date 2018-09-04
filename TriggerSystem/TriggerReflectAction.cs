@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace TBSGameCore.TriggerSystem
 {
-    public class TriggerReflectFunc : TriggerExpr
+    public class TriggerReflectAction : TriggerAction
     {
         [SerializeField]
         string _idName;
@@ -40,15 +40,15 @@ namespace TBSGameCore.TriggerSystem
                     return desc;
                 }
                 else
-                    return "空函数";
+                    return "空动作";
             }
         }
-        public override object getValue(Object targetObject)
+        public override void invoke(Object targetObject)
         {
             if (!TriggerLibrary.isAssemblyLoaded(targetObject.GetType().Assembly))
                 TriggerLibrary.load(targetObject.GetType().Assembly);
             TriggerMethodDefine define = TriggerLibrary.getMethodDefine(idName);
-            return define.invoke(args.Select(e => { return e.getValue(targetObject); }).ToArray());
+            define.invoke(args.Select(e => { return e != null ? e.getValue(targetObject) : null; }).ToArray());
         }
     }
 }

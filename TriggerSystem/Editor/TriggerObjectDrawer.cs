@@ -18,16 +18,11 @@ namespace TBSGameCore.TriggerSystem
         {
             get; private set;
         }
-        protected TriggerFuncDefine[] funcLibrary
+        protected TriggerMethodDefine[] funcLibrary
         {
             get { return parent != null ? parent.funcLibrary : _funcLibrary; }
         }
-        TriggerFuncDefine[] _funcLibrary;
-        protected GUIContent[] funcOptions
-        {
-            get { return parent != null ? parent.funcOptions : _funcOptions; }
-        }
-        GUIContent[] _funcOptions;
+        TriggerMethodDefine[] _funcLibrary;
         TriggerObjectDrawer parent { get; set; } = null;
         public TriggerObjectDrawer(Component targetObject, Transform transform)
         {
@@ -35,8 +30,7 @@ namespace TBSGameCore.TriggerSystem
             this.transform = transform;
             if (!TriggerLibrary.isAssemblyLoaded(targetObject.GetType().Assembly))
                 TriggerLibrary.load(targetObject.GetType().Assembly);
-            _funcLibrary = TriggerLibrary.getFuncDefines();
-            _funcOptions = TriggerLibrary.getFuncDefines().Select(e => { return new GUIContent(e.editorName); }).ToArray();
+            _funcLibrary = TriggerLibrary.getMethodDefines();
         }
         public TriggerObjectDrawer(TriggerObjectDrawer parent, Transform transform)
         {

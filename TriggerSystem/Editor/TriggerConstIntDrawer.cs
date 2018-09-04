@@ -1,11 +1,12 @@
-﻿using UnityEditor;
+﻿using System;
+using UnityEditor;
 using UnityEngine;
 
 namespace TBSGameCore.TriggerSystem
 {
     class TriggerConstIntDrawer : TriggerExprSubDrawer<TriggerConstInt>
     {
-        public TriggerConstIntDrawer(TriggerObjectDrawer parent, Transform transform) : base(parent, transform)
+        public TriggerConstIntDrawer(TriggerObjectDrawer parent, Transform transform, Type targetType, string targetName) : base(parent, transform, targetType, targetName)
         {
         }
         public override float height
@@ -28,7 +29,7 @@ namespace TBSGameCore.TriggerSystem
     }
     abstract class TriggerConstDrawer<T> : TriggerExprSubDrawer<T> where T : TriggerConst
     {
-        public TriggerConstDrawer(TriggerObjectDrawer parent, Transform transform) : base(parent, transform)
+        public TriggerConstDrawer(TriggerObjectDrawer parent, Transform transform, Type targetType, string targetName) : base(parent, transform, targetType, targetName)
         {
         }
         protected override void draw(Rect position, GUIContent label, T expr)
@@ -48,7 +49,7 @@ namespace TBSGameCore.TriggerSystem
     }
     class TriggerConstStringDrawer : TriggerConstDrawer<TriggerConstString>
     {
-        public TriggerConstStringDrawer(TriggerObjectDrawer parent, Transform transform) : base(parent, transform)
+        public TriggerConstStringDrawer(TriggerObjectDrawer parent, Transform transform, Type targetType, string targetName) : base(parent, transform, targetType, targetName)
         {
         }
         public override float height

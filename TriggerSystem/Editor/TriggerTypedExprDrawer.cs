@@ -4,31 +4,23 @@ using UnityEngine;
 
 namespace TBSGameCore.TriggerSystem
 {
-    class TriggerTypedExprDrawer : TriggerObjectDrawer
+    class TriggerTypedExprDrawer : TriggerExprDrawer
     {
         public override float height
         {
             get
             {
                 if (_drawer != null)
-                {
                     return _drawer.height;
-                }
                 else
                     return 16;
             }
         }
-        Type exprType { get; set; }
-        string exprName { get; set; }
-        public TriggerTypedExprDrawer(Component targetObject, Transform transform, Type exprType, string exprName) : base(targetObject, transform)
+        public TriggerTypedExprDrawer(Component targetObject, Transform transform, Type targetType, string targetName) : base(targetObject, transform, targetType, targetName)
         {
-            this.exprType = exprType;
-            this.exprName = exprName;
         }
-        public TriggerTypedExprDrawer(TriggerObjectDrawer parent, Transform transform, Type exprType, string exprName) : base(parent, transform)
+        public TriggerTypedExprDrawer(TriggerObjectDrawer parent, Transform transform, Type targetType, string targetName) : base(parent, transform, targetType, targetName)
         {
-            this.exprType = exprType;
-            this.exprName = exprName;
         }
         public TriggerExpr draw(Rect position, GUIContent label, TriggerExpr expr)
         {
@@ -46,7 +38,7 @@ namespace TBSGameCore.TriggerSystem
             else
             {
                 if (_drawer == null)
-                    _drawer = TriggerExprSubDrawer.getExprDrawer(expr.GetType(), this, expr.transform);
+                    _drawer = TriggerExprSubDrawer.getExprDrawer(expr.GetType(), this, expr.transform, targetType, targetName);
                 exprPosition = new Rect(position.x, position.y, position.width - typePosition.width, _drawer.height);
                 _drawer.draw(exprPosition, label, expr);
             }
@@ -60,9 +52,9 @@ namespace TBSGameCore.TriggerSystem
                 if (expr != null)
                     UnityEngine.Object.DestroyImmediate(expr.gameObject);
                 //创建新的
-                expr = getExprOfType(exprName, newType, exprType, transform);
+                expr = createExprOfType(targetName, newType, targetType, transform);
                 if (expr != null)
-                    _drawer = TriggerExprSubDrawer.getExprDrawer(expr.GetType(), this, expr.transform);
+                    _drawer = TriggerExprSubDrawer.getExprDrawer(expr.GetType(), this, expr.transform, targetType, targetName);
                 else
                     _drawer = null;
             }
@@ -83,22 +75,17 @@ namespace TBSGameCore.TriggerSystem
             else
                 return 0;
         }
-        TriggerExpr getExprOfType(string name, int exprType, Type targetType, Transform transform)
+        TriggerExpr createExprOfType(string name, int exprType, Type targetType, Transform transform)
         {
             if (exprType == 1)
             {
                 //常量
-                if (targetType == typeof(int))
+                TriggerConst constExpr = TriggerConst.getConstOfType(targetType);
+                if (constExpr != null)
                 {
-                    GameObject gameObject = new GameObject(name);
-                    gameObject.transform.parent = transform;
-                    return gameObject.AddComponent<TriggerConstInt>();
-                }
-                else if (targetType == typeof(string))
-                {
-                    GameObject gameObject = new GameObject(name);
-                    gameObject.transform.parent = transform;
-                    return gameObject.AddComponent<TriggerConstString>();
+                    constExpr.gameObject.name = name;
+                    constExpr.transform.parent = transform;
+                    return constExpr;
                 }
                 else
                 {

@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace TBSGameCore.TriggerSystem
 {
-    public class TriggerFuncDefine
+    public class TriggerMethodDefine
     {
         public Type returnType
         {
@@ -21,7 +21,7 @@ namespace TBSGameCore.TriggerSystem
             get; private set;
         }
         MethodInfo info { get; set; }
-        public TriggerFuncDefine(TriggerFuncAttribute attribute, MethodInfo method)
+        public TriggerMethodDefine(TriggerMethodAttribute attribute, MethodInfo method)
         {
             idName = attribute.idName;
             editorName = attribute.editorName;
