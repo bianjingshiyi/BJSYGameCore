@@ -38,11 +38,13 @@ namespace TBSGameCore.TriggerSystem
             {
                 if (_drawer == null)
                     _drawer = TriggerActionSubDrawer.getActionDrawer(action.GetType(), this, action.transform);
+                else if (!_drawer.canDraw(action))
+                    _drawer = TriggerActionSubDrawer.getActionDrawer(action.GetType(), this, action.transform);
                 actionPosition = new Rect(position.x, position.y, position.width - typePosition.width, _drawer.height);
                 _drawer.draw(actionPosition, label, action);
             }
             //绘制类型
-            GUIContent[] typeOptions = new GUIContent[] { new GUIContent("空动作"), new GUIContent("语句"), new GUIContent("动作") };
+            GUIContent[] typeOptions = new GUIContent[] { new GUIContent("空动作"), new GUIContent("动作"), new GUIContent("作用域") };
             int type = getActionType(action);
             int newType = EditorGUI.Popup(typePosition, type, typeOptions);
             if (newType != type)
@@ -51,7 +53,7 @@ namespace TBSGameCore.TriggerSystem
                 if (action != null)
                     UnityEngine.Object.DestroyImmediate(action.gameObject);
                 //创建新的
-                action = createActionOfType(label.text, newType, transform);
+                action = createActionOfType(label != null ? label.text : "Action", newType, transform);
                 if (action != null)
                     _drawer = TriggerActionSubDrawer.getActionDrawer(action.GetType(), this, action.transform);
                 else
@@ -65,6 +67,8 @@ namespace TBSGameCore.TriggerSystem
             if (action != null)
             {
                 if (action is TriggerReflectAction)
+                    return 1;
+                else if (action is TriggerScopeAction)
                     return 2;
                 else
                     return 0;
@@ -76,16 +80,17 @@ namespace TBSGameCore.TriggerSystem
         {
             if (actionType == 1)
             {
-                //语句
-                Debug.LogWarning("TriggerSystem暂时不支持语句类型！");
-                return null;
-            }
-            else if (actionType == 2)
-            {
-                //函数
+                //动作
                 GameObject gameObject = new GameObject(name);
                 gameObject.transform.parent = transform;
                 return gameObject.AddComponent<TriggerReflectAction>();
+            }
+            else if (actionType == 2)
+            {
+                //作用域
+                GameObject gameObject = new GameObject(name);
+                gameObject.transform.parent = transform;
+                return gameObject.AddComponent<TriggerScopeAction>();
             }
             else
                 return null;

@@ -1,5 +1,6 @@
 ﻿using System.Linq;
 using UnityEngine;
+using UnityEditor;
 
 namespace TBSGameCore.TriggerSystem
 {
@@ -36,6 +37,10 @@ namespace TBSGameCore.TriggerSystem
         {
             this.parent = parent;
             this.transform = transform;
+        }
+        public void repaint()
+        {
+            EditorUtility.SetDirty(targetObject);
         }
     }
 }

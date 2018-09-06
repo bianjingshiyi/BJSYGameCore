@@ -9,6 +9,6 @@ namespace TBSGameCore.TriggerSystem
         {
             get;
         }
-        public abstract void invoke(UnityEngine.Object targetObject);
+        public abstract void invoke(Object targetObject);
     }
 }

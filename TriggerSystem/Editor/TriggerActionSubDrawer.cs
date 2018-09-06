@@ -12,6 +12,7 @@ namespace TBSGameCore.TriggerSystem
         public TriggerActionSubDrawer(TriggerObjectDrawer parent, Transform transform) : base(parent, transform)
         {
         }
+        public abstract bool canDraw(TriggerAction action);
         public abstract void draw(Rect position, GUIContent label, TriggerAction action);
         public static TriggerActionSubDrawer getActionDrawer(Type actionType, TriggerObjectDrawer parent, Transform transform)
         {
@@ -42,6 +43,10 @@ namespace TBSGameCore.TriggerSystem
         public TriggerActionSubDrawer(TriggerObjectDrawer parent, Transform transform) : base(parent, transform)
         {
         }
+        public override bool canDraw(TriggerAction action)
+        {
+            return action is T;
+        }
         public override void draw(Rect position, GUIContent label, TriggerAction action)
         {
             if (action is T)
@@ -49,9 +54,9 @@ namespace TBSGameCore.TriggerSystem
             else
             {
                 if (label != null)
-                    EditorGUI.LabelField(position, label, new GUIContent("目标类型不是" + nameof(T)));
+                    EditorGUI.LabelField(position, label, new GUIContent("目标类型不是" + typeof(T).Name));
                 else
-                    EditorGUI.LabelField(position, new GUIContent("目标类型不是" + nameof(T)));
+                    EditorGUI.LabelField(position, new GUIContent("目标类型不是" + typeof(T).Name));
             }
         }
         protected abstract void draw(Rect position, GUIContent label, T action);
@@ -64,6 +69,10 @@ namespace TBSGameCore.TriggerSystem
         public override float height
         {
             get { return 16; }
+        }
+        public override bool canDraw(TriggerAction action)
+        {
+            return true;
         }
         public override void draw(Rect position, GUIContent label, TriggerAction action)
         {

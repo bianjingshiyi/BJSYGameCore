@@ -31,7 +31,7 @@ namespace TBSGameCore.TriggerSystem
                     for (int i = 0; i < define.paras.Length; i++)
                     {
                         string argDesc;
-                        if (i < args.Length && args[i] != null)
+                        if (args != null && i < args.Length && args[i] != null)
                             argDesc = args[i].desc;
                         else
                             argDesc = "Null";
@@ -43,7 +43,7 @@ namespace TBSGameCore.TriggerSystem
                     return "空动作";
             }
         }
-        public override void invoke(Object targetObject)
+        public override void invoke(UnityEngine.Object targetObject)
         {
             if (!TriggerLibrary.isAssemblyLoaded(targetObject.GetType().Assembly))
                 TriggerLibrary.load(targetObject.GetType().Assembly);

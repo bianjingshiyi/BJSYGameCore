@@ -12,7 +12,6 @@ namespace TBSGameCore.TriggerSystem
         {
             if (!TriggerLibrary.isAssemblyLoaded(targetObject.GetType().Assembly))
                 TriggerLibrary.load(targetObject.GetType().Assembly);
-            funcs = TriggerLibrary.getFuncDefines(targetType);
         }
         public override float height
         {
@@ -29,11 +28,11 @@ namespace TBSGameCore.TriggerSystem
                 return height;
             }
         }
-        TriggerMethodDefine[] funcs { get; set; }
         bool isExpanded { get; set; } = false;
         TriggerTypedExprDrawer[] paraDrawers { get; set; } = null;
         protected override void draw(Rect position, GUIContent label, TriggerReflectFunc expr)
         {
+            TriggerMethodDefine[] funcs = TriggerLibrary.getFuncDefines(targetType);
             if (funcs.Length > 0)
             {
                 //生成选项
@@ -65,17 +64,32 @@ namespace TBSGameCore.TriggerSystem
                 }
                 else
                     popPosition = new Rect(position.x, position.y, position.width - foldPosition.width, 16);
-                //绘制菜单，点击菜单改变函数
-                int index = EditorGUI.Popup(popPosition, 0, options);
-                if (index != 0)
+                //双击打开菜单
+                if (Event.current.type == EventType.MouseDown && Event.current.button == 0 && popPosition.Contains(Event.current.mousePosition) && Event.current.clickCount > 1)
                 {
-                    define = funcs[index - 1];
-                    switchFunc(expr, define);
+                    GenericMenu menu = new GenericMenu();
+                    for (int i = 0; i < funcs.Length; i++)
+                    {
+                        menu.AddItem(new GUIContent(funcs[i].editorName), funcs[i] == define, e =>
+                        {
+                            SwitchExprOperation operation = e as SwitchExprOperation;
+                            define = operation.define;
+                            operation.execute();
+                        }, new SwitchExprOperation(this, expr, funcs[i]));
+                    }
+                    menu.DropDown(popPosition);
+                    Event.current.Use();
                 }
+                GUI.Button(popPosition, new GUIContent(expr.desc));
                 //绘制参数
                 if (expr.args.Length > 0)
                 {
-                    isExpanded = EditorGUI.Foldout(foldPosition, isExpanded, new GUIContent(""));
+                    bool changeExpand = EditorGUI.Foldout(foldPosition, isExpanded, new GUIContent(""));
+                    if (changeExpand != isExpanded)
+                    {
+                        isExpanded = changeExpand;
+                        repaint();
+                    }
                     if (isExpanded)
                     {
                         if (paraDrawers == null || paraDrawers.Length != define.paras.Length || expr.args.Length != define.paras.Length)
@@ -139,6 +153,22 @@ namespace TBSGameCore.TriggerSystem
                         paraDrawers[i] = new TriggerTypedExprDrawer(this, expr.transform, define.paras[i].type, define.paras[i].name);
                     }
                 }
+            }
+        }
+        class SwitchExprOperation
+        {
+            public TriggerReflectFuncDrawer drawer { get; private set; }
+            public TriggerReflectFunc expr { get; private set; }
+            public TriggerMethodDefine define { get; private set; }
+            public SwitchExprOperation(TriggerReflectFuncDrawer drawer, TriggerReflectFunc expr, TriggerMethodDefine define)
+            {
+                this.drawer = drawer;
+                this.expr = expr;
+                this.define = define;
+            }
+            public void execute()
+            {
+                drawer.switchFunc(expr, define);
             }
         }
     }
