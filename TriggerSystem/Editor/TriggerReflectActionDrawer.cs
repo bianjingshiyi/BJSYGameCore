@@ -254,8 +254,8 @@ namespace TBSGameCore.TriggerSystem
                 for (int i = 0; i < actionList.Count; i++)
                 {
                     actionPosition.height = actionDrawerList[i].height;
-                    //各种事件
-                    checkEvent(actionPosition, i, actionList);
+                    //各种绘制前事件
+                    checkEventBeforeDraw(actionPosition, i, actionList);
                     //设置选中颜色
                     if (isValidSelection())
                     {
@@ -268,6 +268,8 @@ namespace TBSGameCore.TriggerSystem
                     }
                     //绘制动作
                     actionList[i] = actionDrawerList[i].draw(actionPosition, null, actionList[i]);
+                    //各种绘制后事件
+                    checkEventAfterDraw(actionPosition, i);
                     actionPosition.y += actionPosition.height;
                 }
                 GUI.color = originColor;
@@ -276,8 +278,9 @@ namespace TBSGameCore.TriggerSystem
             {
                 Rect actionPosition = new Rect(actionsPosition.x, actionsPosition.y, actionsPosition.width, 16);
                 //各种事件
-                checkEvent(actionPosition, -1, actionList);
+                checkEventBeforeDraw(actionPosition, -1, actionList);
                 EditorGUI.LabelField(actionPosition, new GUIContent("右键菜单添加动作"));
+                checkEventAfterDraw(actionPosition, -1);
             }
             //添加动作
             if (_addActionDefine != null)
@@ -316,7 +319,7 @@ namespace TBSGameCore.TriggerSystem
             }
             action.resetActions(actionList.ToArray());
         }
-        private void checkEvent(Rect position, int actionIndex, List<TriggerAction> actionList)
+        private void checkEventBeforeDraw(Rect position, int actionIndex, List<TriggerAction> actionList)
         {
             //点击选择
             if (Event.current.type == EventType.MouseDown && Event.current.button == 0 && Event.current.clickCount == 1)
@@ -376,6 +379,9 @@ namespace TBSGameCore.TriggerSystem
                     Event.current.Use();
                 }
             }
+        }
+        private void checkEventAfterDraw(Rect position, int actionIndex)
+        {
             //右键菜单
             if (_actionMenu == null)
                 initMenu();
