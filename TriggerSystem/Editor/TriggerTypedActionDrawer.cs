@@ -49,11 +49,22 @@ namespace TBSGameCore.TriggerSystem
             int newType = EditorGUI.Popup(typePosition, type, typeOptions);
             if (newType != type)
             {
+                GameObject go;
                 //摧毁旧的
+                string gameObjectName = label != null ? label.text : "Action";
                 if (action != null)
-                    UnityEngine.Object.DestroyImmediate(action.gameObject);
+                {
+                    go = action.gameObject;
+                    UnityEngine.Object.DestroyImmediate(action);
+                    go.name = gameObjectName;
+                }
+                else
+                {
+                    go = new GameObject(gameObjectName);
+                    go.transform.parent = transform;
+                }
                 //创建新的
-                action = createActionOfType(label != null ? label.text : "Action", newType, transform);
+                action = createActionOfType(go, newType);
                 if (action != null)
                     _drawer = TriggerActionSubDrawer.getActionDrawer(action.GetType(), this, action.transform);
                 else
@@ -76,20 +87,16 @@ namespace TBSGameCore.TriggerSystem
             else
                 return 0;
         }
-        TriggerAction createActionOfType(string name, int actionType, Transform transform)
+        TriggerAction createActionOfType(GameObject gameObject, int actionType)
         {
             if (actionType == 1)
             {
                 //动作
-                GameObject gameObject = new GameObject(name);
-                gameObject.transform.parent = transform;
                 return gameObject.AddComponent<TriggerReflectAction>();
             }
             else if (actionType == 2)
             {
                 //作用域
-                GameObject gameObject = new GameObject(name);
-                gameObject.transform.parent = transform;
                 return gameObject.AddComponent<TriggerScopeAction>();
             }
             else

@@ -19,11 +19,11 @@ namespace TBSGameCore.TriggerSystem
         {
             get; private set;
         }
-        protected TriggerMethodDefine[] funcLibrary
+        protected TriggerReflectMethodDefine[] funcLibrary
         {
             get { return parent != null ? parent.funcLibrary : _funcLibrary; }
         }
-        TriggerMethodDefine[] _funcLibrary;
+        TriggerReflectMethodDefine[] _funcLibrary;
         TriggerObjectDrawer parent { get; set; } = null;
         public TriggerObjectDrawer(Component targetObject, Transform transform)
         {

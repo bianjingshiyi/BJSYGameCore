@@ -9,14 +9,14 @@ namespace TBSGameCore.TriggerSystem
 {
     public static class TriggerLibrary
     {
-        static Dictionary<Assembly, Dictionary<string, TriggerMethodDefine>> _dicFuncLibrary = null;
+        static Dictionary<Assembly, Dictionary<string, TriggerReflectMethodDefine>> _dicFuncLibrary = null;
         public static void load(Assembly assembly)
         {
             if (_dicFuncLibrary == null)
-                _dicFuncLibrary = new Dictionary<Assembly, Dictionary<string, TriggerMethodDefine>>();
+                _dicFuncLibrary = new Dictionary<Assembly, Dictionary<string, TriggerReflectMethodDefine>>();
             if (!_dicFuncLibrary.ContainsKey(assembly))
             {
-                _dicFuncLibrary.Add(assembly, new Dictionary<string, TriggerMethodDefine>());
+                _dicFuncLibrary.Add(assembly, new Dictionary<string, TriggerReflectMethodDefine>());
                 foreach (Type type in assembly.GetTypes())
                 {
                     foreach (MethodInfo method in type.GetMethods())
@@ -24,7 +24,7 @@ namespace TBSGameCore.TriggerSystem
                         TriggerMethodAttribute att = method.GetCustomAttribute<TriggerMethodAttribute>();
                         if (att != null)
                         {
-                            _dicFuncLibrary[assembly].Add(att.idName, new TriggerMethodDefine(att, method));
+                            _dicFuncLibrary[assembly].Add(att.idName, new TriggerReflectMethodDefine(att, method));
                         }
                     }
                 }
@@ -34,7 +34,7 @@ namespace TBSGameCore.TriggerSystem
         {
             return _dicFuncLibrary != null && _dicFuncLibrary.ContainsKey(assembly);
         }
-        public static TriggerMethodDefine getMethodDefine(string idName)
+        public static TriggerReflectMethodDefine getMethodDefine(string idName)
         {
             if (string.IsNullOrEmpty(idName))
                 return null;
@@ -50,27 +50,27 @@ namespace TBSGameCore.TriggerSystem
             else
                 return null;
         }
-        public static TriggerMethodDefine[] getMethodDefines()
+        public static TriggerReflectMethodDefine[] getMethodDefines()
         {
-            List<TriggerMethodDefine> funcList = new List<TriggerMethodDefine>();
+            List<TriggerReflectMethodDefine> funcList = new List<TriggerReflectMethodDefine>();
             foreach (var adp in _dicFuncLibrary)
             {
                 funcList.AddRange(adp.Value.Values);
             }
             return funcList.ToArray();
         }
-        public static TriggerMethodDefine[] getFuncDefines(Type returnType)
+        public static TriggerReflectMethodDefine[] getFuncDefines(Type returnType)
         {
-            List<TriggerMethodDefine> funcList = new List<TriggerMethodDefine>();
+            List<TriggerReflectMethodDefine> funcList = new List<TriggerReflectMethodDefine>();
             foreach (var adp in _dicFuncLibrary)
             {
                 funcList.AddRange(adp.Value.Values.Where(e => { return returnType.IsAssignableFrom(e.returnType) || e.returnType.IsSubclassOf(returnType); }));
             }
             return funcList.ToArray();
         }
-        public static TriggerMethodDefine[] getActionDefines()
+        public static TriggerReflectMethodDefine[] getActionDefines()
         {
-            List<TriggerMethodDefine> actionList = new List<TriggerMethodDefine>();
+            List<TriggerReflectMethodDefine> actionList = new List<TriggerReflectMethodDefine>();
             foreach (var adp in _dicFuncLibrary)
             {
                 actionList.AddRange(adp.Value.Values.Where(e => { return e.returnType == typeof(void); }));

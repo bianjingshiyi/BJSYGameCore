@@ -32,7 +32,7 @@ namespace TBSGameCore.TriggerSystem
         TriggerTypedExprDrawer[] paraDrawers { get; set; } = null;
         protected override void draw(Rect position, GUIContent label, TriggerReflectFunc expr)
         {
-            TriggerMethodDefine[] funcs = TriggerLibrary.getFuncDefines(targetType);
+            TriggerReflectMethodDefine[] funcs = TriggerLibrary.getFuncDefines(targetType);
             if (funcs.Length > 0)
             {
                 //生成选项
@@ -42,7 +42,7 @@ namespace TBSGameCore.TriggerSystem
                     options[i + 1] = new GUIContent(funcs[i].editorName);
                 }
                 //获取函数定义，如果没有就给一个默认值
-                TriggerMethodDefine define = TriggerLibrary.getMethodDefine(expr.idName);
+                TriggerReflectMethodDefine define = TriggerLibrary.getMethodDefine(expr.idName);
                 if (define == null)
                 {
                     define = funcs[0];
@@ -112,7 +112,7 @@ namespace TBSGameCore.TriggerSystem
                     EditorGUI.LabelField(position, new GUIContent("没有可用的函数"));
             }
         }
-        private void switchFunc(TriggerReflectFunc expr, TriggerMethodDefine define)
+        private void switchFunc(TriggerReflectFunc expr, TriggerReflectMethodDefine define)
         {
             if (expr.idName != define.idName)
             {
@@ -159,8 +159,8 @@ namespace TBSGameCore.TriggerSystem
         {
             public TriggerReflectFuncDrawer drawer { get; private set; }
             public TriggerReflectFunc expr { get; private set; }
-            public TriggerMethodDefine define { get; private set; }
-            public SwitchExprOperation(TriggerReflectFuncDrawer drawer, TriggerReflectFunc expr, TriggerMethodDefine define)
+            public TriggerReflectMethodDefine define { get; private set; }
+            public SwitchExprOperation(TriggerReflectFuncDrawer drawer, TriggerReflectFunc expr, TriggerReflectMethodDefine define)
             {
                 this.drawer = drawer;
                 this.expr = expr;

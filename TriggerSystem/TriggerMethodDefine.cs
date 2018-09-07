@@ -7,7 +7,11 @@ using UnityEngine;
 
 namespace TBSGameCore.TriggerSystem
 {
-    public class TriggerMethodDefine
+    public interface IActionDefine
+    {
+        TriggerAction createAction();
+    }
+    public class TriggerReflectMethodDefine : IActionDefine
     {
         public Type returnType
         {
@@ -21,7 +25,7 @@ namespace TBSGameCore.TriggerSystem
             get; private set;
         }
         MethodInfo info { get; set; }
-        public TriggerMethodDefine(TriggerMethodAttribute attribute, MethodInfo method)
+        public TriggerReflectMethodDefine(TriggerMethodAttribute attribute, MethodInfo method)
         {
             idName = attribute.idName;
             editorName = attribute.editorName;
@@ -39,6 +43,13 @@ namespace TBSGameCore.TriggerSystem
                     paraList.Add(new TriggerParameterDefine(para));
             }
             paras = paraList.ToArray();
+        }
+        public TriggerAction createAction()
+        {
+            TriggerReflectAction action = new GameObject(editorName).AddComponent<TriggerReflectAction>();
+            action.idName = idName;
+            action.args = new TriggerExpr[paras.Length];
+            return action;
         }
         public object invoke(object[] args)
         {

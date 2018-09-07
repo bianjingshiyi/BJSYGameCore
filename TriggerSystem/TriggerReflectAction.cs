@@ -24,7 +24,7 @@ namespace TBSGameCore.TriggerSystem
         {
             get
             {
-                TriggerMethodDefine define = TriggerLibrary.getMethodDefine(idName);
+                TriggerReflectMethodDefine define = TriggerLibrary.getMethodDefine(idName);
                 if (define != null)
                 {
                     string desc = define.descString;
@@ -47,7 +47,7 @@ namespace TBSGameCore.TriggerSystem
         {
             if (!TriggerLibrary.isAssemblyLoaded(targetObject.GetType().Assembly))
                 TriggerLibrary.load(targetObject.GetType().Assembly);
-            TriggerMethodDefine define = TriggerLibrary.getMethodDefine(idName);
+            TriggerReflectMethodDefine define = TriggerLibrary.getMethodDefine(idName);
             define.invoke(args.Select(e => { return e != null ? e.getValue(targetObject) : null; }).ToArray());
         }
     }
