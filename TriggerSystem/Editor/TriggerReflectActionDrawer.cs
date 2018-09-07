@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using System.Collections.Generic;
 
 using UnityEditor;
@@ -246,10 +247,13 @@ namespace TBSGameCore.TriggerSystem
                 dicActionDrawer.Remove(destroyedActionList[i]);
             }
             //绘制Scope
-            drawScope(scopePosition, action);
+            currentSequenceNumber = 0;
+            drawScope(scopePosition, action, action);
         }
-        void drawScope(Rect position, TriggerScopeAction scope)
+        void drawScope(Rect position, TriggerScopeAction scope, TriggerScopeAction rootScope)
         {
+            Color originColor = GUI.color;
+            Color selectedColor = Color.cyan;
             currentScope = scope;
             //先清除多余子物体
             scope.cleanInvaildChild();
@@ -258,11 +262,19 @@ namespace TBSGameCore.TriggerSystem
             {
                 Rect actionPosition = new Rect(position.x, position.y, position.width, 0);
                 bool needRepaint = false;
+                //取消选择事件
+                if (checkCancelSelectEvent(position))
+                {
+                    //取消选择，颜色变化，需要重新绘制
+                    needRepaint = true;
+                }
                 for (int i = 0; i < scope.childCount; i++)
                 {
                     TriggerAction action = scope.getAction(i);
                     if (!(action is TriggerScopeAction))
                     {
+                        //累加顺序号
+                        currentSequenceNumber++;
                         //检查绘制器
                         if (!dicActionDrawer.ContainsKey(action))
                         {
@@ -271,7 +283,19 @@ namespace TBSGameCore.TriggerSystem
                             needRepaint = true;
                         }
                         actionPosition.height = dicActionDrawer[action].height;
+                        //绘制前事件
+                        if (checkSelectEvent(actionPosition))
+                        {
+                            //选中动作的颜色有延迟，也需要重新绘制
+                            needRepaint = true;
+                        }
+                        //绘制
+                        if (isSelected(currentSequenceNumber))
+                            GUI.color = selectedColor;
+                        else
+                            GUI.color = originColor;
                         dicActionDrawer[action].draw(actionPosition, null, action);
+                        //绘制后事件
                         checkActionMenuEvent(actionPosition, action);
                         actionPosition.y += actionPosition.height;
                     }
@@ -280,6 +304,7 @@ namespace TBSGameCore.TriggerSystem
 
                     }
                 }
+                GUI.color = originColor;
                 if (needRepaint)
                     repaint();
             }
@@ -289,6 +314,61 @@ namespace TBSGameCore.TriggerSystem
                 GUI.Box(position, new GUIContent("双击左键添加动作"), GUI.skin.button);
             }
         }
+        TriggerAction[] getSelectedActions(TriggerScopeAction scope, int startNumber, int endNumber)
+        {
+            throw new NotImplementedException();
+        }
+        bool isSelected(int sequenceNumber)
+        {
+            if (isCurrentSelected())
+                return selectStartNumber <= sequenceNumber && sequenceNumber <= selectEndNumber;
+            else
+                return false;
+        }
+        bool checkCancelSelectEvent(Rect position)
+        {
+            if (Event.current.type == EventType.MouseDown && !position.Contains(Event.current.mousePosition) && Event.current.button == 0)
+            {
+                selectStartNumber = -1;
+                selectEndNumber = -1;
+                return true;
+            }
+            else
+                return false;
+        }
+        bool checkSelectEvent(Rect position)
+        {
+            if (Event.current.type == EventType.MouseDown && position.Contains(Event.current.mousePosition) && Event.current.button == 0)
+            {
+                if (Event.current.shift && isCurrentSelected())
+                {
+                    //复选
+                    if (currentSequenceNumber < selectStartNumber)
+                        selectStartNumber = currentSequenceNumber;
+                    if (currentSequenceNumber > selectEndNumber)
+                        selectEndNumber = currentSequenceNumber;
+                }
+                else
+                {
+                    //单选
+                    selectStartNumber = currentSequenceNumber;
+                    selectEndNumber = currentSequenceNumber;
+                }
+                return true;
+            }
+            else
+                return false;
+        }
+        private bool isCurrentSelected()
+        {
+            return selectStartNumber >= 0 && selectStartNumber <= selectEndNumber;
+        }
+        int selectStartNumber { get; set; } = -1;
+        int selectEndNumber { get; set; } = -1;
+        /// <summary>
+        /// 当前动作的顺序号。
+        /// </summary>
+        int currentSequenceNumber { get; set; } = 0;
         void checkActionMenuEvent(Rect position, TriggerAction action)
         {
             if (Event.current.type == EventType.MouseDown && position.Contains(Event.current.mousePosition) && Event.current.button == 1)
