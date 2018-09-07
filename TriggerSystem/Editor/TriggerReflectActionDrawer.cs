@@ -196,7 +196,7 @@ namespace TBSGameCore.TriggerSystem
                     if (currentScope != null)
                     {
                         TriggerAction action = define.createAction();
-                        Undo.RegisterCreatedObjectUndo(action, "New Action");
+                        Undo.RegisterCreatedObjectUndo(action.gameObject, "New Action");
                         currentScope.addAction(action);
                     }
                     else
@@ -247,90 +247,6 @@ namespace TBSGameCore.TriggerSystem
             }
             //绘制Scope
             drawScope(scopePosition, action);
-            ////检查绘制器
-            //if (actionDrawerList == null)
-            //{
-            //    actionDrawerList = new List<TriggerTypedActionDrawer>(action.childCount);
-            //    for (int i = 0; i < action.childCount; i++)
-            //    {
-            //        actionDrawerList.Add(new TriggerTypedActionDrawer(this, action.transform));
-            //    }
-            //}
-            //while (actionDrawerList.Count > action.childCount)
-            //    actionDrawerList.RemoveAt(actionDrawerList.Count - 1);
-            //while (actionDrawerList.Count < action.childCount)
-            //    actionDrawerList.Add(new TriggerTypedActionDrawer(this, action.transform));
-            ////绘制所有动作
-            //if (action.transform.childCount > 0)
-            //{
-            //    Rect actionPosition = new Rect(actionsPosition.x, actionsPosition.y, actionsPosition.width, 0);
-            //    //取消选择
-            //    if (Event.current.type == EventType.MouseDown && !actionsPosition.Contains(Event.current.mousePosition))
-            //    {
-            //        _selectStartIndex = -1;
-            //        _selectEndIndex = -1;
-            //        repaint();
-            //    }
-            //    Color originColor = GUI.color;
-            //    for (int i = 0; i < action.childCount; i++)
-            //    {
-            //        actionPosition.height = actionDrawerList[i].height;
-            //        //各种绘制前事件
-            //        checkEventBeforeDraw(actionPosition, i, action);
-            //        //设置选中颜色
-            //        if (isValidSelection())
-            //        {
-            //            if (_selectStartIndex <= i && i <= _selectEndIndex)
-            //            {
-            //                GUI.color = Color.cyan;
-            //            }
-            //            else
-            //                GUI.color = originColor;
-            //        }
-            //        //绘制动作
-            //        actionDrawerList[i].draw(actionPosition, null, action.getChild(i));
-            //        //各种绘制后事件
-            //        checkEventAfterDraw(actionPosition, i);
-            //        actionPosition.y += actionPosition.height;
-            //    }
-            //    GUI.color = originColor;
-            //}
-            //else
-            //{
-            //    Rect actionPosition = new Rect(actionsPosition.x, actionsPosition.y, actionsPosition.width, 16);
-            //    //各种事件
-            //    checkEventBeforeDraw(actionPosition, -1, action);
-            //    EditorGUI.LabelField(actionPosition, new GUIContent("右键菜单添加动作"));
-            //    checkEventAfterDraw(actionPosition, -1);
-            //}
-            ////添加动作
-            //if (_addActionDefine != null)
-            //{
-            //    if (_dropIndex > -1)
-            //    {
-            //        TriggerReflectAction newAction = createNewAction(_addActionDefine);
-            //        newAction.transform.parent = action.transform;
-            //        newAction.transform.SetSiblingIndex(_dropIndex + 1);
-            //    }
-            //    else
-            //    {
-            //        TriggerReflectAction newAction = createNewAction(_addActionDefine);
-            //        newAction.transform.parent = action.transform;
-            //    }
-            //    _addActionDefine = null;
-            //    _dropIndex = -1;
-            //    repaint();
-            //}
-            ////删除动作
-            //if (_removeAction)
-            //{
-            //    if (0 <= _dropIndex && _dropIndex < action.childCount)
-            //    {
-            //        UnityEngine.Object.DestroyImmediate(action.getChild(_dropIndex).gameObject);
-            //        repaint();
-            //    }
-            //    _removeAction = false;
-            //}
         }
         void drawScope(Rect position, TriggerScopeAction scope)
         {
@@ -387,6 +303,11 @@ namespace TBSGameCore.TriggerSystem
                         (e as AddActionOperation).execute();
                     }, new AddActionOperation(action, defines[i]));
                 }
+                //删除动作
+                actionMenu.AddItem(new GUIContent("删除动作"), false, e =>
+                {
+                    (e as RemoveActionOperation).execute();
+                }, new RemoveActionOperation(action));
                 actionMenu.DropDown(position);
                 Event.current.Use();
             }
@@ -402,111 +323,6 @@ namespace TBSGameCore.TriggerSystem
         }
         GenericMenu addActionMenu { get; set; } = null;
         Dictionary<TriggerAction, TriggerTypedActionDrawer> dicActionDrawer { get; set; } = new Dictionary<TriggerAction, TriggerTypedActionDrawer>();
-        private void checkEventBeforeDraw(Rect position, int actionIndex, TriggerScopeAction scope)
-        {
-            //点击选择
-            if (Event.current.type == EventType.MouseDown && Event.current.button == 0 && Event.current.clickCount == 1)
-            {
-                if (position.Contains(Event.current.mousePosition))
-                {
-                    if (Event.current.shift && isValidSelection())
-                    {
-                        //复选
-                        if (actionIndex < _selectStartIndex)
-                            _selectStartIndex = actionIndex;
-                        if (actionIndex > _selectEndIndex)
-                            _selectEndIndex = actionIndex;
-                    }
-                    else
-                    {
-                        //选中单个
-                        _selectStartIndex = actionIndex;
-                        _selectEndIndex = actionIndex;
-                    }
-                    repaint();
-                }
-            }
-            //拖拽移动
-            if (actionIndex >= 0)
-            {
-                if (Event.current.type == EventType.MouseDrag && position.Contains(Event.current.mousePosition))
-                {
-                    DragAndDrop.PrepareStartDrag();
-                    DragAndDrop.SetGenericData("originIndex", actionIndex);
-                    DragAndDrop.StartDrag("DragAction");
-                    Event.current.Use();
-                }
-                if (Event.current.type == EventType.DragPerform && position.Contains(Event.current.mousePosition))
-                {
-                    int originIndex = (int)DragAndDrop.GetGenericData("originIndex");
-                    if (originIndex != actionIndex)
-                    {
-                        TriggerAction origin = scope.getAction(originIndex);
-                        origin.transform.SetSiblingIndex(actionIndex);
-                    }
-                    Event.current.Use();
-                }
-                if (Event.current.type == EventType.DragUpdated && position.Contains(Event.current.mousePosition))
-                {
-                    DragAndDrop.visualMode = DragAndDropVisualMode.Move;
-                    Event.current.Use();
-                }
-            }
-        }
-        private void checkEventAfterDraw(Rect position, int actionIndex)
-        {
-            //右键菜单
-            if (_actionMenu == null)
-                initMenu();
-            if (Event.current.type == EventType.MouseUp && Event.current.button == 1 && position.Contains(Event.current.mousePosition))
-            {
-                _dropIndex = actionIndex;
-                _actionMenu.DropDown(new Rect(Event.current.mousePosition, Vector2.zero));
-                Event.current.Use();
-            }
-        }
-        /// <summary>
-        /// 当前选择是合法的
-        /// </summary>
-        /// <returns></returns>
-        private bool isValidSelection()
-        {
-            return _selectStartIndex >= 0 && _selectStartIndex <= _selectEndIndex;
-        }
-        int _selectStartIndex = -1;
-        int _selectEndIndex = -1;
-        private TriggerReflectAction createNewAction(TriggerReflectMethodDefine define)
-        {
-            TriggerReflectAction newAction = new GameObject(define.editorName).AddComponent<TriggerReflectAction>();
-            newAction.idName = define.idName;
-            newAction.args = new TriggerExpr[define.paras.Length];
-            return newAction;
-        }
-        List<TriggerTypedActionDrawer> actionDrawerList { get; set; } = null;
-        GenericMenu _actionMenu;
-        int _dropIndex = -1;
-        TriggerReflectMethodDefine _addActionDefine = null;
-        bool _removeAction = false;
-        void initMenu()
-        {
-            _actionMenu = new GenericMenu();
-            //添加动作
-            if (!TriggerLibrary.isAssemblyLoaded(targetObject.GetType().Assembly))
-                TriggerLibrary.load(targetObject.GetType().Assembly);
-            TriggerReflectMethodDefine[] actions = TriggerLibrary.getActionDefines();
-            for (int i = 0; i < actions.Length; i++)
-            {
-                _actionMenu.AddItem(new GUIContent("添加动作/" + actions[i].editorName), false, e =>
-                {
-                    _addActionDefine = e as TriggerReflectMethodDefine;
-                }, actions[i]);
-            }
-            //删除动作
-            _actionMenu.AddItem(new GUIContent("删除动作"), false, () =>
-            {
-                _removeAction = true;
-            });
-        }
         class AddActionOperation
         {
             TriggerAction action { get; set; }
@@ -521,11 +337,23 @@ namespace TBSGameCore.TriggerSystem
                 if (action.scope != null)
                 {
                     TriggerAction newAction = define.createAction();
-                    Undo.RegisterCreatedObjectUndo(newAction, "New Action");
+                    Undo.RegisterCreatedObjectUndo(newAction.gameObject, "New Action");
                     action.scope.insertAction(action.index + 1, newAction);
                 }
                 else
                     Debug.LogWarning("添加动作失败，" + action + "不在作用域中", action);
+            }
+        }
+        class RemoveActionOperation
+        {
+            TriggerAction action { get; set; }
+            public RemoveActionOperation(TriggerAction action)
+            {
+                this.action = action;
+            }
+            public void execute()
+            {
+                Undo.DestroyObjectImmediate(action.gameObject);
             }
         }
     }
