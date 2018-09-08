@@ -207,34 +207,11 @@ namespace TBSGameCore.TriggerSystem
         }
         public override float height
         {
-            get
-            {
-                float height;
-                if (dicActionDrawer != null && dicActionDrawer.Count > 0)
-                {
-                    height = 0;
-                    foreach (var actionDrawerPair in dicActionDrawer)
-                    {
-                        height += actionDrawerPair.Value.height;
-                    }
-                }
-                else
-                    height = 16;
-                return height;
-            }
+            get { return _height; }
         }
+        float _height = 16;
         protected override void draw(Rect position, GUIContent label, TriggerScopeAction action)
         {
-            Rect scopePosition;
-            //绘制label
-            if (label != null)
-            {
-                Rect labelPosition = new Rect(position.x, position.y, 64, 16);
-                EditorGUI.LabelField(labelPosition, label);
-                scopePosition = new Rect(position.x + labelPosition.width, position.y, position.width - labelPosition.width, position.height);
-            }
-            else
-                scopePosition = position;
             //清理多余的绘制器
             List<TriggerAction> destroyedActionList = new List<TriggerAction>();
             foreach (var actionDrawerPair in dicActionDrawer)
@@ -246,11 +223,24 @@ namespace TBSGameCore.TriggerSystem
             {
                 dicActionDrawer.Remove(destroyedActionList[i]);
             }
+            //取消选择事件
+            if (checkCancelSelectEvent(position))
+            {
+                //取消选择颜色变化，重新绘制
+                repaint();
+            }
             //绘制Scope
             currentSequenceNumber = 0;
-            drawScope(scopePosition, action, action);
+            float height;
+            drawScope(position, label, action, action, out height);
+            if (height != _height)
+            {
+                //如果高度不相同，重新绘制
+                _height = height;
+                repaint();
+            }
         }
-        void drawScope(Rect position, TriggerScopeAction scope, TriggerScopeAction rootScope)
+        void drawScope(Rect position, GUIContent label, TriggerScopeAction scope, TriggerScopeAction rootScope, out float height)
         {
             Color originColor = GUI.color;
             Color selectedColor = Color.cyan;
@@ -258,65 +248,138 @@ namespace TBSGameCore.TriggerSystem
             //先清除多余子物体
             scope.cleanInvaildChild();
             //绘制动作
-            if (scope.childCount > 0)
+            if (scope.actionCount > 0)
             {
-                Rect actionPosition = new Rect(position.x, position.y, position.width, 0);
-                bool needRepaint = false;
-                //取消选择事件
-                if (checkCancelSelectEvent(position))
+                Rect foldPosition;
+                Rect scopePosition;
+                if (label != null)
                 {
-                    //取消选择，颜色变化，需要重新绘制
-                    needRepaint = true;
+                    foldPosition = new Rect(position.x, position.y, 64, 16);
+                    scopePosition = new Rect(position.x + foldPosition.width, position.y, position.width - foldPosition.width, position.height);
                 }
-                for (int i = 0; i < scope.childCount; i++)
+                else
                 {
-                    TriggerAction action = scope.getAction(i);
-                    if (!(action is TriggerScopeAction))
+                    foldPosition = new Rect(position.x, position.y, 16, 16);
+                    scopePosition = new Rect(position);
+                }
+                setScopeFoldout(scope, EditorGUI.Foldout(foldPosition, getScopeFoldout(scope), label));
+                if (getScopeFoldout(scope))
+                {
+                    height = 0;
+                    Rect actionPosition = new Rect(scopePosition.x, scopePosition.y, scopePosition.width, 0);
+                    bool needRepaint = false;
+                    for (int i = 0; i < scope.actionCount; i++)
                     {
-                        //累加顺序号
-                        currentSequenceNumber++;
-                        //检查绘制器
-                        if (!dicActionDrawer.ContainsKey(action))
+                        TriggerAction action = scope.getAction(i);
+                        if (!(action is TriggerScopeAction))
                         {
-                            dicActionDrawer.Add(action, new TriggerTypedActionDrawer(this, scope.transform));
-                            //不存在绘制器那高度肯定对不上，需要重新绘制
-                            needRepaint = true;
-                        }
-                        actionPosition.height = dicActionDrawer[action].height;
-                        //绘制前事件
-                        if (checkSelectEvent(actionPosition))
-                        {
-                            //选中动作的颜色有延迟，也需要重新绘制
-                            needRepaint = true;
-                        }
-                        //绘制
-                        if (isSelected(currentSequenceNumber))
-                            GUI.color = selectedColor;
-                        else
+                            //累加顺序号
+                            currentSequenceNumber++;
+                            //检查绘制器
+                            if (!dicActionDrawer.ContainsKey(action))
+                            {
+                                dicActionDrawer.Add(action, new TriggerTypedActionDrawer(this, scope.transform));
+                                //不存在绘制器那高度肯定对不上，需要重新绘制
+                                needRepaint = true;
+                            }
+                            actionPosition.height = dicActionDrawer[action].height;
+                            //绘制前事件
+                            if (checkSelectEvent(actionPosition))
+                            {
+                                //选中动作的颜色有延迟，也需要重新绘制
+                                needRepaint = true;
+                            }
+                            //绘制
+                            if (isSelected(currentSequenceNumber))
+                                GUI.color = selectedColor;
+                            else
+                                GUI.color = originColor;
+                            dicActionDrawer[action].draw(actionPosition, null, action);
                             GUI.color = originColor;
-                        dicActionDrawer[action].draw(actionPosition, null, action);
-                        //绘制后事件
-                        checkActionMenuEvent(actionPosition, action);
-                        actionPosition.y += actionPosition.height;
+                            //绘制后事件
+                            checkActionMenuEvent(actionPosition, action);
+                            actionPosition.y += actionPosition.height;
+                            height += actionPosition.height;
+                        }
+                        else
+                        {
+                            TriggerScopeAction childScope = action as TriggerScopeAction;
+                            actionPosition.height = getScopeHeight(childScope);
+                            float childScopeHeight;
+                            drawScope(actionPosition, new GUIContent("Scope"), childScope, rootScope, out childScopeHeight);
+                            height += childScopeHeight;
+                        }
                     }
-                    else
-                    {
-
-                    }
+                    if (needRepaint)
+                        repaint();
                 }
-                GUI.color = originColor;
-                if (needRepaint)
-                    repaint();
+                else
+                    height = foldPosition.height;
             }
             else
             {
-                checkAddActionEvent(position, scope);
-                GUI.Box(position, new GUIContent("双击左键添加动作"), GUI.skin.button);
+                Rect scopePosition;
+                if (label != null)
+                {
+                    Rect labelPosition = new Rect(position.x, position.y, 64, 16);
+                    EditorGUI.LabelField(labelPosition, label);
+                    scopePosition = new Rect(position.x + labelPosition.width, position.y, position.width - labelPosition.width, 16);
+                }
+                else
+                    scopePosition = new Rect(position.x, position.y, position.width, 16);
+                checkAddActionEvent(scopePosition, scope);
+                GUI.Box(scopePosition, new GUIContent("双击左键添加动作"), GUI.skin.button);
+                height = scopePosition.height;
             }
         }
-        TriggerAction[] getSelectedActions(TriggerScopeAction scope, int startNumber, int endNumber)
+        float getScopeHeight(TriggerScopeAction scope)
         {
-            throw new NotImplementedException();
+            float height;
+            if (scope.actionCount > 0)
+            {
+                height = 0;
+                for (int i = 0; i < scope.actionCount; i++)
+                {
+                    TriggerAction action = scope.getAction(i);
+                    if (action is TriggerScopeAction)
+                        height += getScopeHeight(action as TriggerScopeAction);
+                    else
+                    {
+                        if (!dicActionDrawer.ContainsKey(action))
+                            dicActionDrawer.Add(action, new TriggerTypedActionDrawer(this, scope.transform));
+                        height += dicActionDrawer[action].height;
+                    }
+                }
+            }
+            else
+                height = 16;
+            return height;
+        }
+        void setScopeFoldout(TriggerScopeAction scope, bool value)
+        {
+            dicScopeFold[scope] = value;
+        }
+        bool getScopeFoldout(TriggerScopeAction scope)
+        {
+            return dicScopeFold.ContainsKey(scope) ? dicScopeFold[scope] : false;
+        }
+        Dictionary<TriggerScopeAction, bool> dicScopeFold { get; set; } = new Dictionary<TriggerScopeAction, bool>();
+        TriggerAction[] getSelectedActions(TriggerScopeAction rootScope, int startNumber, int endNumber)
+        {
+            List<TriggerAction> sequence = new List<TriggerAction>(rootScope.actionCount);
+            getActionSequence(rootScope, sequence);
+            return sequence.Skip(startNumber - 1).Take(endNumber - startNumber + 1).ToArray();
+        }
+        void getActionSequence(TriggerScopeAction scope, List<TriggerAction> sequence)
+        {
+            for (int i = 0; i < scope.actionCount; i++)
+            {
+                TriggerAction action = scope.getAction(i);
+                if (action is TriggerScopeAction)
+                    getActionSequence(action as TriggerScopeAction, sequence);
+                else
+                    sequence.Add(action);
+            }
         }
         bool isSelected(int sequenceNumber)
         {

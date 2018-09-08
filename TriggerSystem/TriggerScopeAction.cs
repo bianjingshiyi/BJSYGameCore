@@ -43,7 +43,7 @@ namespace TBSGameCore.TriggerSystem
         /// <summary>
         /// 获取子动作的数量。注意这个方法返回的结果中可能包含子物体中的空动作的数量，所以推荐在使用这个方法之前先调用cleanInvaildChild来清除多余的子物体。
         /// </summary>
-        public int childCount
+        public int actionCount
         {
             get { return transform.childCount; }
         }
