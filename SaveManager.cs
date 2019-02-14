@@ -23,9 +23,13 @@ namespace TBSGameCore
             SaveData data = save(fileName);
             using (FileStream stream = new FileStream(path, FileMode.Create))
             {
+                onSaveAsFile(stream);
                 BinaryFormatter binaryFormatter = new BinaryFormatter();
                 binaryFormatter.Serialize(stream, data);
             }
+        }
+        protected virtual void onSaveAsFile(Stream stream)
+        {
         }
         public byte[] saveAsBytes(string name)
         {
@@ -90,6 +94,7 @@ namespace TBSGameCore
             {
                 using (FileStream stream = new FileStream(path, FileMode.Open))
                 {
+                    onLoadFromFile(stream);
                     BinaryFormatter binaryFormatter = new BinaryFormatter();
                     SaveData data = binaryFormatter.Deserialize(stream) as SaveData;
                     if (data != null)
@@ -98,6 +103,9 @@ namespace TBSGameCore
                     }
                 }
             }
+        }
+        protected virtual void onLoadFromFile(Stream stream)
+        {
         }
         public void loadFromBytes(byte[] bytes)
         {
