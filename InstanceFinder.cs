@@ -49,5 +49,16 @@ namespace TBSGameCore
         {
             return component.gameObject.scene.findInstances<T>();
         }
+        public static T findInstanceAllScene<T>() where T : Component
+        {
+            T instance = null;
+            for (int i = 0; i < SceneManager.sceneCount; i++)
+            {
+                instance = SceneManager.GetSceneAt(i).findInstance<T>();
+                if (instance != null)
+                    break;
+            }
+            return instance;
+        }
     }
 }
