@@ -60,5 +60,18 @@ namespace TBSGameCore
             }
             return instance;
         }
+        public static T[] findInstancesAllScene<T>()
+        {
+            List<T> instanceList = new List<T>();
+            for (int i = 0; i < SceneManager.sceneCount; i++)
+            {
+                GameObject[] roots = SceneManager.GetSceneAt(i).GetRootGameObjects();
+                for (int j = 0; j < roots.Length; j++)
+                {
+                    instanceList.AddRange(roots[j].GetComponentsInChildren<T>(true));
+                }
+            }
+            return instanceList.ToArray();
+        }
     }
 }
