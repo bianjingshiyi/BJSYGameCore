@@ -8,6 +8,10 @@ namespace TBSGameCore
     [Serializable]
     public class ScenePath
     {
+        public Scene scene
+        {
+            get { return SceneManager.GetSceneByPath(_value); }
+        }
         public string value
         {
             get { return _value; }
