@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 using UnityEngine;
 
-namespace TBSGameCore.TriggerSystem
+namespace BJSYGameCore.TriggerSystem
 {
     public interface IActionDefine
     {

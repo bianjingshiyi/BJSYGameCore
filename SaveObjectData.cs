@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace TBSGameCore
+namespace BJSYGameCore
 {
     [Serializable]
     public class SaveObjectData

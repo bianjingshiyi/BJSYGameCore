@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 using UnityEngine;
 
-namespace TBSGameCore
+namespace BJSYGameCore
 {
     [Serializable]
     public class SaveData

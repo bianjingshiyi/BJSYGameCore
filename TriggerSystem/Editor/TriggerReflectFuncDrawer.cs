@@ -4,7 +4,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-namespace TBSGameCore.TriggerSystem
+namespace BJSYGameCore.TriggerSystem
 {
     class TriggerReflectFuncDrawer : TriggerExprSubDrawer<TriggerReflectFunc>
     {

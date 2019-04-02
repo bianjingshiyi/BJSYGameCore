@@ -4,9 +4,9 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-using TBSGameCore;
+using BJSYGameCore;
 
-namespace TBSGameCore
+namespace BJSYGameCore
 {
     [Serializable]
     public class InstanceReference

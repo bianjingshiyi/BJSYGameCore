@@ -2,7 +2,7 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace TBSGameCore
+namespace BJSYGameCore
 {
     [CustomPropertyDrawer(typeof(ScenePath))]
     [CanEditMultipleObjects]

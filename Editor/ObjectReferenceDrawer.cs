@@ -4,7 +4,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-namespace TBSGameCore
+namespace BJSYGameCore
 {
     [CustomPropertyDrawer(typeof(ObjectReference), true)]
     [CanEditMultipleObjects]

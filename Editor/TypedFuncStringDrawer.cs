@@ -3,7 +3,7 @@
 using UnityEngine;
 using UnityEditor;
 
-namespace TBSGameCore
+namespace BJSYGameCore
 {
     public class TypedFuncStringDrawer : TriggerStringDrawer
     {

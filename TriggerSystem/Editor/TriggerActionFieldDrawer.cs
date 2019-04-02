@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 
-namespace TBSGameCore.TriggerSystem
+namespace BJSYGameCore.TriggerSystem
 {
     [CustomPropertyDrawer(typeof(TriggerAction))]
     public class TriggerActionFieldDrawer : PropertyDrawer

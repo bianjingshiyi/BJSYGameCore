@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace TBSGameCore
+namespace BJSYGameCore
 {
     public abstract class AbstractActionDrawer : TriggerStringDrawer
     {

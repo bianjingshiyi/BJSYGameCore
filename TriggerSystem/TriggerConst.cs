@@ -3,7 +3,7 @@ using System.Linq;
 
 using UnityEngine;
 
-namespace TBSGameCore.TriggerSystem
+namespace BJSYGameCore.TriggerSystem
 {
     public abstract class TriggerConst : TriggerExpr
     {

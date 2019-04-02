@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
-namespace TBSGameCore.TriggerSystem
+namespace BJSYGameCore.TriggerSystem
 {
     class TriggerReflectActionDrawer : TriggerActionSubDrawer<TriggerReflectAction>
     {

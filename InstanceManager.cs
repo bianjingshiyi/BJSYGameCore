@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 using UnityEngine;
 
-namespace TBSGameCore
+namespace BJSYGameCore
 {
     [ExecuteInEditMode]
     public class InstanceManager : MonoBehaviour, ISavable

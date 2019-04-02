@@ -3,7 +3,7 @@ using System.Reflection;
 
 
 
-namespace TBSGameCore
+namespace BJSYGameCore
 {
     [Serializable]
     public class TriggerAction

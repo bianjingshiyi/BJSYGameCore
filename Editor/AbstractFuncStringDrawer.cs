@@ -1,7 +1,7 @@
 ﻿using System;
 using UnityEngine;
 
-namespace TBSGameCore
+namespace BJSYGameCore
 {
     public abstract class AbstractFuncStringDrawer : TriggerStringDrawer
     {

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Reflection;
 
-namespace TBSGameCore.TriggerSystem
+namespace BJSYGameCore.TriggerSystem
 {
     public class TriggerParameterDefine
     {

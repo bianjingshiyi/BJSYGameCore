@@ -1,7 +1,7 @@
 ﻿
 using UnityEngine.SceneManagement;
 
-namespace TBSGameCore
+namespace BJSYGameCore
 {
     public interface ILoadableData
     {

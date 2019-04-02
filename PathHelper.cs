@@ -3,7 +3,7 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace TBSGameCore
+namespace BJSYGameCore
 {
     public static class PathHelper
     {

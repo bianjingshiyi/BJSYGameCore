@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace TBSGameCore.TriggerSystem
+namespace BJSYGameCore.TriggerSystem
 {
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
     public class TriggerMethodAttribute : Attribute

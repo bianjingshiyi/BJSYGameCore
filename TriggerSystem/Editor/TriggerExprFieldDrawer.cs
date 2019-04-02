@@ -8,7 +8,7 @@ using System.Text;
 using UnityEngine;
 using UnityEditor;
 
-namespace TBSGameCore.TriggerSystem
+namespace BJSYGameCore.TriggerSystem
 {
     [CustomPropertyDrawer(typeof(TriggerExpr))]
     public class TriggerExprFieldDrawer : PropertyDrawer

@@ -1,7 +1,7 @@
 ﻿
 using UnityEngine;
 
-namespace TBSGameCore.SaveSystem
+namespace BJSYGameCore.SaveSystem
 {
     public class SaveSystem : MonoBehaviour
     {

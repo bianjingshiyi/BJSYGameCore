@@ -1,4 +1,4 @@
-﻿namespace TBSGameCore
+﻿namespace BJSYGameCore
 {
     public abstract class Method
     {

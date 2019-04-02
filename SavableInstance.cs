@@ -2,7 +2,7 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace TBSGameCore
+namespace BJSYGameCore
 {
     [ExecuteInEditMode]
     public class SavableInstance : MonoBehaviour

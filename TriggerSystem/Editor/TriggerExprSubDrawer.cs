@@ -4,7 +4,7 @@ using System.Reflection;
 using UnityEngine;
 using UnityEditor;
 
-namespace TBSGameCore.TriggerSystem
+namespace BJSYGameCore.TriggerSystem
 {
     abstract class TriggerExprSubDrawer : TriggerExprDrawer
     {

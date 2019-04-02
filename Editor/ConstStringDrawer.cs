@@ -3,7 +3,7 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace TBSGameCore
+namespace BJSYGameCore
 {
     public class ConstStringDrawer : AbstractFuncStringDrawer
     {

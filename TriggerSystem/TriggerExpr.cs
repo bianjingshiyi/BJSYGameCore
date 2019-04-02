@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 
 using UnityEngine;
 
-namespace TBSGameCore.TriggerSystem
+namespace BJSYGameCore.TriggerSystem
 {
     public abstract class TriggerExpr : MonoBehaviour
     {

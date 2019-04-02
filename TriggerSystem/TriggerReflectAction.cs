@@ -2,7 +2,7 @@
 
 using UnityEngine;
 
-namespace TBSGameCore.TriggerSystem
+namespace BJSYGameCore.TriggerSystem
 {
     public class TriggerReflectAction : TriggerAction
     {

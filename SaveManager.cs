@@ -8,9 +8,9 @@ using System.Runtime.Serialization.Formatters.Binary;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-using TBSGameCore;
+using BJSYGameCore;
 
-namespace TBSGameCore
+namespace BJSYGameCore
 {
     [ExecuteInEditMode]
     public class SaveManager : MonoBehaviour

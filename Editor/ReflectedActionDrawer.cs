@@ -2,7 +2,7 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace TBSGameCore
+namespace BJSYGameCore
 {
     public class ReflectedActionDrawer : AbstractActionDrawer
     {

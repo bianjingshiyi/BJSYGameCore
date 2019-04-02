@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace TBSGameCore
+namespace BJSYGameCore
 {
     public static class InstanceFinder
     {

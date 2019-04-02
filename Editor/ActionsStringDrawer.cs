@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 
-namespace TBSGameCore
+namespace BJSYGameCore
 {
     public class ActionsStringDrawer : TriggerStringDrawer
     {

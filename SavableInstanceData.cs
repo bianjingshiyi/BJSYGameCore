@@ -4,7 +4,7 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace TBSGameCore
+namespace BJSYGameCore
 {
     [Serializable]
     public class SavableInstanceData

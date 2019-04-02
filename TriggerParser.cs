@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace TBSGameCore
+namespace BJSYGameCore
 {
     public static class TriggerParser
     {

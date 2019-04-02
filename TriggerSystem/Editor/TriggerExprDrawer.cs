@@ -1,7 +1,7 @@
 ﻿using System;
 using UnityEngine;
 
-namespace TBSGameCore.TriggerSystem
+namespace BJSYGameCore.TriggerSystem
 {
     abstract class TriggerExprDrawer : TriggerObjectDrawer
     {

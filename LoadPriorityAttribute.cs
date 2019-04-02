@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace TBSGameCore
+namespace BJSYGameCore
 {
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = true)]
     public class LoadPriorityAttribute : Attribute

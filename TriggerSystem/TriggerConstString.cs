@@ -1,7 +1,7 @@
 ﻿
 using UnityEngine;
 
-namespace TBSGameCore.TriggerSystem
+namespace BJSYGameCore.TriggerSystem
 {
     public class TriggerConstString : TriggerConst<string>
     {

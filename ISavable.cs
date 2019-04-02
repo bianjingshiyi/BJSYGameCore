@@ -1,4 +1,4 @@
-﻿namespace TBSGameCore
+﻿namespace BJSYGameCore
 {
     public interface ISavable
     {

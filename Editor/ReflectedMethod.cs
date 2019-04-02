@@ -2,7 +2,7 @@
 using System.Reflection;
 using System.Collections.Generic;
 
-namespace TBSGameCore
+namespace BJSYGameCore
 {
     public class ReflectedMethod : Method
     {

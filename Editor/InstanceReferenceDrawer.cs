@@ -5,7 +5,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace TBSGameCore
+namespace BJSYGameCore
 {
     [CustomPropertyDrawer(typeof(InstanceReference))]
     [CanEditMultipleObjects]

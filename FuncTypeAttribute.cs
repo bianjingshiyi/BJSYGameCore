@@ -2,7 +2,7 @@
 
 using UnityEngine;
 
-namespace TBSGameCore
+namespace BJSYGameCore
 {
     [AttributeUsage(AttributeTargets.Field, Inherited = false, AllowMultiple = false)]
     sealed class FuncTypeAttribute : PropertyAttribute

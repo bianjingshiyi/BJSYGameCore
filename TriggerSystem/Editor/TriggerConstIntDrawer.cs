@@ -2,7 +2,7 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace TBSGameCore.TriggerSystem
+namespace BJSYGameCore.TriggerSystem
 {
     class TriggerConstIntDrawer : TriggerExprSubDrawer<TriggerConstInt>
     {
