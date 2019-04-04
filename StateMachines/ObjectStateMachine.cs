@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using System.Reflection;
+using System.Collections.Generic;
 
 namespace BJSYGameCore.StateMachines
 {
@@ -8,39 +9,37 @@ namespace BJSYGameCore.StateMachines
     {
         public override IState[] getAllStates()
         {
-            if (_states == null)
+            if (dicTypeState == null)
             {
                 //获取所有ObjectState子类
                 Type[] stateTypes = GetType().GetNestedTypes().Where(t => { return !t.IsAbstract && t.IsSubclassOf(typeof(ObjectState)); }).ToArray();
-                _states = new ObjectState[stateTypes.Length];
+                dicTypeState = new Dictionary<Type, ObjectState>();
                 for (int i = 0; i < stateTypes.Length; i++)
                 {
                     //先获取带有参数的构造器
-                    ConstructorInfo constructor = stateTypes[i].GetConstructor(new Type[] { GetType() });
+                    ConstructorInfo constructor = stateTypes[i].GetConstructor(new Type[] { typeof(ObjectStateMachine) });
                     if (constructor != null)
                     {
                         //如果存在，那么用有参数的构造
-                        _states[i] = constructor.Invoke(new object[] { this }) as ObjectState;
+                        dicTypeState.Add(stateTypes[i], constructor.Invoke(new object[] { this }) as ObjectState);
                     }
                     else
                     {
                         //如果不存在，那么获取没有参数的
                         constructor = stateTypes[i].GetConstructor(new Type[0]);
-                        _states[i] = constructor.Invoke(new object[0]) as ObjectState;
+                        dicTypeState.Add(stateTypes[i], constructor.Invoke(new object[0]) as ObjectState);
                     }
                 }
             }
-            return _states;
+            return dicTypeState.Values.ToArray();
         }
-        ObjectState[] _states = null;
+        Dictionary<Type, ObjectState> dicTypeState { get; set; } = null;
         public override T getState<T>()
         {
-            foreach (IState state in getAllStates())
-            {
-                if (state is T)
-                    return (T)state;
-            }
-            return default;
+            if (dicTypeState.ContainsKey(typeof(T)))
+                return (T)(object)dicTypeState[typeof(T)];
+            else
+                return default;
         }
         protected override IState getState()
         {
@@ -53,17 +52,20 @@ namespace BJSYGameCore.StateMachines
         ObjectState _state;
         public abstract class ObjectState : IState
         {
-            public abstract void onEntry();
-            public abstract void onExit();
-            public abstract void onUpdate();
-        }
-        public abstract class ObjectState<T> : ObjectState where T : ObjectStateMachine
-        {
-            public ObjectState(T machine)
+            public ObjectState(ObjectStateMachine machine)
             {
                 this.machine = machine;
             }
-            protected T machine { get; }
+            protected ObjectStateMachine machine { get; }
+            public virtual void onEntry()
+            {
+            }
+            public virtual void onExit()
+            {
+            }
+            public virtual void onUpdate()
+            {
+            }
         }
     }
 }

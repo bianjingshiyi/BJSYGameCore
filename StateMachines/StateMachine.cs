@@ -44,6 +44,9 @@ namespace BJSYGameCore.StateMachines
         {
             return null;
         }
+        /// <summary>
+        /// 状态机的当前状态。直接赋值会立刻改变状态机的状态，不推荐这么干。应当考虑重写onTransit方法来实现状态之间的转换。
+        /// </summary>
         public IState state
         {
             get { return getState(); }
