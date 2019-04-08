@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace BJSYGameCore.StateMachines
 {
-    public abstract class BehaviourStateMachine : StateMachine
+    public class BehaviourStateMachine : StateMachine
     {
         protected override IState getDefaultState()
         {
@@ -23,15 +23,11 @@ namespace BJSYGameCore.StateMachines
         BehaviourState _currentState;
         public override T getState<T>()
         {
-            return GetComponentInChildren<T>(true);
+            return GetComponentInChildren<T>();
         }
         public override IState[] getAllStates()
         {
-            if (_states == null || _states.Length < 1)
-                _states = GetComponentsInChildren<BehaviourState>(true);
-            return _states;
+            return GetComponentsInChildren<IState>();
         }
-        [SerializeField]
-        BehaviourState[] _states;
     }
 }

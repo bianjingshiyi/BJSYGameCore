@@ -36,6 +36,8 @@ namespace BJSYGameCore.StateMachines
         Dictionary<Type, ObjectState> dicTypeState { get; set; } = null;
         public override T getState<T>()
         {
+            if (dicTypeState == null)
+                getAllStates();
             if (dicTypeState.ContainsKey(typeof(T)))
                 return (T)(object)dicTypeState[typeof(T)];
             else
