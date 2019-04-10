@@ -55,10 +55,12 @@ namespace BJSYGameCore.StateMachines
                 if (state != null)
                     state.onExit();
                 setState(value);
+                onStateChange?.Invoke(this, state);
                 if (state != null)
                     state.onEntry();
             }
         }
+        public event Action<StateMachine, IState> onStateChange;
         /// <summary>
         /// 用于实现state属性。
         /// </summary>
