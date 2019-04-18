@@ -5,7 +5,7 @@ namespace BJSYGameCore.StateMachines
 {
     public class BehaviourStateMachine : StateMachine
     {
-        protected override IState getDefaultState()
+        public override IState getDefaultState()
         {
             return _defaultState;
         }

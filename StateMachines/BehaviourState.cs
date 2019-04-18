@@ -15,7 +15,7 @@ namespace BJSYGameCore.StateMachines
         {
         }
     }
-    public abstract class BehaviourState<T> : BehaviourState where T : BehaviourStateMachine
+    public abstract class BehaviourState<T> : BehaviourState where T : IStateMachine
     {
         public T machine
         {

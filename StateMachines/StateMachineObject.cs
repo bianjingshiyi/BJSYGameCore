@@ -1,31 +1,30 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 using UnityEngine;
 
 namespace BJSYGameCore.StateMachines
 {
-    public abstract class StateMachine : MonoBehaviour, IStateMachine
+    [Serializable]
+    public abstract class StateMachineObject<T> : IStateMachine where T : MonoBehaviour, IStateMachine
     {
-        protected void Awake()
+        public T monobehaviour
         {
-            onAwake();
+            get { return _monobehaviour; }
         }
-        protected virtual void onAwake()
+        [SerializeField]
+        T _monobehaviour;
+        public StateMachineObject(T monobehaviour)
+        {
+            _monobehaviour = monobehaviour;
+        }
+        public virtual void onAwake()
         {
             state = getDefaultState();
-        }
-        protected void Update()
-        {
-            onUpdate();
         }
         /// <summary>
         /// 调用onTransit方法获取下一个状态，如果为空则不进行转换。如果当前状态为空，则设置为默认状态，并调用当前状态的onUpdate方法。
         /// </summary>
-        protected virtual void onUpdate()
+        public virtual void onUpdate()
         {
             IState nextState = onTransit();
             if (nextState != null)
@@ -72,12 +71,6 @@ namespace BJSYGameCore.StateMachines
         /// <param name="state"></param>
         protected abstract void setState(IState state);
         public abstract IState[] getAllStates();
-        public abstract T getState<T>() where T : IState;
-    }
-    public interface IState
-    {
-        void onEntry();
-        void onUpdate();
-        void onExit();
+        public abstract TState getState<TState>() where TState : IState;
     }
 }
