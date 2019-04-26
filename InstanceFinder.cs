@@ -41,6 +41,10 @@ namespace BJSYGameCore
             }
             return instances.ToArray();
         }
+        public static Component findInstance(this Component component, Type type)
+        {
+            return component.gameObject.scene.findInstance(type);
+        }
         public static T findInstance<T>(this Component component)
         {
             return component.gameObject.scene.findInstance<T>();
