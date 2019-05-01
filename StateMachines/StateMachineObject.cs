@@ -4,19 +4,8 @@ using UnityEngine;
 
 namespace BJSYGameCore.StateMachines
 {
-    [Serializable]
-    public abstract class StateMachineObject<T> : IStateMachine where T : MonoBehaviour, IStateMachine
+    public abstract class StateMachineObject : IStateMachine
     {
-        public T monobehaviour
-        {
-            get { return _monobehaviour; }
-        }
-        [SerializeField]
-        T _monobehaviour;
-        public StateMachineObject(T monobehaviour)
-        {
-            _monobehaviour = monobehaviour;
-        }
         public virtual void onAwake()
         {
             state = getDefaultState();
@@ -72,5 +61,19 @@ namespace BJSYGameCore.StateMachines
         protected abstract void setState(IState state);
         public abstract IState[] getAllStates();
         public abstract TState getState<TState>() where TState : IState;
+    }
+    [Serializable]
+    public abstract class StateMachineObject<T> : StateMachineObject, IStateMachine where T : MonoBehaviour, IStateMachine
+    {
+        public T monobehaviour
+        {
+            get { return _monobehaviour; }
+        }
+        [SerializeField]
+        T _monobehaviour;
+        public StateMachineObject(T monobehaviour)
+        {
+            _monobehaviour = monobehaviour;
+        }
     }
 }
