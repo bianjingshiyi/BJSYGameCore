@@ -6,7 +6,7 @@ namespace BJSYGameCore.StateMachines
 {
     public abstract class StateMachineObject : IStateMachine
     {
-        public virtual void onAwake()
+        public virtual void onEnable()
         {
             state = getDefaultState();
         }

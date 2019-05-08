@@ -21,6 +21,16 @@ namespace BJSYGameCore.StateMachines
             }
         }
         public IState state { get => subMachine.state; set => subMachine.state = value; }
+        public override void onEntry()
+        {
+            base.onEntry();
+            subMachine.onEnable();
+        }
+        public override void onUpdate()
+        {
+            base.onUpdate();
+            subMachine.onUpdate();
+        }
         public event Action<IStateMachine, IState> onStateChange
         {
             add { ((IStateMachine)subMachine).onStateChange += value; }
