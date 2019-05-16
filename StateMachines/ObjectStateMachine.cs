@@ -58,6 +58,10 @@ namespace BJSYGameCore.StateMachines
             {
                 this.machine = machine;
             }
+            public virtual bool isExiting
+            {
+                get { return false; }
+            }
             protected ObjectStateMachine machine { get; }
             public virtual void onEntry()
             {

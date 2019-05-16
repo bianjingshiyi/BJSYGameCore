@@ -74,10 +74,4 @@ namespace BJSYGameCore.StateMachines
         public abstract IState[] getAllStates();
         public abstract T getState<T>() where T : IState;
     }
-    public interface IState
-    {
-        void onEntry();
-        void onUpdate();
-        void onExit();
-    }
 }

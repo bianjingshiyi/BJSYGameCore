@@ -5,6 +5,10 @@ namespace BJSYGameCore.StateMachines
 {
     public abstract class BehaviourState : MonoBehaviour, IState
     {
+        public virtual bool isExiting
+        {
+            get { return false; }
+        }
         public virtual void onEntry()
         {
         }
