@@ -15,7 +15,27 @@ namespace BJSYGameCore.StateMachines
         /// </summary>
         public virtual void onUpdate()
         {
-            IState nextState = onTransit();
+            if (getNextState() != null)
+            {
+                state = getNextState();
+                setNextState(null);
+            }
+            //for (IState nextState = onTransit(state); nextState != null; nextState = onTransit(nextState))
+            //{
+            //    if (onTransit(nextState) == null)
+            //    {
+            //        //不会再发生状态转换了
+            //        state = nextState;
+            //        break;
+            //    }
+            //    else if (onTransit(nextState) == nextState)
+            //    {
+            //        //转换到死循环
+            //        UberDebug.LogChannel("Core", "状态转换进入死循环" + nextState);
+            //        break;
+            //    }
+            //}
+            IState nextState = onTransit(state);
             if (nextState != null)
                 state = nextState;
             if (state == null)
@@ -28,7 +48,7 @@ namespace BJSYGameCore.StateMachines
         /// 默认返回null，不会发生任何状态转换。
         /// </summary>
         /// <returns></returns>
-        protected virtual IState onTransit()
+        protected virtual IState onTransit(IState state)
         {
             return null;
         }
@@ -37,12 +57,12 @@ namespace BJSYGameCore.StateMachines
         /// </summary>
         public IState state
         {
-            get { return getState(); }
-            set
+            get { return getStateField(); }
+            private set
             {
                 if (state != null)
                     state.onExit();
-                setState(value);
+                setStateField(value);
                 onStateChange?.Invoke(this, state);
                 if (state != null)
                     state.onEntry();
@@ -53,14 +73,16 @@ namespace BJSYGameCore.StateMachines
         /// 用于实现state属性。
         /// </summary>
         /// <returns></returns>
-        protected abstract IState getState();
+        protected abstract IState getStateField();
         /// <summary>
         /// 用于实现state属性。
         /// </summary>
         /// <param name="state"></param>
-        protected abstract void setState(IState state);
+        protected abstract void setStateField(IState state);
         public abstract IState[] getAllStates();
         public abstract TState getState<TState>() where TState : IState;
+        protected abstract IState getNextState();
+        public abstract void setNextState(IState state);
     }
     [Serializable]
     public abstract class StateMachineObject<T> : StateMachineObject, IStateMachine where T : MonoBehaviour, IStateMachine

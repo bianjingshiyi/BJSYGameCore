@@ -9,6 +9,8 @@ namespace BJSYGameCore.StateMachines
         [SerializeField]
         BehaviourState _defaultState;
         [SerializeField]
+        BehaviourState _nextState;
+        [SerializeField]
         BehaviourState _state;
         GundamMoveSubStateMachine _subMachine = null;
         GundamMoveSubStateMachine subMachine
@@ -20,7 +22,7 @@ namespace BJSYGameCore.StateMachines
                 return _subMachine;
             }
         }
-        public IState state { get => subMachine.state; set => subMachine.state = value; }
+        public IState state { get => subMachine.state; }
         public override void onEntry()
         {
             base.onEntry();
@@ -48,17 +50,21 @@ namespace BJSYGameCore.StateMachines
         {
             return ((IStateMachine)subMachine).getState<TState>();
         }
-        protected abstract IState onTransit();
+        public void setNextState(IState state)
+        {
+            ((IStateMachine)subMachine).setNextState(state);
+        }
+        protected abstract IState onTransit(IState state);
         class GundamMoveSubStateMachine : StateMachineObject<BehaviourSubStateMachine>
         {
             public GundamMoveSubStateMachine(BehaviourSubStateMachine monobehaviour) : base(monobehaviour)
             {
             }
-            protected override IState getState()
+            protected override IState getStateField()
             {
                 return monobehaviour._state;
             }
-            protected override void setState(IState state)
+            protected override void setStateField(IState state)
             {
                 monobehaviour._state = state as BehaviourState;
             }
@@ -74,9 +80,17 @@ namespace BJSYGameCore.StateMachines
             {
                 return monobehaviour.GetComponentInChildren<TState>(true);
             }
-            protected override IState onTransit()
+            protected override IState onTransit(IState state)
             {
-                return monobehaviour.onTransit();
+                return monobehaviour.onTransit(state);
+            }
+            protected override IState getNextState()
+            {
+                return monobehaviour._nextState;
+            }
+            public override void setNextState(IState state)
+            {
+                monobehaviour._nextState = state as BehaviourState;
             }
         }
     }

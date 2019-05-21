@@ -50,7 +50,7 @@ namespace BJSYGameCore.StateMachines
         public IState state
         {
             get { return getState(); }
-            set
+            private set
             {
                 if (state != null)
                     state.onExit();
@@ -73,5 +73,10 @@ namespace BJSYGameCore.StateMachines
         protected abstract void setState(IState state);
         public abstract IState[] getAllStates();
         public abstract T getState<T>() where T : IState;
+
+        public void setNextState(IState state)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

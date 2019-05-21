@@ -1,9 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 using UnityEngine;
 
 namespace BJSYGameCore.StateMachines
 {
+    [Obsolete("请使用MonoBehaviour通过StateMachineObject实现IStateMachine作为替代")]
     public class BehaviourStateMachine : StateMachine
     {
         [SerializeField]
