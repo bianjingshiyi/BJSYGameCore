@@ -63,9 +63,9 @@ namespace BJSYGameCore.StateMachines
                 if (state != null)
                     state.onExit();
                 setStateField(value);
-                onStateChange?.Invoke(this, state);
                 if (state != null)
                     state.onEntry();
+                onStateChange?.Invoke(this, state);
             }
         }
         public event Action<IStateMachine, IState> onStateChange;
