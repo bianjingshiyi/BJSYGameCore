@@ -52,15 +52,16 @@ namespace BJSYGameCore.StateMachines
             get { return getState(); }
             private set
             {
+                IState lastState = state;
                 if (state != null)
                     state.onExit();
                 setState(value);
                 if (state != null)
                     state.onEntry();
-                onStateChange?.Invoke(this, state);
+                onStateChange?.Invoke(this, lastState, state);
             }
         }
-        public event Action<IStateMachine, IState> onStateChange;
+        public event Action<IStateMachine, IState, IState> onStateChange;
         /// <summary>
         /// 用于实现state属性。
         /// </summary>
@@ -74,7 +75,7 @@ namespace BJSYGameCore.StateMachines
         public abstract IState[] getAllStates();
         public abstract T getState<T>() where T : IState;
 
-        public void setNextState(IState state)
+        public void setNextStateField(IState state)
         {
             throw new NotImplementedException();
         }

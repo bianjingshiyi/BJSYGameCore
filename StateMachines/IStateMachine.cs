@@ -6,9 +6,9 @@ namespace BJSYGameCore.StateMachines
     {
         IState getDefaultState();
         IState state { get; }
-        event Action<IStateMachine, IState> onStateChange;
+        event Action<IStateMachine, IState, IState> onStateChange;
         IState[] getAllStates();
         TState getState<TState>() where TState : IState;
-        void setNextState(IState state);
+        void setNextStateField(IState state);
     }
 }

@@ -33,7 +33,7 @@ namespace BJSYGameCore.StateMachines
             base.onUpdate();
             subMachine.onUpdate();
         }
-        public event Action<IStateMachine, IState> onStateChange
+        public event Action<IStateMachine, IState, IState> onStateChange
         {
             add { ((IStateMachine)subMachine).onStateChange += value; }
             remove { ((IStateMachine)subMachine).onStateChange -= value; }
@@ -50,9 +50,9 @@ namespace BJSYGameCore.StateMachines
         {
             return ((IStateMachine)subMachine).getState<TState>();
         }
-        public void setNextState(IState state)
+        public void setNextStateField(IState state)
         {
-            ((IStateMachine)subMachine).setNextState(state);
+            ((IStateMachine)subMachine).setNextStateField(state);
         }
         protected abstract IState onTransit(IState state);
         class GundamMoveSubStateMachine : StateMachineObject<BehaviourSubStateMachine>
@@ -84,11 +84,11 @@ namespace BJSYGameCore.StateMachines
             {
                 return monobehaviour.onTransit(state);
             }
-            protected override IState getNextState()
+            protected override IState getNextStateField()
             {
                 return monobehaviour._nextState;
             }
-            public override void setNextState(IState state)
+            public override void setNextStateField(IState state)
             {
                 monobehaviour._nextState = state as BehaviourState;
             }

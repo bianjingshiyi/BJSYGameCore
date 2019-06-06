@@ -15,27 +15,14 @@ namespace BJSYGameCore.StateMachines
         /// </summary>
         public virtual void onUpdate()
         {
-            if (getNextState() != null)
+            IState nextState = getNextStateField();
+            if (nextState != null)
             {
-                state = getNextState();
-                setNextState(null);
+                setNextStateField(null);
+                nextState = onTransit(nextState);
             }
-            //for (IState nextState = onTransit(state); nextState != null; nextState = onTransit(nextState))
-            //{
-            //    if (onTransit(nextState) == null)
-            //    {
-            //        //不会再发生状态转换了
-            //        state = nextState;
-            //        break;
-            //    }
-            //    else if (onTransit(nextState) == nextState)
-            //    {
-            //        //转换到死循环
-            //        UberDebug.LogChannel("Core", "状态转换进入死循环" + nextState);
-            //        break;
-            //    }
-            //}
-            IState nextState = onTransit(state);
+            else
+                nextState = onTransit(state);
             if (nextState != null)
                 state = nextState;
             if (state == null)
@@ -60,15 +47,16 @@ namespace BJSYGameCore.StateMachines
             get { return getStateField(); }
             private set
             {
-                if (state != null)
+                IState lastState = state;
+                if (lastState != null)
                     state.onExit();
                 setStateField(value);
                 if (state != null)
                     state.onEntry();
-                onStateChange?.Invoke(this, state);
+                onStateChange?.Invoke(this, lastState, state);
             }
         }
-        public event Action<IStateMachine, IState> onStateChange;
+        public event Action<IStateMachine, IState, IState> onStateChange;
         /// <summary>
         /// 用于实现state属性。
         /// </summary>
@@ -81,8 +69,8 @@ namespace BJSYGameCore.StateMachines
         protected abstract void setStateField(IState state);
         public abstract IState[] getAllStates();
         public abstract TState getState<TState>() where TState : IState;
-        protected abstract IState getNextState();
-        public abstract void setNextState(IState state);
+        protected abstract IState getNextStateField();
+        public abstract void setNextStateField(IState state);
     }
     [Serializable]
     public abstract class StateMachineObject<T> : StateMachineObject, IStateMachine where T : MonoBehaviour, IStateMachine
