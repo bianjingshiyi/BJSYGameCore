@@ -26,5 +26,9 @@ namespace BJSYGameCore
         {
             return SceneManager.UnloadSceneAsync(value);
         }
+        public static implicit operator string(ScenePath scene)
+        {
+            return scene.value;
+        }
     }
 }
