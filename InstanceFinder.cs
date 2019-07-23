@@ -37,7 +37,7 @@ namespace BJSYGameCore
             List<T> instances = new List<T>();
             for (int i = 0; i < objs.Length; i++)
             {
-                instances.AddRange(objs[i].GetComponentsInChildren<T>());
+                instances.AddRange(objs[i].GetComponentsInChildren<T>(true));
             }
             return instances.ToArray();
         }
