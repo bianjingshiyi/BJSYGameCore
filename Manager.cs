@@ -43,10 +43,10 @@ namespace BJSYGameCore
         protected virtual void onAwake()
         {
         }
-        internal virtual void onSceneLoad(string scenePath)
+        internal protected virtual void onSceneLoad(string scenePath)
         {
         }
-        internal virtual void onSceneLoaded(string scenePath)
+        internal protected virtual void onSceneLoaded(string scenePath)
         {
         }
     }
