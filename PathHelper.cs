@@ -43,14 +43,26 @@ namespace BJSYGameCore
         {
             if (!string.IsNullOrEmpty(path))
             {
-                string[] names = path.Split('/');
-                for (int i = 0; i < names.Length; i++)
+                int index = path.LastIndexOf('/');
+                if (0 <= index && index < path.Length)
                 {
-                    transform = transform.Find(names[i]);
-                    if (transform == null)
+                    string prevPath = path.Substring(0, index);
+                    string name = path.Substring(index + 1, path.Length - index - 1);
+                    Transform parent = transform.getChildAt(prevPath);
+                    if (parent != null)
+                        return parent.getChildAt(name);
+                    else
                         return null;
                 }
-                return transform;
+                else
+                {
+                    for (int i = 0; i < transform.childCount; i++)
+                    {
+                        if (transform.GetChild(i).name == path)
+                            return transform.GetChild(i);
+                    }
+                    return null;
+                }
             }
             else
                 return transform;
