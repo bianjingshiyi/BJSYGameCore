@@ -30,8 +30,6 @@ namespace BJSYGameCore
                 _locals.Add(local);
                 local.global = this;
             }
-            else
-                UberDebug.LogWarningChannel(this, "Core", local + "已经注册");
         }
         /// <summary>
         /// 异步加载场景。
