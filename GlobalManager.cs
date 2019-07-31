@@ -11,7 +11,7 @@ namespace BJSYGameCore
     public class GlobalManager : MonoBehaviour
     {
         [SerializeField]
-        List<LocalManager> _locals;
+        List<LocalManager> _locals = new List<LocalManager>();
         /// <summary>
         /// 已注册的局部管理器。
         /// </summary>
