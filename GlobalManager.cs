@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -37,7 +38,7 @@ namespace BJSYGameCore
         /// <param name="scenePath"></param>
         /// <param name="loadMode"></param>
         /// <returns></returns>
-        public LoadSceneOperation loadSceneAsync(string scenePath, LoadSceneMode loadMode)
+        public LoadSceneOperation loadSceneAsync(string scenePath, LoadSceneMode loadMode, Action callback = null)
         {
             //触发加载场景事件
             foreach (LocalManager local in locals)
@@ -50,6 +51,10 @@ namespace BJSYGameCore
             //加载场景
             LoadSceneOperation operation = new LoadSceneOperation(scenePath, loadMode);
             operation.onSceneLoaded += Operation_onSceneLoaded;
+            operation.onSceneLoaded += o =>
+            {
+                callback?.Invoke();
+            };
             return operation;
         }
         private void Operation_onSceneLoaded(LoadSceneOperation operation)

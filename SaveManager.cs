@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 
 using UnityEngine;
@@ -16,16 +17,33 @@ namespace BJSYGameCore
     public class SaveManager : MonoBehaviour
     {
         #region Save
-        public void saveAsFile(string path)
+        public void saveAsFile(string path, object header = null)
         {
             FileInfo file = new FileInfo(path);
             string fileName = file.Name.Split('.')[0];
             SaveData data = save(fileName);
-            using (FileStream stream = new FileStream(path, FileMode.Create))
+            using (BinaryWriter writer = new BinaryWriter(new FileStream(path, FileMode.Create)))
             {
-                onSaveAsFile(stream);
+                onSaveAsFile(writer.BaseStream);
                 BinaryFormatter binaryFormatter = new BinaryFormatter();
-                binaryFormatter.Serialize(stream, data);
+                //文件头
+                if (header != null)
+                {
+                    byte[] headerBytes;
+                    using (MemoryStream ms = new MemoryStream())
+                    {
+                        binaryFormatter.Serialize(ms, header);
+                        ms.Position = 0;
+                        headerBytes = new byte[ms.Length];
+                        ms.Read(headerBytes, 0, (int)ms.Length);
+                    }
+                    writer.Write(BitConverter.GetBytes(headerBytes.Length));
+                    writer.Write(headerBytes);
+                }
+                else
+                    writer.Write(0);
+                //主体
+                binaryFormatter.Serialize(writer.BaseStream, data);
             }
         }
         protected virtual void onSaveAsFile(Stream stream)
@@ -87,7 +105,14 @@ namespace BJSYGameCore
         }
         #endregion
         #region Load
-        public void loadFromFile(string path)
+        /// <summary>
+        /// 读取存档文件的文件头
+        /// </summary>
+        /// <param name="path">文件路径</param>
+        /// <returns>文件头对象</returns>
+        /// <exception cref="FileNotFoundException"></exception>
+        /// <exception cref="SerializationException"></exception>
+        public object loadHeaderFromFile(string path)
         {
             FileInfo file = new FileInfo(path);
             if (file.Exists)
@@ -96,13 +121,79 @@ namespace BJSYGameCore
                 {
                     onLoadFromFile(stream);
                     BinaryFormatter binaryFormatter = new BinaryFormatter();
-                    SaveData data = binaryFormatter.Deserialize(stream) as SaveData;
-                    if (data != null)
+                    try
                     {
-                        load(data);
+                        //文件头
+                        byte[] buffer = new byte[4];
+                        stream.Read(buffer, 0, 4);
+                        int headerLength = BitConverter.ToInt32(buffer, 0);
+                        object header;
+                        if (headerLength > 0)
+                        {
+                            buffer = new byte[headerLength];
+                            using (MemoryStream ms = new MemoryStream(stream.Read(buffer, 4, headerLength)))
+                            {
+                                header = binaryFormatter.Deserialize(ms);
+                            }
+                        }
+                        else
+                            header = null;
+                        return header;
+                    }
+                    catch (SerializationException e)
+                    {
+                        throw e;
                     }
                 }
             }
+            else
+                throw new FileNotFoundException("没有找到存档文件" + path, path);
+        }
+        /// <summary>
+        /// 从文件中加载存档
+        /// </summary>
+        /// <param name="path">文件路径</param>
+        /// <exception cref="FileNotFoundException">当无法找到路径上的文件时抛出</exception>
+        /// <exception cref="SerializationException">当存档内容为空或者反序列化失败的时候抛出</exception>
+        public object loadFromFile(string path)
+        {
+            FileInfo file = new FileInfo(path);
+            if (file.Exists)
+            {
+                using (FileStream stream = new FileStream(path, FileMode.Open))
+                {
+                    onLoadFromFile(stream);
+                    BinaryFormatter binaryFormatter = new BinaryFormatter();
+                    try
+                    {
+                        //文件头
+                        byte[] buffer = new byte[4];
+                        stream.Read(buffer, 0, 4);
+                        int headerLength = BitConverter.ToInt32(buffer, 0);
+                        object header;
+                        if (headerLength > 0)
+                        {
+                            buffer = new byte[headerLength];
+                            using (MemoryStream ms = new MemoryStream(stream.Read(buffer, 4, headerLength)))
+                            {
+                                header = binaryFormatter.Deserialize(ms);
+                            }
+                        }
+                        else
+                            header = null;
+                        //主体
+                        if (binaryFormatter.Deserialize(stream) is SaveData data)
+                            load(data);
+                        return header;
+                    }
+                    catch (SerializationException e)
+                    {
+                        throw e;
+                    }
+                }
+            }
+            else
+                throw new FileNotFoundException("没有找到存档文件" + path, path);
         }
         protected virtual void onLoadFromFile(Stream stream)
         {
@@ -114,11 +205,8 @@ namespace BJSYGameCore
                 ms.Write(bytes, 0, bytes.Length);
                 ms.Position = 0;
                 BinaryFormatter bf = new BinaryFormatter();
-                SaveData data = bf.Deserialize(ms) as SaveData;
-                if (data != null)
-                {
+                if (bf.Deserialize(ms) is SaveData data)
                     load(data);
-                }
             }
         }
         SaveData loadingData
