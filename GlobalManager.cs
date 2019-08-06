@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Collections.Generic;
 
 using UnityEngine;
@@ -11,14 +12,41 @@ namespace BJSYGameCore
     /// </summary>
     public class GlobalManager : MonoBehaviour
     {
-        [SerializeField]
-        List<LocalManager> _locals = new List<LocalManager>();
+        Dictionary<string, LocalManager> localDic { get; } = new Dictionary<string, LocalManager>();
+        /// <summary>
+        /// 根场景管理器
+        /// </summary>
+        public LocalManager root
+        {
+            get
+            {
+                if (!localDic.ContainsKey(gameObject.scene.path))
+                {
+                    LocalManager local = this.findInstance<LocalManager>();
+                    if (local == null)
+                    {
+                        local = new GameObject("LocalManager").AddComponent<LocalManager>();
+                        SceneManager.MoveGameObjectToScene(local.gameObject, gameObject.scene);
+                    }
+                    registerLocal(local);
+                }
+                return localDic[gameObject.scene.path];
+            }
+        }
+        public T getManager<T>() where T : Manager
+        {
+            return root.getManager<T>();
+        }
+        public Manager getManager(Type t)
+        {
+            return root.getManager(t);
+        }
         /// <summary>
         /// 已注册的局部管理器。
         /// </summary>
         public LocalManager[] locals
         {
-            get { return _locals.ToArray(); }
+            get { return localDic.Values.ToArray(); }
         }
         /// <summary>
         /// 注册局部管理器。
@@ -26,9 +54,9 @@ namespace BJSYGameCore
         /// <param name="local"></param>
         public void registerLocal(LocalManager local)
         {
-            if (!_locals.Contains(local))
+            if (!localDic.ContainsKey(local.gameObject.scene.path))
             {
-                _locals.Add(local);
+                localDic.Add(local.gameObject.scene.path, local);
                 local.global = this;
             }
         }
@@ -69,6 +97,10 @@ namespace BJSYGameCore
                     manager.onSceneLoaded(operation.scenePath);
                 }
             }
+        }
+        public LocalManager getLocal(string path)
+        {
+            return localDic[path];
         }
     }
 }
