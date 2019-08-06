@@ -33,10 +33,20 @@ namespace BJSYGameCore
                 return localDic[gameObject.scene.path];
             }
         }
+        /// <summary>
+        /// 获取根场景中的管理器
+        /// </summary>
+        /// <typeparam name="T">管理器类型</typeparam>
+        /// <returns>管理器</returns>
         public T getManager<T>() where T : Manager
         {
             return root.getManager<T>();
         }
+        /// <summary>
+        /// 获取根场景中的管理器
+        /// </summary>
+        /// <param name="t">管理器类型</param>
+        /// <returns>管理器</returns>
         public Manager getManager(Type t)
         {
             return root.getManager(t);
@@ -98,6 +108,11 @@ namespace BJSYGameCore
                 }
             }
         }
+        /// <summary>
+        /// 获取局部管理器
+        /// </summary>
+        /// <param name="path">局部管理器所在场景路径</param>
+        /// <returns>局部管理器</returns>
         public LocalManager getLocal(string path)
         {
             return localDic[path];
