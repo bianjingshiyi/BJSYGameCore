@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 using UnityEngine;
 
-namespace BJSYGameCore
+namespace BJSYGameCore.SaveSystem
 {
     [ExecuteInEditMode]
     public class InstanceManager : MonoBehaviour, ISavable
@@ -115,11 +115,9 @@ namespace BJSYGameCore
         {
             public List<int> idPool = new List<int>();
             public SavableInstanceData[] instances = null;
-            public ISavable load(SaveManager saveManager, int id, string path)
+            public void load(SaveManager saveManager, int id, string path)
             {
-                InstanceManager manager = saveManager.findInstance<InstanceManager>();
-                manager._data = this;
-                return manager;
+                saveManager.findInstance<InstanceManager>()._data = this;
             }
         }
         [SerializeField]

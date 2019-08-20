@@ -5,7 +5,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace BJSYGameCore
+namespace BJSYGameCore.SaveSystem
 {
     [CustomPropertyDrawer(typeof(InstanceReference))]
     [CanEditMultipleObjects]

@@ -1,4 +1,4 @@
-﻿namespace BJSYGameCore
+﻿namespace BJSYGameCore.SaveSystem
 {
     public interface ISavable
     {

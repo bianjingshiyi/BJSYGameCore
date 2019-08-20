@@ -2,7 +2,7 @@
 
 using UnityEngine;
 
-namespace BJSYGameCore
+namespace BJSYGameCore.SaveSystem
 {
     [Serializable]
     public class SavableInstanceRegistration

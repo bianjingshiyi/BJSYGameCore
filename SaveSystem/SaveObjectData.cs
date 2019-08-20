@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace BJSYGameCore
+namespace BJSYGameCore.SaveSystem
 {
     [Serializable]
     public class SaveObjectData

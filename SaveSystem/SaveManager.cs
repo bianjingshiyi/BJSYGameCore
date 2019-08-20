@@ -9,13 +9,31 @@ using System.Runtime.Serialization.Formatters.Binary;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-using BJSYGameCore;
-
-namespace BJSYGameCore
+namespace BJSYGameCore.SaveSystem
 {
     [ExecuteInEditMode]
     public class SaveManager : MonoBehaviour
     {
+        protected void Awake()
+        {
+            onAwake();
+        }
+        Dictionary<Type, IComponentSaver> typeSaverDic { get; } = new Dictionary<Type, IComponentSaver>();
+        protected virtual void onAwake()
+        {
+            //反射加载所有ComponentSaver
+            loadSavers(typeof(SaveManager).Assembly);
+        }
+        protected void loadSavers(Assembly assembly)
+        {
+            foreach (Type saverType in assembly.GetTypes().Where(t =>
+            {
+                return t.BaseType != null && t.BaseType.IsGenericType && t.BaseType.GetGenericTypeDefinition() == typeof(ComponentSaver<>);
+            }))
+            {
+                typeSaverDic.Add(saverType.BaseType.GetGenericArguments()[0], saverType.GetConstructor(new Type[0]).Invoke(new object[0]) as IComponentSaver);
+            }
+        }
         #region Save
         public void saveAsFile(string path, object header = null)
         {
@@ -70,6 +88,7 @@ namespace BJSYGameCore
                 instances = new List<SavableInstanceData>(),
                 savedObjects = new List<SaveObjectData>()
             };
+            //查找该场景内可以保存的物体。
             GameObject[] roots = gameObject.scene.GetRootGameObjects();
             for (int i = 0; i < roots.Length; i++)
             {
@@ -77,17 +96,46 @@ namespace BJSYGameCore
             }
             return data;
         }
+        /// <summary>
+        /// 查找并保存物体
+        /// </summary>
+        /// <param name="data"></param>
+        /// <param name="transform"></param>
+        /// <param name="current"></param>
+        /// <param name="path"></param>
+        /// <param name="relative"></param>
         private void findAndSaveObject(SaveData data, Transform transform, SavableInstance current, string path, string relative)
         {
-            ISavable[] objs = transform.GetComponents<ISavable>();
+            //查找当前物体上可以保存的组件
+            Component[] objs = transform.GetComponents<Component>();
             for (int i = 0; i < objs.Length; i++)
             {
-                data.savedObjects.Add(new SaveObjectData(current != null ? current.id : 0, current != null ? relative : path, getTypePriority(objs[i].GetType()), objs[i].save()));
+                if (isSavable(objs[i], out ILoadableData loadableData))
+                    data.savedObjects.Add(new SaveObjectData(current != null ? current.id : 0, current != null ? relative : path, getTypePriority(objs[i].GetType()), loadableData));
             }
+            //查找子物体
             for (int i = 0; i < transform.childCount; i++)
             {
                 Transform child = transform.GetChild(i);
                 findAndSaveObject(data, child, current, path + '/' + child.gameObject.name, relative == null ? child.gameObject.name : (relative + '/' + child.gameObject.name));
+            }
+        }
+        private bool isSavable(Component component, out ILoadableData data)
+        {
+            if (component is ISavable)
+            {
+                data = (component as ISavable).save();
+                return true;
+            }
+            else if (typeSaverDic.ContainsKey(component.GetType()))
+            {
+                data = typeSaverDic[component.GetType()].save(component);
+                return true;
+            }
+            else
+            {
+                data = null;
+                return false;
             }
         }
         private float getTypePriority(Type type)
@@ -174,14 +222,17 @@ namespace BJSYGameCore
                         if (headerLength > 0)
                         {
                             buffer = new byte[headerLength];
-                            using (MemoryStream ms = new MemoryStream(stream.Read(buffer, 4, headerLength)))
+                            using (MemoryStream ms = new MemoryStream(stream.Read(buffer, 0, headerLength)))
                             {
+                                ms.Write(buffer, 0, headerLength);
+                                ms.Position = 0;
                                 header = binaryFormatter.Deserialize(ms);
                             }
                         }
                         else
                             header = null;
                         //主体
+                        stream.Position = 4 + headerLength;
                         if (binaryFormatter.Deserialize(stream) is SaveData data)
                             load(data);
                         return header;
@@ -240,10 +291,9 @@ namespace BJSYGameCore
                 loadInstance(loadingData.savedObjects[i], gameObject.scene);
             }
         }
-        private ISavable loadInstance(SaveObjectData obj, Scene scene)
+        private void loadInstance(SaveObjectData obj, Scene scene)
         {
-            ISavable s = obj.data.load(this, obj.id, obj.path);
-            return s;
+            obj.data.load(this, obj.id, obj.path);
         }
         #endregion
     }

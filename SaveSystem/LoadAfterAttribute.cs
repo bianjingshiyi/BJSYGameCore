@@ -1,14 +1,14 @@
 ﻿using System;
 
-namespace BJSYGameCore
+namespace BJSYGameCore.SaveSystem
 {
-    public class LoadBeforeAttribute : Attribute
+    public class LoadAfterAttribute : Attribute
     {
         public Type targetType
         {
             get; private set;
         }
-        public LoadBeforeAttribute(Type targetType)
+        public LoadAfterAttribute(Type targetType)
         {
             this.targetType = targetType;
         }

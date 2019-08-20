@@ -6,7 +6,7 @@ using UnityEngine.SceneManagement;
 
 using BJSYGameCore;
 
-namespace BJSYGameCore
+namespace BJSYGameCore.SaveSystem
 {
     [Serializable]
     public class InstanceReference

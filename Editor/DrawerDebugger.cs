@@ -2,6 +2,8 @@
 using UnityEditor;
 using UnityEngine;
 
+using BJSYGameCore.SaveSystem;
+
 namespace BJSYGameCore
 {
     public class DrawerDebugger : EditorWindow
