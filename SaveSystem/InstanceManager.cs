@@ -115,7 +115,7 @@ namespace BJSYGameCore.SaveSystem
         {
             public List<int> idPool = new List<int>();
             public SavableInstanceData[] instances = null;
-            public void load(SaveManager saveManager, int id, string path)
+            public void load(SaveManager saveManager)
             {
                 saveManager.findInstance<InstanceManager>()._data = this;
             }

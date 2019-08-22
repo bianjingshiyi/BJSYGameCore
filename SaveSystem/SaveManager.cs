@@ -92,7 +92,7 @@ namespace BJSYGameCore.SaveSystem
             GameObject[] roots = gameObject.scene.GetRootGameObjects();
             for (int i = 0; i < roots.Length; i++)
             {
-                findAndSaveObject(data, roots[i].transform, null, roots[i].name, null);
+                findAndSaveObject(data, roots[i].transform, roots[i].name, null);
             }
             return data;
         }
@@ -101,23 +101,23 @@ namespace BJSYGameCore.SaveSystem
         /// </summary>
         /// <param name="data"></param>
         /// <param name="transform"></param>
-        /// <param name="current"></param>
         /// <param name="path"></param>
         /// <param name="relative"></param>
-        private void findAndSaveObject(SaveData data, Transform transform, SavableInstance current, string path, string relative)
+        /// 
+        private void findAndSaveObject(SaveData data, Transform transform, string path, string relative)
         {
             //查找当前物体上可以保存的组件
             Component[] objs = transform.GetComponents<Component>();
             for (int i = 0; i < objs.Length; i++)
             {
                 if (isSavable(objs[i], out ILoadableData loadableData))
-                    data.savedObjects.Add(new SaveObjectData(current != null ? current.id : 0, current != null ? relative : path, getTypePriority(objs[i].GetType()), loadableData));
+                    data.savedObjects.Add(new SaveObjectData(getTypePriority(objs[i].GetType()), loadableData));
             }
             //查找子物体
             for (int i = 0; i < transform.childCount; i++)
             {
                 Transform child = transform.GetChild(i);
-                findAndSaveObject(data, child, current, path + '/' + child.gameObject.name, relative == null ? child.gameObject.name : (relative + '/' + child.gameObject.name));
+                findAndSaveObject(data, child, path + '/' + child.gameObject.name, relative == null ? child.gameObject.name : (relative + '/' + child.gameObject.name));
             }
         }
         private bool isSavable(Component component, out ILoadableData data)
@@ -293,7 +293,7 @@ namespace BJSYGameCore.SaveSystem
         }
         private void loadInstance(SaveObjectData obj, Scene scene)
         {
-            obj.data.load(this, obj.id, obj.path);
+            obj.data.load(this);
         }
         #endregion
     }
