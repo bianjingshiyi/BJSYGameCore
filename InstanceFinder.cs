@@ -18,7 +18,7 @@ namespace BJSYGameCore
                 if (t != null)
                     return t;
             }
-            return default(T);
+            return default;
         }
         public static Component findInstance(this Scene scene, Type type)
         {
@@ -55,7 +55,7 @@ namespace BJSYGameCore
         }
         public static T findInstanceAllScene<T>()
         {
-            T instance = default(T);
+            T instance = default;
             for (int i = 0; i < SceneManager.sceneCount; i++)
             {
                 instance = SceneManager.GetSceneAt(i).findInstance<T>();

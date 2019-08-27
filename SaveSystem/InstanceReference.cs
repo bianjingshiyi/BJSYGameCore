@@ -80,7 +80,7 @@ namespace BJSYGameCore.SaveSystem
                     if (child != null)
                         return child.GetComponent<T>();
                     else
-                        return default(T);
+                        return default;
                 }
             }
             else if (!string.IsNullOrEmpty(path))
@@ -88,7 +88,7 @@ namespace BJSYGameCore.SaveSystem
                 string[] names = path.Split('/');
                 GameObject root = manager.gameObject.scene.GetRootGameObjects().FirstOrDefault(e => { return e.name == names[0]; });
                 if (root == null)
-                    return default(T);
+                    return default;
                 Transform parent = root.transform;
                 for (int i = 1; i < names.Length; i++)
                 {
@@ -97,9 +97,9 @@ namespace BJSYGameCore.SaveSystem
                 if (parent != null)
                     return parent.GetComponent<T>();
                 else
-                    return default(T);
+                    return default;
             }
-            return default(T);
+            return default;
         }
         public T findInstanceIn<T>(Scene scene)
         {
@@ -121,7 +121,7 @@ namespace BJSYGameCore.SaveSystem
                     if (child != null)
                         return child.GetComponent<T>();
                     else
-                        return default(T);
+                        return default;
                 }
             }
             else if (!string.IsNullOrEmpty(path))
@@ -129,7 +129,7 @@ namespace BJSYGameCore.SaveSystem
                 string[] names = path.Split('/');
                 GameObject root = scene.GetRootGameObjects().FirstOrDefault(e => { return e.name == names[0]; });
                 if (root == null)
-                    return default(T);
+                    return default;
                 Transform parent = root.transform;
                 for (int i = 1; i < names.Length; i++)
                 {
@@ -138,9 +138,9 @@ namespace BJSYGameCore.SaveSystem
                 if (parent != null)
                     return parent.GetComponent<T>();
                 else
-                    return default(T);
+                    return default;
             }
-            return default(T);
+            return default;
         }
         public Component findInstanceIn(Scene scene, Type type)
         {
