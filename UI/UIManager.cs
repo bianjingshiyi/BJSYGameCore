@@ -1,8 +1,6 @@
 ﻿using UnityEngine;
 using BJSYGameCore;
 
-using DAFramework;
-
 namespace BJSYGameCore.UI
 {
     public class UIManager : Manager
