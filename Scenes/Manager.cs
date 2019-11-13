@@ -1,4 +1,5 @@
-﻿
+﻿using System;
+
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -48,6 +49,14 @@ namespace BJSYGameCore
         }
         internal protected virtual void onSceneLoaded(string scenePath)
         {
+        }
+        public T getManager<T>() where T : Manager
+        {
+            return local.getManager<T>();
+        }
+        public Manager getManager(Type type)
+        {
+            return local.getManager(type);
         }
     }
 }
