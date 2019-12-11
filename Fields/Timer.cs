@@ -25,11 +25,15 @@ namespace BJSYGameCore
         }
         public bool isExpired()
         {
-            return Time.time - startTime >= duration;
+            return isExpired(Time.time);
+        }
+        public bool isExpired(bool includeNotStarted)
+        {
+            return includeNotStarted ? isExpired() || startTime < 0 : isExpired();
         }
         public bool isExpired(float now)
         {
-            return now - startTime >= duration;
+            return duration > 0 ? now - startTime >= duration : false;
         }
     }
 }
