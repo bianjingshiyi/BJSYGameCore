@@ -43,6 +43,7 @@ namespace BJSYGameCore
         }
         protected virtual void onAwake()
         {
+            local.global.loadSceneAsync()
         }
         internal protected virtual void onSceneLoad(string scenePath)
         {
@@ -57,6 +58,10 @@ namespace BJSYGameCore
         public Manager getManager(Type type)
         {
             return local.getManager(type);
+        }
+        public void loadSceneAsync(string scenePath, LoadSceneMode loadSceneMode, Action callback = null)
+        {
+            local.global.loadSceneAsync(scenePath, loadSceneMode, callback);
         }
     }
 }
