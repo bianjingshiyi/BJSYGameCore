@@ -98,7 +98,15 @@ namespace BJSYGameCore
         private void Operation_onSceneLoaded(LoadSceneOperation operation)
         {
             //按道理来讲场景里的东西应该都Awake过了，以防万一还是检查一下场景里的LocalManager吧。
-            registerLocal(SceneManager.GetSceneByPath(operation.scenePath).findInstance<LocalManager>());
+            Scene scene = SceneManager.GetSceneByPath(operation.scenePath);
+            LocalManager currentLocal = scene.findInstance<LocalManager>();
+            if (currentLocal == null)
+            {
+                GameObject gameObject = new GameObject("LocalManager");
+                SceneManager.MoveGameObjectToScene(gameObject, scene);
+                currentLocal = gameObject.AddComponent<LocalManager>();
+            }
+            registerLocal(currentLocal);
             //触发场景加载完毕事件
             foreach (LocalManager local in locals)
             {

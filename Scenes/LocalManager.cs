@@ -87,7 +87,12 @@ namespace BJSYGameCore
         /// <returns></returns>
         public T getManager<T>() where T : Manager
         {
-            return getManager(typeof(T)) as T;
+            T manager = getManager(typeof(T)) as T;
+            if (manager != null)
+                return manager;
+            if (this != global.root)
+                return global.getManager<T>();
+            return default;
         }
         public override string ToString()
         {

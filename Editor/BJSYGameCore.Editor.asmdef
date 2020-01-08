@@ -1,0 +1,16 @@
+{
+    "name": "BJSYGameCore.Editor",
+    "references": [
+        "GUID:f442f5613a5123d4aac2450609bd288a"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": []
+}

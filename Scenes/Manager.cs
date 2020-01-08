@@ -58,5 +58,9 @@ namespace BJSYGameCore
         {
             return local.getManager(type);
         }
+        public LoadSceneOperation loadSceneAsync(string scenePath, LoadSceneMode loadMode, Action callback = null)
+        {
+            return local.global.loadSceneAsync(scenePath, loadMode, callback);
+        }
     }
 }
