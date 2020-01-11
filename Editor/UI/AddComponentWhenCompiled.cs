@@ -4,19 +4,12 @@ using UnityEditor;
 
 namespace BJSYGameCore.UI
 {
-    class AddComponentWhenCompiled : MonoBehaviour
+    class AddComponentWhenCompiled
     {
-        [SerializeField]
-        string _path;
-        public string path
-        {
-            get { return _path; }
-            set { _path = value; }
-        }
         [InitializeOnLoadMethod]
         public static void replaceComponentWhenCompiled()
         {
-            foreach (var obj in FindObjectsOfType<AddComponentWhenCompiled>())
+            foreach (var obj in UnityEngine.Object.FindObjectsOfType<AddComponentWhenCompiledComponent>())
             {
                 MonoScript script = AssetDatabase.LoadAssetAtPath<MonoScript>(obj.path);
                 Type type = script.GetClass();
@@ -24,11 +17,12 @@ namespace BJSYGameCore.UI
                 {
                     if (obj.gameObject.GetComponent(type) == null)
                     {
-                        obj.gameObject.AddComponent(type);
+                        Component component = obj.gameObject.AddComponent(type);
+                        component.GetType().GetMethod("autoBind").Invoke(component, new object[] { });
                         Debug.Log("AddComponent:" + type.Name, obj.gameObject);
                     }
                 }
-                DestroyImmediate(obj);
+                UnityEngine.Object.DestroyImmediate(obj);
             }
         }
     }
