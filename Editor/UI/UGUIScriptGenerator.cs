@@ -72,7 +72,10 @@ namespace BJSYGameCore.UI
         {
             if (string.IsNullOrEmpty(fileName))
             {
-                fileName = rootGameObject.name;
+                if (rootGameObject.name == "Canvas" && rootGameObject.GetComponent<Canvas>() != null)
+                    fileName = rootGameObject.scene.name;
+                else
+                    fileName = rootGameObject.name;
                 if (baseType == typeof(UIList) && !Regex.IsMatch(fileName, "List", RegexOptions.IgnoreCase))
                     fileName += "List";
             }

@@ -50,6 +50,12 @@ namespace BJSYGameCore
         internal protected virtual void onSceneLoaded(string scenePath)
         {
         }
+        internal protected virtual void onSceneUnload(string scenePath)
+        {
+        }
+        internal protected virtual void onSceneUnloaded(string scenePath)
+        {
+        }
         public T getManager<T>() where T : Manager
         {
             return local.getManager<T>();
@@ -61,6 +67,10 @@ namespace BJSYGameCore
         public LoadSceneOperation loadSceneAsync(string scenePath, LoadSceneMode loadMode, Action callback = null)
         {
             return local.global.loadSceneAsync(scenePath, loadMode, callback);
+        }
+        public UnloadSceneOperation unloadSceneAsync(string scenePath, Action callback = null)
+        {
+            return local.global.unloadSceneAsync(scenePath, callback);
         }
     }
 }

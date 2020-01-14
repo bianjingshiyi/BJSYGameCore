@@ -70,6 +70,39 @@ namespace BJSYGameCore
                 local.global = this;
             }
         }
+        public void unregisterLocal(LocalManager local)
+        {
+            string scenePath = null;
+            foreach (var p in localDic)
+            {
+                if (p.Value == local)
+                {
+                    scenePath = p.Key;
+                    break;
+                }
+            }
+            if (scenePath != null)
+            {
+                localDic.Remove(scenePath);
+                local.global = null;
+            }
+        }
+        /// <summary>
+        /// 清除已经被销毁的local
+        /// </summary>
+        public void checkLocals()
+        {
+            List<string> removeList = new List<string>();
+            foreach (var p in localDic)
+            {
+                if (p.Value == null)
+                    removeList.Add(p.Key);
+            }
+            foreach (string key in removeList)
+            {
+                localDic.Remove(key);
+            }
+        }
         /// <summary>
         /// 异步加载场景。
         /// </summary>
@@ -113,6 +146,40 @@ namespace BJSYGameCore
                 foreach (Manager manager in local.managers)
                 {
                     manager.onSceneLoaded(operation.scenePath);
+                }
+            }
+        }
+        public UnloadSceneOperation unloadSceneAsync(string scenePath, Action callback = null)
+        {
+            if (localDic.ContainsKey(scenePath))
+            {
+                unregisterLocal(localDic[scenePath]);
+            }
+            else
+                return null;
+            foreach (LocalManager local in locals)
+            {
+                foreach (Manager manager in local.managers)
+                {
+                    manager.onSceneUnload(scenePath);
+                }
+            }
+            UnloadSceneOperation operation = new UnloadSceneOperation(scenePath);
+            operation.onSceneUnloaded += Operation_onSceneUnloaded;
+            operation.onSceneUnloaded += o =>
+            {
+                callback?.Invoke();
+            };
+            return operation;
+        }
+        private void Operation_onSceneUnloaded(UnloadSceneOperation operation)
+        {
+            checkLocals();
+            foreach (LocalManager local in locals)
+            {
+                foreach (Manager manager in local.managers)
+                {
+                    manager.onSceneUnloaded(operation.scenePath);
                 }
             }
         }
