@@ -27,7 +27,7 @@ namespace BJSYGameCore.UI
         {
             generateScript(typeof(UIObject));
         }
-        [MenuItem("GameObject/Generate UGUI Script As/ List", true, 16)]
+        [MenuItem("GameObject/Generate UGUI Script As/List", true, 16)]
         public static bool validateGenerateScriptAsList()
         {
             if (!validateGenerateScript())
@@ -38,10 +38,22 @@ namespace BJSYGameCore.UI
                 return false;
             return true;
         }
-        [MenuItem("GameObject/Generate UGUI Script As/ List", false, 16)]
+        [MenuItem("GameObject/Generate UGUI Script As/List", false, 16)]
         public static void generateScriptAsList()
         {
             generateScript(typeof(UIList));
+        }
+        [MenuItem("GameObject/Generate UGUI Script As/PageGroup", true, 16)]
+        public static bool validateGenerateScriptAsPageGroup()
+        {
+            if (!validateGenerateScript())
+                return false;
+            return true;
+        }
+        [MenuItem("GameObject/Generate UGUI Script As/PageGroup", false, 16)]
+        public static void generateScriptAsPageGroup()
+        {
+            generateScript(typeof(UIPageGroup));
         }
         static UIScriptGeneratorPref pref { get; set; } = null;
         static List<GameObject> updatedGameObjectList { get; } = new List<GameObject>();
@@ -216,6 +228,24 @@ namespace BJSYGameCore.UI
                                     generateChildMembers(codeType, autoBind, rootGameObject, gameObject);
                             }
                         }
+                        else if (baseType == typeof(UIPageGroup))
+                        {
+                            List<CodeMemberProperty> childPropList = new List<CodeMemberProperty>();
+                            for (int i = 0; i < rootGameObject.transform.childCount; i++)
+                            {
+                                GameObject gameObject = rootGameObject.transform.GetChild(i).gameObject;
+                                childPropList.AddRange(generateChildMembers(codeType, autoBind, rootGameObject, gameObject));
+                            }
+                            CodeMemberMethod getPagesMethod = new CodeMemberMethod();
+                            {
+                                getPagesMethod.Attributes = MemberAttributes.Public | MemberAttributes.Override;
+                                getPagesMethod.ReturnType = new CodeTypeReference(nameof(UIObject), 1);
+                                getPagesMethod.Name = nameof(UIPageGroup.getPages);
+                                getPagesMethod.Statements.Add(new CodeMethodReturnStatement(new CodeArrayCreateExpression(nameof(UIObject),
+                                    childPropList.Select(p => new CodePropertyReferenceExpression(new CodeThisReferenceExpression(), p.Name)).ToArray())));
+                            }
+                            codeType.Members.Add(getPagesMethod);
+                        }
                         else
                         {
                             for (int i = 0; i < rootGameObject.transform.childCount; i++)
@@ -259,60 +289,59 @@ namespace BJSYGameCore.UI
                 addComponent.path = rPath;
             }
         }
-        private static void generateChildMembers(CodeTypeDeclaration codeType, CodeMemberMethod initMethod, GameObject rootGameObject, GameObject gameObject)
+        private static CodeMemberProperty[] generateChildMembers(CodeTypeDeclaration codeType, CodeMemberMethod initMethod, GameObject rootGameObject, GameObject gameObject)
         {
+            List<CodeMemberProperty> childPropList = new List<CodeMemberProperty>();
             if (gameObject.GetComponent<UIObject>() is UIObject uiObject)
             {
-                generateChildComponent(codeType, initMethod, rootGameObject, gameObject, uiObject.GetType());
-                return;
+                return new CodeMemberProperty[] { generateChildComponent(codeType, initMethod, rootGameObject, gameObject, uiObject.GetType()) };
             }
             if (gameObject.GetComponent<Dropdown>() != null)
             {
-                generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Dropdown));
-                return;
+                return new CodeMemberProperty[] { generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Dropdown)) };
             }
             if (gameObject.GetComponent<Button>() != null)
             {
-                generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Button));
-                return;
+                return new CodeMemberProperty[] { generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Button)) };
             }
             if (gameObject.GetComponent<ScrollRect>() is ScrollRect scrollRect)
             {
-                generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(ScrollRect));
+                childPropList.Add(generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(ScrollRect)));
                 if (scrollRect.content != null)
-                    generateChildMembers(codeType, initMethod, rootGameObject, scrollRect.content.gameObject);
-                return;
+                    childPropList.AddRange(generateChildMembers(codeType, initMethod, rootGameObject, scrollRect.content.gameObject));
+                return childPropList.ToArray();
             }
             if (gameObject.GetComponent<RawImage>() != null)
-                generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(RawImage));
+                childPropList.Add(generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(RawImage)));
             if (gameObject.GetComponent<Image>() != null)
-                generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Image));
+                childPropList.Add(generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Image)));
             if (gameObject.GetComponent<Text>() != null)
-                generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Text));
+                childPropList.Add(generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Text)));
             if (gameObject.GetComponent<Toggle>() != null)
-                generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Toggle));
+                childPropList.Add(generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Toggle)));
             if (gameObject.GetComponent<Slider>() != null)
-                generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Slider));
+                childPropList.Add(generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Slider)));
             if (gameObject.GetComponent<Scrollbar>() != null)
-                generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Scrollbar));
+                childPropList.Add(generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Scrollbar)));
             if (gameObject.GetComponent<InputField>() != null)
-                generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(InputField));
+                childPropList.Add(generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(InputField)));
             if (gameObject.GetComponent<Canvas>() != null)
-                generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Canvas));
+                childPropList.Add(generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Canvas)));
             if (gameObject.GetComponent<VerticalLayoutGroup>() != null)
-                generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(VerticalLayoutGroup));
+                childPropList.Add(generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(VerticalLayoutGroup)));
             if (gameObject.GetComponent<HorizontalLayoutGroup>() != null)
-                generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(HorizontalLayoutGroup));
+                childPropList.Add(generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(HorizontalLayoutGroup)));
             if (gameObject.GetComponent<GridLayoutGroup>() != null)
-                generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(GridLayoutGroup));
+                childPropList.Add(generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(GridLayoutGroup)));
             for (int i = 0; i < gameObject.transform.childCount; i++)
             {
                 GameObject childGameObject = gameObject.transform.GetChild(i).gameObject;
-                generateChildMembers(codeType, initMethod, rootGameObject, childGameObject);
+                childPropList.AddRange(generateChildMembers(codeType, initMethod, rootGameObject, childGameObject));
             }
+            return childPropList.ToArray();
         }
 
-        private static void generateChildComponent(CodeTypeDeclaration codeType, CodeMemberMethod initMethod, GameObject rootGameObject, GameObject gameObject, Type type)
+        private static CodeMemberProperty generateChildComponent(CodeTypeDeclaration codeType, CodeMemberMethod initMethod, GameObject rootGameObject, GameObject gameObject, Type type)
         {
             string propName;
             string prefix = gameObject.name;//先从最短名称gameObject.name开始
@@ -371,6 +400,7 @@ namespace BJSYGameCore.UI
             codeType.Members.Add(field);
             CodeMemberProperty prop = new CodeMemberProperty();
             {
+                prop.UserData.Add("GameObject", gameObject);
                 prop.Attributes = MemberAttributes.Public | MemberAttributes.Final;
                 prop.Type = new CodeTypeReference(type.Name);
                 prop.Name = propName;
@@ -383,6 +413,7 @@ namespace BJSYGameCore.UI
             }
             codeType.Members.Add(prop);
             addAwakeFieldAssign(initMethod, rootGameObject, gameObject, type.Name, propName);
+            return prop;
         }
 
         private static void addAwakeFieldAssign(CodeMemberMethod initMethod, GameObject rootGameObject, GameObject gameObject, string typeName, string propName)
