@@ -15,6 +15,7 @@ namespace BJSYGameCore.UI
 {
     class UGUIScriptGenerator
     {
+        #region MenuItem
         [MenuItem("GameObject/Generate UGUI Script", true, 15)]
         public static bool validateGenerateScript()
         {
@@ -55,6 +56,7 @@ namespace BJSYGameCore.UI
         {
             generateScript(typeof(UIPageGroup));
         }
+        #endregion
         static UIScriptGeneratorPref pref { get; set; } = null;
         static List<GameObject> updatedGameObjectList { get; } = new List<GameObject>();
         static void generateScript(Type baseType)
@@ -82,6 +84,7 @@ namespace BJSYGameCore.UI
         }
         private static void generateRoot(string dir, GameObject rootGameObject, Type baseType, string fileName = null)
         {
+            //确定文件名
             if (string.IsNullOrEmpty(fileName))
             {
                 if (rootGameObject.name == "Canvas" && rootGameObject.GetComponent<Canvas>() != null)
@@ -91,6 +94,7 @@ namespace BJSYGameCore.UI
                 if (baseType == typeof(UIList) && !Regex.IsMatch(fileName, "List", RegexOptions.IgnoreCase))
                     fileName += "List";
             }
+            //加载脚本文件
             string path = dir + "/" + fileName + ".cs";
             FileInfo fileInfo = new FileInfo(path);
             string rPath = fileInfo.FullName.Replace(Environment.CurrentDirectory + "\\", string.Empty);
