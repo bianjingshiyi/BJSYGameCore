@@ -16,19 +16,19 @@ namespace BJSYGameCore.UI
     class UGUIScriptGenerator
     {
         #region MenuItem
-        [MenuItem("GameObject/Generate UGUI Script", true, 15)]
+        [MenuItem("GameObject/UGUI AutoScript", true, 15)]
         public static bool validateGenerateScript()
         {
             if (Selection.gameObjects.Length < 1)
                 return false;
             return true;
         }
-        [MenuItem("GameObject/Generate UGUI Script", false, 15)]
+        [MenuItem("GameObject/UGUI AutoScript", false, 15)]
         public static void generateScript()
         {
-            generateScript(typeof(UIObject));
+            generateOrUpdateSelected(typeof(UIObject));
         }
-        [MenuItem("GameObject/Generate UGUI Script As/List", true, 16)]
+        [MenuItem("GameObject/UGUI AutoScript As/List", true, 16)]
         public static bool validateGenerateScriptAsList()
         {
             if (!validateGenerateScript())
@@ -39,27 +39,29 @@ namespace BJSYGameCore.UI
                 return false;
             return true;
         }
-        [MenuItem("GameObject/Generate UGUI Script As/List", false, 16)]
+        [MenuItem("GameObject/UGUI AutoScript As/List", false, 16)]
         public static void generateScriptAsList()
         {
-            generateScript(typeof(UIList));
+            generateOrUpdateSelected(typeof(UIList));
         }
-        [MenuItem("GameObject/Generate UGUI Script As/PageGroup", true, 16)]
+        [MenuItem("GameObject/UGUI AutoScript As/PageGroup", true, 16)]
         public static bool validateGenerateScriptAsPageGroup()
         {
             if (!validateGenerateScript())
                 return false;
+            if (Selection.gameObjects.Length > 1)
+                return false;
             return true;
         }
-        [MenuItem("GameObject/Generate UGUI Script As/PageGroup", false, 16)]
+        [MenuItem("GameObject/UGUI AutoScript As/PageGroup", false, 16)]
         public static void generateScriptAsPageGroup()
         {
-            generateScript(typeof(UIPageGroup));
+            generateOrUpdateSelected(typeof(UIPageGroup));
         }
         #endregion
         static UIScriptGeneratorPref pref { get; set; } = null;
         static List<GameObject> updatedGameObjectList { get; } = new List<GameObject>();
-        static void generateScript(Type baseType)
+        static void generateOrUpdateSelected(Type baseType)
         {
             pref = AssetDatabase.LoadAssetAtPath<UIScriptGeneratorPref>("Assets/Editor/UIScriptGeneratorPrefs.asset");
             if (pref == null)
@@ -69,230 +71,286 @@ namespace BJSYGameCore.UI
                 AssetDatabase.SaveAssets();
                 AssetDatabase.Refresh();
             }
-            string dir = Directory.Exists(pref.lastDir) ? pref.lastDir : EditorUtility.OpenFolderPanel("将脚本文件保存至", "Assets", string.Empty);
+            string dir;
+            if (Directory.Exists(pref.lastDir))
+            {
+                dir = pref.lastDir;
+            }
+            else
+            {
+                dir = EditorUtility.OpenFolderPanel("将脚本文件保存至", "Assets", string.Empty);
+                pref.lastDir = dir.Replace(Environment.CurrentDirectory + "\\", string.Empty);//保存上一次的地址
+            }
             if (!string.IsNullOrEmpty(dir))
             {
-                //保存上一次的地址
-                pref.lastDir = dir.Replace(Environment.CurrentDirectory + "\\", string.Empty);
                 updatedGameObjectList.Clear();
                 foreach (GameObject gameObject in Selection.gameObjects)
                 {
-                    generateRoot(dir, gameObject, baseType);
+                    Component[] components = gameObject.GetComponentsInChildren(baseType);
+                    if (components.Length > 0)
+                    {
+                        foreach (Component component in components)
+                        {
+                            generateOrUpdateRoot(dir, component.gameObject, component.GetType().BaseType);
+                        }
+                    }
+                    else
+                        generateOrUpdateRoot(dir, gameObject, baseType);//没有，重新生成
                 }
+                AssetDatabase.SaveAssets();
                 AssetDatabase.Refresh();
             }
         }
-        private static void generateRoot(string dir, GameObject rootGameObject, Type baseType, string fileName = null)
+        private static void generateOrUpdateRoot(string dir, GameObject rootGameObject, Type baseType, string className = null)
         {
-            //确定文件名
-            if (string.IsNullOrEmpty(fileName))
+            if (updatedGameObjectList.Contains(rootGameObject))
             {
-                if (rootGameObject.name == "Canvas" && rootGameObject.GetComponent<Canvas>() != null)
-                    fileName = rootGameObject.scene.name;
-                else
-                    fileName = rootGameObject.name;
-                if (baseType == typeof(UIList) && !Regex.IsMatch(fileName, "List", RegexOptions.IgnoreCase))
-                    fileName += "List";
+                Debug.Log("忽略重复的GameObject" + rootGameObject.name, rootGameObject);
+                return;
+            }
+            //确定文件名
+            className = getFixedClassName(rootGameObject, baseType, className);
+            string targetPath = dir.Replace('\\', '/') + "/" + className + ".cs";
+            Component component = rootGameObject.GetComponent(baseType);
+            MonoScript script;
+            string rPath;
+            if (component != null)
+            {
+                script = MonoScript.FromMonoBehaviour(component as MonoBehaviour);
+                rPath = AssetDatabase.GetAssetPath(script);
+                string originPath = Environment.CurrentDirectory.Replace('\\', '/') + "/" + rPath;
+                if (targetPath != originPath)
+                {
+                    if (!EditorUtility.DisplayDialog("UGUI AutoScript", rootGameObject.name + "已有的组件脚本位置与目标位置不一致，是否要在目标位置创建一个新的脚本文件？", "Yes", "No"))
+                        targetPath = originPath;
+                }
+            }
+            else
+            {
+                rPath = targetPath.Replace(Environment.CurrentDirectory.Replace('\\', '/') + "/", string.Empty);
+                script = AssetDatabase.LoadAssetAtPath<MonoScript>(rPath);
             }
             //加载脚本文件
-            string path = dir + "/" + fileName + ".cs";
-            FileInfo fileInfo = new FileInfo(path);
-            string rPath = fileInfo.FullName.Replace(Environment.CurrentDirectory + "\\", string.Empty);
-            MonoScript script = AssetDatabase.LoadAssetAtPath<MonoScript>(rPath);
+            FileInfo fileInfo = new FileInfo(targetPath);
             Type scriptType = script != null ? script.GetClass() : null;
             //生成脚本文件
             using (StreamWriter writer = new StreamWriter(fileInfo.Create()))
             {
-                CodeCompileUnit unit = new CodeCompileUnit();
-                CodeNamespace codeNamespace = new CodeNamespace(pref.Namespace);
+                CodeCompileUnit unit = generateCompileUnit(dir, rootGameObject, baseType, className);
+                using (CodeDomProvider provider = CodeDomProvider.CreateProvider("CSharp"))
                 {
-                    codeNamespace.Imports.Add(new CodeNamespaceImport("UnityEngine"));
-                    codeNamespace.Imports.Add(new CodeNamespaceImport("UnityEngine.UI"));
-                    codeNamespace.Imports.Add(new CodeNamespaceImport("BJSYGameCore.UI"));
-                    CodeTypeDeclaration codeType = new CodeTypeDeclaration(fileName);
+                    provider.GenerateCodeFromCompileUnit(unit, writer, new CodeGeneratorOptions()
                     {
-                        codeType.Attributes = MemberAttributes.Private;
-                        codeType.IsPartial = true;
-                        codeType.BaseTypes.Add(baseType.Name);
+                        BlankLinesBetweenMembers = false,
+                        BracingStyle = "C",
+                        IndentString = "    ",
+                        VerbatimOrder = true
+                    });
+                }
+            }
+            if (component == null)
+            {
+                if (scriptType != null)
+                {
+                    component = rootGameObject.GetComponent(scriptType);
+                    if (component == null)
+                        component = rootGameObject.AddComponent(scriptType);
+                    component.GetType().GetMethod("autoBind").Invoke(component, new object[] { });
+                }
+                else
+                {
+                    AddComponentWhenCompiledComponent addComponent = rootGameObject.AddComponent<AddComponentWhenCompiledComponent>();
+                    addComponent.path = rPath;
+                }
 
-                        CodeMemberMethod awake = new CodeMemberMethod();
+            }
+            updatedGameObjectList.Add(rootGameObject);
+        }
+        private static string getFixedClassName(GameObject rootGameObject, Type baseType, string className)
+        {
+            if (string.IsNullOrEmpty(className))
+            {
+                if (rootGameObject.name == "Canvas" && rootGameObject.GetComponent<Canvas>() != null)
+                    className = rootGameObject.scene.name;
+                else
+                    className = rootGameObject.name;
+                if (baseType == typeof(UIList) && !Regex.IsMatch(className, "List", RegexOptions.IgnoreCase))
+                    className += "List";
+            }
+            return className;
+        }
+        private static CodeCompileUnit generateCompileUnit(string dir, GameObject rootGameObject, Type baseType, string className)
+        {
+            CodeCompileUnit unit = new CodeCompileUnit();
+            CodeNamespace codeNamespace = new CodeNamespace(pref.Namespace);
+            {
+                codeNamespace.Imports.Add(new CodeNamespaceImport("UnityEngine"));
+                codeNamespace.Imports.Add(new CodeNamespaceImport("UnityEngine.UI"));
+                codeNamespace.Imports.Add(new CodeNamespaceImport("BJSYGameCore.UI"));
+                CodeTypeDeclaration codeType = new CodeTypeDeclaration(className);
+                {
+                    codeType.Attributes = MemberAttributes.Private;
+                    codeType.IsPartial = true;
+                    codeType.BaseTypes.Add(baseType.Name);
+
+                    CodeMemberMethod awake = new CodeMemberMethod();
+                    {
+                        awake.Attributes = MemberAttributes.Family | MemberAttributes.Final;
+                        awake.ReturnType = new CodeTypeReference(typeof(void));
+                        awake.Name = "Awake";
+                    }
+                    codeType.Members.Add(awake);
+
+                    CodeMemberMethod autoBind = new CodeMemberMethod();
+                    {
+                        autoBind.Attributes = MemberAttributes.Public | MemberAttributes.Final;
+                        autoBind.ReturnType = new CodeTypeReference(typeof(void));
+                        autoBind.Name = "autoBind";
+                    }
+                    codeType.Members.Add(autoBind);
+
+                    awake.Statements.Add(new CodeMethodInvokeExpression(new CodeThisReferenceExpression(), "autoBind"));
+
+                    if (rootGameObject.GetComponent<Button>() != null)
+                        addAs(codeType, autoBind, rootGameObject, typeof(Button));
+                    if (rootGameObject.GetComponent<Image>() != null)
+                        addAs(codeType, autoBind, rootGameObject, typeof(Image));
+                    if (rootGameObject.GetComponent<RawImage>() != null)
+                        addAs(codeType, autoBind, rootGameObject, typeof(RawImage));
+                    if (rootGameObject.GetComponent<Toggle>() != null)
+                        addAs(codeType, autoBind, rootGameObject, typeof(Toggle));
+                    if (rootGameObject.GetComponent<Slider>() != null)
+                        addAs(codeType, autoBind, rootGameObject, typeof(Slider));
+                    if (rootGameObject.GetComponent<Scrollbar>() != null)
+                        addAs(codeType, autoBind, rootGameObject, typeof(Scrollbar));
+                    if (rootGameObject.GetComponent<Dropdown>() != null)
+                        addAs(codeType, autoBind, rootGameObject, typeof(Dropdown));
+                    if (rootGameObject.GetComponent<InputField>() != null)
+                        addAs(codeType, autoBind, rootGameObject, typeof(InputField));
+                    if (rootGameObject.GetComponent<Canvas>() != null)
+                        addAs(codeType, autoBind, rootGameObject, typeof(Canvas));
+                    if (rootGameObject.GetComponent<ScrollRect>() != null)
+                        addAs(codeType, autoBind, rootGameObject, typeof(ScrollRect));
+                    if (rootGameObject.GetComponent<Text>() != null)
+                        addAs(codeType, autoBind, rootGameObject, typeof(Text));
+                    if (rootGameObject.GetComponent<VerticalLayoutGroup>() != null)
+                        addAs(codeType, autoBind, rootGameObject, typeof(VerticalLayoutGroup));
+                    if (rootGameObject.GetComponent<HorizontalLayoutGroup>() != null)
+                        addAs(codeType, autoBind, rootGameObject, typeof(HorizontalLayoutGroup));
+                    if (rootGameObject.GetComponent<GridLayoutGroup>() != null)
+                        addAs(codeType, autoBind, rootGameObject, typeof(GridLayoutGroup));
+                    if (baseType == typeof(UIList))
+                    {
+                        GameObject defaultItem = null;
+                        for (int i = 0; i < rootGameObject.transform.childCount; i++)
                         {
-                            awake.Attributes = MemberAttributes.Family | MemberAttributes.Final;
-                            awake.ReturnType = new CodeTypeReference(typeof(void));
-                            awake.Name = "Awake";
-                        }
-                        codeType.Members.Add(awake);
-
-                        CodeMemberMethod autoBind = new CodeMemberMethod();
-                        {
-                            autoBind.Attributes = MemberAttributes.Public | MemberAttributes.Final;
-                            autoBind.ReturnType = new CodeTypeReference(typeof(void));
-                            autoBind.Name = "autoBind";
-                        }
-                        codeType.Members.Add(autoBind);
-
-                        awake.Statements.Add(new CodeMethodInvokeExpression(new CodeThisReferenceExpression(), "autoBind"));
-
-                        if (rootGameObject.GetComponent<Button>() != null)
-                            addAs(codeType, autoBind, rootGameObject, typeof(Button));
-                        if (rootGameObject.GetComponent<Image>() != null)
-                            addAs(codeType, autoBind, rootGameObject, typeof(Image));
-                        if (rootGameObject.GetComponent<RawImage>() != null)
-                            addAs(codeType, autoBind, rootGameObject, typeof(RawImage));
-                        if (rootGameObject.GetComponent<Toggle>() != null)
-                            addAs(codeType, autoBind, rootGameObject, typeof(Toggle));
-                        if (rootGameObject.GetComponent<Slider>() != null)
-                            addAs(codeType, autoBind, rootGameObject, typeof(Slider));
-                        if (rootGameObject.GetComponent<Scrollbar>() != null)
-                            addAs(codeType, autoBind, rootGameObject, typeof(Scrollbar));
-                        if (rootGameObject.GetComponent<Dropdown>() != null)
-                            addAs(codeType, autoBind, rootGameObject, typeof(Dropdown));
-                        if (rootGameObject.GetComponent<InputField>() != null)
-                            addAs(codeType, autoBind, rootGameObject, typeof(InputField));
-                        if (rootGameObject.GetComponent<Canvas>() != null)
-                            addAs(codeType, autoBind, rootGameObject, typeof(Canvas));
-                        if (rootGameObject.GetComponent<ScrollRect>() != null)
-                            addAs(codeType, autoBind, rootGameObject, typeof(ScrollRect));
-                        if (rootGameObject.GetComponent<Text>() != null)
-                            addAs(codeType, autoBind, rootGameObject, typeof(Text));
-                        if (rootGameObject.GetComponent<VerticalLayoutGroup>() != null)
-                            addAs(codeType, autoBind, rootGameObject, typeof(VerticalLayoutGroup));
-                        if (rootGameObject.GetComponent<HorizontalLayoutGroup>() != null)
-                            addAs(codeType, autoBind, rootGameObject, typeof(HorizontalLayoutGroup));
-                        if (rootGameObject.GetComponent<GridLayoutGroup>() != null)
-                            addAs(codeType, autoBind, rootGameObject, typeof(GridLayoutGroup));
-                        if (baseType == typeof(UIList))
-                        {
-                            GameObject defaultItem = null;
-                            for (int i = 0; i < rootGameObject.transform.childCount; i++)
+                            if (rootGameObject.transform.GetChild(i).GetComponent<UIObject>() != null)
                             {
-                                if (rootGameObject.transform.GetChild(i).GetComponent<UIObject>() != null)
-                                {
-                                    defaultItem = rootGameObject.transform.GetChild(i).gameObject;
-                                    break;
-                                }
-                            }
-                            string itemTypeName;
-                            if (defaultItem == null && rootGameObject.transform.childCount > 0)
-                            {
-                                itemTypeName = fileName + "Item";
-                                defaultItem = rootGameObject.transform.GetChild(0).gameObject;
-                                generateRoot(dir, defaultItem, typeof(UIObject), itemTypeName);
-                            }
-                            else
-                            {
-                                Type componentType = defaultItem.GetComponent<UIObject>().GetType();
-                                generateRoot(dir, defaultItem, componentType.BaseType, componentType.Name);
-                                itemTypeName = componentType.Name;
-                            }
-                            CodeMemberProperty defaultItemProp = new CodeMemberProperty();
-                            {
-                                defaultItemProp.Attributes = MemberAttributes.Public | MemberAttributes.New | MemberAttributes.Final;
-                                defaultItemProp.Type = new CodeTypeReference(itemTypeName);
-                                defaultItemProp.Name = nameof(UIList.defaultItem);
-                                defaultItemProp.HasGet = true;
-                                defaultItemProp.GetStatements.Add(new CodeConditionStatement(new CodeBinaryOperatorExpression(new CodeFieldReferenceExpression(new CodeBaseReferenceExpression(), nameof(UIList.defaultItem)), CodeBinaryOperatorType.ValueEquality, new CodePrimitiveExpression(null)),
-                                    getPropAssignStatement(rootGameObject, defaultItem, itemTypeName, nameof(UIList.defaultItem))));
-                                defaultItemProp.GetStatements.Add(new CodeMethodReturnStatement(new CodeCastExpression(itemTypeName, new CodePropertyReferenceExpression(new CodeBaseReferenceExpression(), nameof(UIList.defaultItem)))));
-                                defaultItemProp.HasSet = true;
-                                defaultItemProp.SetStatements.Add(new CodeAssignStatement(new CodePropertyReferenceExpression(new CodeBaseReferenceExpression(), nameof(UIList.defaultItem)), new CodeCastExpression(itemTypeName, new CodePropertySetValueReferenceExpression())));
-                            }
-                            codeType.Members.Add(defaultItemProp);
-                            CodeMemberMethod addItemMethod = new CodeMemberMethod();
-                            {
-                                addItemMethod.Attributes = MemberAttributes.Public | MemberAttributes.New | MemberAttributes.Final;
-                                addItemMethod.ReturnType = new CodeTypeReference(itemTypeName);
-                                addItemMethod.Name = nameof(UIList.addItem);
-                                addItemMethod.Statements.Add(new CodeMethodReturnStatement(new CodeCastExpression(itemTypeName, new CodeMethodInvokeExpression(new CodeBaseReferenceExpression(), nameof(UIList.addItem)))));
-                            }
-                            codeType.Members.Add(addItemMethod);
-                            CodeMemberMethod getItemsMethod = new CodeMemberMethod();
-                            {
-                                getItemsMethod.Attributes = MemberAttributes.Public | MemberAttributes.New | MemberAttributes.Final;
-                                getItemsMethod.ReturnType = new CodeTypeReference(itemTypeName, 1);
-                                getItemsMethod.Name = nameof(UIList.getItems);
-                                getItemsMethod.Statements.Add(new CodeMethodReturnStatement(new CodeMethodInvokeExpression(new CodeMethodReferenceExpression(new CodeThisReferenceExpression(), nameof(MonoBehaviour.GetComponentsInChildren), new CodeTypeReference(itemTypeName)))));
-                            }
-                            codeType.Members.Add(getItemsMethod);
-                            CodeMemberMethod removeItemMethod = new CodeMemberMethod();
-                            {
-                                removeItemMethod.Attributes = MemberAttributes.Public | MemberAttributes.Final;
-                                removeItemMethod.ReturnType = new CodeTypeReference(typeof(bool));
-                                removeItemMethod.Name = nameof(UIList.removeItem);
-                                removeItemMethod.Parameters.Add(new CodeParameterDeclarationExpression(itemTypeName, "item"));
-                                removeItemMethod.Statements.Add(new CodeMethodReturnStatement(new CodeMethodInvokeExpression(new CodeBaseReferenceExpression(), nameof(UIList.removeItem), new CodeArgumentReferenceExpression("item"))));
-                            }
-                            codeType.Members.Add(removeItemMethod);
-                            addAwakePropAssign(autoBind, rootGameObject, defaultItem, itemTypeName, nameof(UIList.defaultItem));
-                            awake.Statements.Add(new CodeMethodInvokeExpression(new CodePropertyReferenceExpression(new CodePropertyReferenceExpression(new CodeThisReferenceExpression(), nameof(UIList.defaultItem)), nameof(MonoBehaviour.gameObject)), nameof(GameObject.SetActive), new CodePrimitiveExpression(false)));
-                            for (int i = 0; i < rootGameObject.transform.childCount; i++)
-                            {
-                                GameObject gameObject = rootGameObject.transform.GetChild(i).gameObject;
-                                if (defaultItem != null && gameObject != defaultItem)
-                                    generateChildMembers(codeType, autoBind, rootGameObject, gameObject);
+                                defaultItem = rootGameObject.transform.GetChild(i).gameObject;
+                                break;
                             }
                         }
-                        else if (baseType == typeof(UIPageGroup))
+                        string itemTypeName;
+                        if (defaultItem == null && rootGameObject.transform.childCount > 0)
                         {
-                            List<CodeMemberProperty> childPropList = new List<CodeMemberProperty>();
-                            for (int i = 0; i < rootGameObject.transform.childCount; i++)
-                            {
-                                GameObject gameObject = rootGameObject.transform.GetChild(i).gameObject;
-                                childPropList.AddRange(generateChildMembers(codeType, autoBind, rootGameObject, gameObject));
-                            }
-                            CodeMemberMethod getPagesMethod = new CodeMemberMethod();
-                            {
-                                getPagesMethod.Attributes = MemberAttributes.Public | MemberAttributes.Override;
-                                getPagesMethod.ReturnType = new CodeTypeReference(nameof(UIObject), 1);
-                                getPagesMethod.Name = nameof(UIPageGroup.getPages);
-                                getPagesMethod.Statements.Add(new CodeMethodReturnStatement(new CodeArrayCreateExpression(nameof(UIObject),
-                                    childPropList.Select(p => new CodePropertyReferenceExpression(new CodeThisReferenceExpression(), p.Name)).ToArray())));
-                            }
-                            codeType.Members.Add(getPagesMethod);
+                            itemTypeName = className + "Item";
+                            defaultItem = rootGameObject.transform.GetChild(0).gameObject;
+                            generateOrUpdateRoot(dir, defaultItem, typeof(UIObject), itemTypeName);
                         }
                         else
                         {
-                            for (int i = 0; i < rootGameObject.transform.childCount; i++)
-                            {
-                                GameObject gameObject = rootGameObject.transform.GetChild(i).gameObject;
-                                generateChildMembers(codeType, autoBind, rootGameObject, gameObject);
-                            }
+                            Type componentType = defaultItem.GetComponent<UIObject>().GetType();
+                            generateOrUpdateRoot(dir, defaultItem, componentType.BaseType, componentType.Name);
+                            itemTypeName = componentType.Name;
                         }
-                        awake.Statements.Add(new CodeMethodInvokeExpression(new CodeThisReferenceExpression(), "onAwake"));
-                        CodeMemberField onAwakeMethod = new CodeMemberField();
+                        CodeMemberProperty defaultItemProp = new CodeMemberProperty();
                         {
-                            onAwakeMethod.Attributes = MemberAttributes.Final;
-                            onAwakeMethod.Type = new CodeTypeReference("partial void");
-                            onAwakeMethod.Name = "onAwake()";
+                            defaultItemProp.Attributes = MemberAttributes.Public | MemberAttributes.New | MemberAttributes.Final;
+                            defaultItemProp.Type = new CodeTypeReference(itemTypeName);
+                            defaultItemProp.Name = nameof(UIList.defaultItem);
+                            defaultItemProp.HasGet = true;
+                            defaultItemProp.GetStatements.Add(new CodeConditionStatement(new CodeBinaryOperatorExpression(new CodeFieldReferenceExpression(new CodeBaseReferenceExpression(), nameof(UIList.defaultItem)), CodeBinaryOperatorType.ValueEquality, new CodePrimitiveExpression(null)),
+                                getPropAssignStatement(rootGameObject, defaultItem, itemTypeName, nameof(UIList.defaultItem))));
+                            defaultItemProp.GetStatements.Add(new CodeMethodReturnStatement(new CodeCastExpression(itemTypeName, new CodePropertyReferenceExpression(new CodeBaseReferenceExpression(), nameof(UIList.defaultItem)))));
+                            defaultItemProp.HasSet = true;
+                            defaultItemProp.SetStatements.Add(new CodeAssignStatement(new CodePropertyReferenceExpression(new CodeBaseReferenceExpression(), nameof(UIList.defaultItem)), new CodeCastExpression(itemTypeName, new CodePropertySetValueReferenceExpression())));
                         }
-                        codeType.Members.Add(onAwakeMethod);
+                        codeType.Members.Add(defaultItemProp);
+                        CodeMemberMethod addItemMethod = new CodeMemberMethod();
+                        {
+                            addItemMethod.Attributes = MemberAttributes.Public | MemberAttributes.New | MemberAttributes.Final;
+                            addItemMethod.ReturnType = new CodeTypeReference(itemTypeName);
+                            addItemMethod.Name = nameof(UIList.addItem);
+                            addItemMethod.Statements.Add(new CodeMethodReturnStatement(new CodeCastExpression(itemTypeName, new CodeMethodInvokeExpression(new CodeBaseReferenceExpression(), nameof(UIList.addItem)))));
+                        }
+                        codeType.Members.Add(addItemMethod);
+                        CodeMemberMethod getItemsMethod = new CodeMemberMethod();
+                        {
+                            getItemsMethod.Attributes = MemberAttributes.Public | MemberAttributes.New | MemberAttributes.Final;
+                            getItemsMethod.ReturnType = new CodeTypeReference(itemTypeName, 1);
+                            getItemsMethod.Name = nameof(UIList.getItems);
+                            getItemsMethod.Statements.Add(new CodeMethodReturnStatement(new CodeMethodInvokeExpression(new CodeMethodReferenceExpression(new CodeThisReferenceExpression(), nameof(MonoBehaviour.GetComponentsInChildren), new CodeTypeReference(itemTypeName)))));
+                        }
+                        codeType.Members.Add(getItemsMethod);
+                        CodeMemberMethod removeItemMethod = new CodeMemberMethod();
+                        {
+                            removeItemMethod.Attributes = MemberAttributes.Public | MemberAttributes.Final;
+                            removeItemMethod.ReturnType = new CodeTypeReference(typeof(bool));
+                            removeItemMethod.Name = nameof(UIList.removeItem);
+                            removeItemMethod.Parameters.Add(new CodeParameterDeclarationExpression(itemTypeName, "item"));
+                            removeItemMethod.Statements.Add(new CodeMethodReturnStatement(new CodeMethodInvokeExpression(new CodeBaseReferenceExpression(), nameof(UIList.removeItem), new CodeArgumentReferenceExpression("item"))));
+                        }
+                        codeType.Members.Add(removeItemMethod);
+                        addAwakePropAssign(autoBind, rootGameObject, defaultItem, itemTypeName, nameof(UIList.defaultItem));
+                        awake.Statements.Add(new CodeMethodInvokeExpression(new CodePropertyReferenceExpression(new CodePropertyReferenceExpression(new CodeThisReferenceExpression(), nameof(UIList.defaultItem)), nameof(MonoBehaviour.gameObject)), nameof(GameObject.SetActive), new CodePrimitiveExpression(false)));
+                        for (int i = 0; i < rootGameObject.transform.childCount; i++)
+                        {
+                            GameObject gameObject = rootGameObject.transform.GetChild(i).gameObject;
+                            if (defaultItem != null && gameObject != defaultItem)
+                                generateChildMembers(codeType, autoBind, rootGameObject, gameObject);
+                        }
                     }
-                    codeNamespace.Types.Add(codeType);
+                    else if (baseType == typeof(UIPageGroup))
+                    {
+                        List<CodeMemberProperty> childPropList = new List<CodeMemberProperty>();
+                        for (int i = 0; i < rootGameObject.transform.childCount; i++)
+                        {
+                            GameObject gameObject = rootGameObject.transform.GetChild(i).gameObject;
+                            childPropList.AddRange(generateChildMembers(codeType, autoBind, rootGameObject, gameObject));
+                        }
+                        CodeMemberMethod getPagesMethod = new CodeMemberMethod();
+                        {
+                            getPagesMethod.Attributes = MemberAttributes.Public | MemberAttributes.Override;
+                            getPagesMethod.ReturnType = new CodeTypeReference(nameof(UIObject), 1);
+                            getPagesMethod.Name = nameof(UIPageGroup.getPages);
+                            getPagesMethod.Statements.Add(new CodeMethodReturnStatement(new CodeArrayCreateExpression(nameof(UIObject),
+                                childPropList.Select(p => new CodePropertyReferenceExpression(new CodeThisReferenceExpression(), p.Name)).ToArray())));
+                        }
+                        codeType.Members.Add(getPagesMethod);
+                    }
+                    else
+                    {
+                        for (int i = 0; i < rootGameObject.transform.childCount; i++)
+                        {
+                            GameObject gameObject = rootGameObject.transform.GetChild(i).gameObject;
+                            generateChildMembers(codeType, autoBind, rootGameObject, gameObject);
+                        }
+                    }
+                    awake.Statements.Add(new CodeMethodInvokeExpression(new CodeThisReferenceExpression(), "onAwake"));
+                    CodeMemberField onAwakeMethod = new CodeMemberField();
+                    {
+                        onAwakeMethod.Attributes = MemberAttributes.Final;
+                        onAwakeMethod.Type = new CodeTypeReference("partial void");
+                        onAwakeMethod.Name = "onAwake()";
+                    }
+                    codeType.Members.Add(onAwakeMethod);
                 }
-                unit.Namespaces.Add(codeNamespace);
-
-                CodeDomProvider provider = CodeDomProvider.CreateProvider("CSharp");
-                provider.GenerateCodeFromCompileUnit(unit, writer, new CodeGeneratorOptions()
-                {
-                    BlankLinesBetweenMembers = false,
-                    BracingStyle = "C",
-                    IndentString = "    ",
-                    VerbatimOrder = true
-                });
+                codeNamespace.Types.Add(codeType);
             }
-            if (scriptType != null)
-            {
-                Component component = rootGameObject.GetComponent(scriptType);
-                if (component == null)
-                    component = rootGameObject.AddComponent(scriptType);
-                component.GetType().GetMethod("autoBind").Invoke(component, new object[] { });
-            }
-            else
-            {
-                AddComponentWhenCompiledComponent addComponent = rootGameObject.AddComponent<AddComponentWhenCompiledComponent>();
-                addComponent.path = rPath;
-            }
+            unit.Namespaces.Add(codeNamespace);
+            return unit;
         }
+
         private static CodeMemberProperty[] generateChildMembers(CodeTypeDeclaration codeType, CodeMemberMethod initMethod, GameObject rootGameObject, GameObject gameObject)
         {
             List<CodeMemberProperty> childPropList = new List<CodeMemberProperty>();
