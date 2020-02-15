@@ -59,18 +59,11 @@ namespace BJSYGameCore.UI
             generateOrUpdateSelected(typeof(UIPageGroup));
         }
         #endregion
-        static UIScriptGeneratorPref pref { get; set; } = null;
+        static UGUIAutoScriptPref pref { get; set; } = null;
         static List<GameObject> updatedGameObjectList { get; } = new List<GameObject>();
         static void generateOrUpdateSelected(Type baseType)
         {
-            pref = AssetDatabase.LoadAssetAtPath<UIScriptGeneratorPref>("Assets/Editor/UIScriptGeneratorPrefs.asset");
-            if (pref == null)
-            {
-                pref = ScriptableObject.CreateInstance<UIScriptGeneratorPref>();
-                AssetDatabase.CreateAsset(pref, "Assets/Editor/UIScriptGeneratorPrefs.asset");
-                AssetDatabase.SaveAssets();
-                AssetDatabase.Refresh();
-            }
+            pref = UGUIAutoScriptPref.getDefaultPref();
             string dir;
             if (Directory.Exists(pref.lastDir))
             {
@@ -121,8 +114,18 @@ namespace BJSYGameCore.UI
                 string originPath = Environment.CurrentDirectory.Replace('\\', '/') + "/" + rPath;
                 if (targetPath != originPath)
                 {
-                    if (!EditorUtility.DisplayDialog("UGUI AutoScript", rootGameObject.name + "已有的组件脚本位置与目标位置不一致，是否要在目标位置创建一个新的脚本文件？", "Yes", "No"))
+                    if (EditorUtility.DisplayDialog("UGUI AutoScript", rootGameObject.name + "已有的组件脚本位置与目标位置不一致，是否要在目标位置创建一个新的脚本文件？", "Yes", "No"))
+                    {
+                        UnityEngine.Object.DestroyImmediate(component);//删除已有组件
+                        component = null;
+                        script = null;
+                        rPath = targetPath.Replace(Environment.CurrentDirectory.Replace('\\', '/') + "/", string.Empty);
+                    }
+                    else
+                    {
                         targetPath = originPath;
+                        className = script.GetClass().Name;
+                    }
                 }
             }
             else
@@ -162,7 +165,6 @@ namespace BJSYGameCore.UI
                     AddComponentWhenCompiledComponent addComponent = rootGameObject.AddComponent<AddComponentWhenCompiledComponent>();
                     addComponent.path = rPath;
                 }
-
             }
             updatedGameObjectList.Add(rootGameObject);
         }
@@ -373,6 +375,20 @@ namespace BJSYGameCore.UI
                     childPropList.AddRange(generateChildMembers(codeType, initMethod, rootGameObject, scrollRect.content.gameObject));
                 return childPropList.ToArray();
             }
+            if (gameObject.GetComponent<InputField>() != null)
+            {
+                return new CodeMemberProperty[] { generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(InputField)) };
+            }
+            if (gameObject.GetComponent<Mask>() != null)
+            {
+                childPropList.Add(generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Mask)));
+                for (int i = 0; i < gameObject.transform.childCount; i++)
+                {
+                    GameObject childGameObject = gameObject.transform.GetChild(i).gameObject;
+                    childPropList.AddRange(generateChildMembers(codeType, initMethod, rootGameObject, childGameObject));
+                }
+                return childPropList.ToArray();
+            }
             if (gameObject.GetComponent<RawImage>() != null)
                 childPropList.Add(generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(RawImage)));
             if (gameObject.GetComponent<Image>() != null)
@@ -385,8 +401,6 @@ namespace BJSYGameCore.UI
                 childPropList.Add(generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Slider)));
             if (gameObject.GetComponent<Scrollbar>() != null)
                 childPropList.Add(generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Scrollbar)));
-            if (gameObject.GetComponent<InputField>() != null)
-                childPropList.Add(generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(InputField)));
             if (gameObject.GetComponent<Canvas>() != null)
                 childPropList.Add(generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Canvas)));
             if (gameObject.GetComponent<VerticalLayoutGroup>() != null)
@@ -412,6 +426,8 @@ namespace BJSYGameCore.UI
                 suffix = "List";
             else if (type == typeof(ScrollRect))
                 suffix = "Scroll";
+            else if (type == typeof(InputField))
+                suffix = "Input";
             else
                 suffix = type.Name;
             Transform parent = gameObject.transform.parent;
