@@ -67,6 +67,7 @@ namespace BJSYGameCore.UI
                             int newStateIndex = EditorGUILayout.Popup(stateIndex, layer.stateMachine.states.Select(s => s.state.name).ToArray(), GUILayout.Width(100));
                             if (newStateIndex != stateIndex)
                             {
+                                animator.enabled = true;
                                 animator.speed = 0;
                                 animator.Play(layer.stateMachine.states[newStateIndex].state.name, animator.GetLayerIndex(controllerName + "Controller"));
                                 animator.Update(Time.deltaTime);

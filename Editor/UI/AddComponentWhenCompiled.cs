@@ -15,9 +15,13 @@ namespace BJSYGameCore.UI
                 Type type = script.GetClass();
                 if (type != null)
                 {
-                    if (obj.gameObject.GetComponent(type) == null)
+                    if (obj.gameObject.GetComponent(type) is Component component)
                     {
-                        Component component = obj.gameObject.AddComponent(type);
+                        component.GetType().GetMethod("autoBind").Invoke(component, new object[] { });
+                    }
+                    else
+                    {
+                        component = obj.gameObject.AddComponent(type);
                         component.GetType().GetMethod("autoBind").Invoke(component, new object[] { });
                         Debug.Log("AddComponent:" + type.Name, obj.gameObject);
                     }

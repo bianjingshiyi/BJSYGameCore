@@ -166,6 +166,10 @@ namespace BJSYGameCore.UI
                     addComponent.path = rPath;
                 }
             }
+            else
+            {
+                component.GetType().GetMethod("autoBind").Invoke(component, new object[] { });
+            }
             updatedGameObjectList.Add(rootGameObject);
         }
         private static string getFixedClassName(GameObject rootGameObject, Type baseType, string className)
