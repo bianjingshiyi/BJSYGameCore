@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
@@ -20,9 +21,26 @@ namespace BJSYGameCore.UI
             if (targets.Length == 1)
             {
                 Animator animator = (target as UIObject).GetComponent<Animator>();
-                if (animator != null && animator.runtimeAnimatorController is AnimatorController controller)
+                if (animator == null || animator.runtimeAnimatorController == null)
+                {
+                    EditorGUILayout.BeginHorizontal();
+                    EditorGUILayout.LabelField("必须有Animator和AnimatorController才能使用Controller");
+                    if (GUILayout.Button("创建Controller"))
+                    {
+                        if (animator == null)
+                            animator = (target as UIObject).gameObject.AddComponent<Animator>();
+                        string controllerPath = EditorUtility.SaveFilePanel("保存动画控制器", Application.dataPath, (target as UIObject).gameObject.name + "_Controller", "controller");
+                        controllerPath = controllerPath.Replace(Environment.CurrentDirectory.Replace('\\', '/') + "/", string.Empty);
+                        AnimatorController controller = AnimatorController.CreateAnimatorControllerAtPath(controllerPath);
+                        animator.runtimeAnimatorController = controller;
+                    }
+                    EditorGUILayout.EndHorizontal();
+                }
+                else if (animator.runtimeAnimatorController is AnimatorController controller)
                 {
                     AnimatorControllerLayer removeLayer = null;
+                    string controllerPath = AssetDatabase.GetAssetPath(controller);
+                    string controllerDir = Path.GetDirectoryName(controllerPath);
                     foreach (AnimatorControllerLayer layer in controller.layers)
                     {
                         Match m = Regex.Match(layer.name, @"(?<name>\w+)Controller");
@@ -37,7 +55,9 @@ namespace BJSYGameCore.UI
                             if (EditorApplication.isPlaying && targets.Length == 1)
                             {
                                 //Controller当前状态
-                                EditorGUILayout.LabelField((target as UIObject).getController(controllerName, layer.stateMachine.states.Select(s => s.state.name).ToArray()), GUILayout.Width(100));
+                                string currentStateName = (target as UIObject).getController(controllerName, layer.stateMachine.states.Select(s => s.state.name).ToArray());
+                                EditorGUILayout.LabelField(currentStateName, GUILayout.Width(100));
+                                Debug.Log(currentStateName, target);
                             }
                             else if (layer.stateMachine != null && layer.stateMachine.states.Length > 0)
                             {
@@ -80,6 +100,27 @@ namespace BJSYGameCore.UI
                                 EditorGUI.indentLevel++;
                                 AnimatorState removeState = null;
                                 //状态绘制
+                                if (layer.stateMachine == null)
+                                {
+                                    layer.defaultWeight = 1;
+                                    layer.stateMachine = new AnimatorStateMachine();
+                                    foreach (string animPath in Directory.GetFiles(controllerDir, "*.anim")
+                                        .Select(s => s.Replace('\\', '/').Replace(Environment.CurrentDirectory.Replace('\\', '/') + "/", string.Empty)))
+                                    {
+                                        AnimationClip clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(animPath);
+                                        m = Regex.Match(clip.name, @"(?<controller>\w+)_(?<state>\w+)");
+                                        if (m.Success && m.Groups["controller"].Value == controllerName)
+                                        {
+                                            string stateName = m.Groups["state"].Value;
+                                            AnimatorState newState = new AnimatorState()
+                                            {
+                                                name = stateName,
+                                                motion = clip
+                                            };
+                                            layer.stateMachine.AddState(newState, new Vector3(250, layer.stateMachine.states.Length * 50));
+                                        }
+                                    }
+                                }
                                 foreach (ChildAnimatorState state in layer.stateMachine.states)
                                 {
                                     EditorGUILayout.BeginHorizontal();
@@ -125,8 +166,10 @@ namespace BJSYGameCore.UI
                                                 motion = newClip
                                             };
                                             layer.stateMachine.AddState(newState, new Vector3(250, layer.stateMachine.states.Length * 50));
+                                            EditorUtility.SetDirty(controller);
                                         }
                                     }
+                                    controllerNewStateDic.Remove(controllerName);
                                 }
                                 EditorGUILayout.EndHorizontal();
                                 EditorGUI.indentLevel--;
@@ -155,13 +198,14 @@ namespace BJSYGameCore.UI
                             };
                             controller.AddLayer(newLayer);
                         }
+                        newControllerName = null;
                     }
                     EditorGUILayout.EndHorizontal();
                     serializedObject.ApplyModifiedProperties();
                 }
             }
             else
-                EditorGUILayout.LabelField("无法同时编辑多个物体的动画");
+                EditorGUILayout.LabelField("无法同时编辑多个物体的动画控制器");
             base.OnInspectorGUI();//Generated fields
         }
     }

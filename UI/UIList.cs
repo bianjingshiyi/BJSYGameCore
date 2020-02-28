@@ -1,6 +1,7 @@
 ﻿using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
+using System;
 
 namespace BJSYGameCore.UI
 {
@@ -72,6 +73,68 @@ namespace BJSYGameCore.UI
             foreach (UIObject item in getItems())
             {
                 removeItem(item);
+            }
+        }
+    }
+    public abstract class UIList<T> : UIList where T : UIObject
+    {
+        public new T defaultItem
+        {
+            get
+            {
+                if (base.defaultItem == null)
+                    defaultItem = getDefaultItem();
+                return base.defaultItem as T;
+            }
+            set
+            {
+                base.defaultItem = value as T;
+            }
+        }
+        protected abstract T getDefaultItem();
+        public new virtual T addItem()
+        {
+            return base.addItem() as T;
+        }
+        public new T[] getItems()
+        {
+            return base.getItems().Cast<T>().ToArray();
+        }
+        public bool removeItem(T item)
+        {
+            return base.removeItem(item);
+        }
+        public void updateItems<TObject>(IEnumerable<TObject> objects, Func<T, TObject, bool> isMatchItem, Action<T, TObject> updateItem)
+        {
+            List<T> remainedItemList = new List<T>(getItems());
+            foreach (TObject obj in objects)
+            {
+                T item = remainedItemList.FirstOrDefault(i => isMatchItem(i, obj));
+                if (item == null)
+                {
+                    item = addItem();
+                    updateItem(item, obj);
+                }
+                else
+                {
+                    updateItem(item, obj);
+                    remainedItemList.Remove(item);
+                }
+            }
+            foreach (T item in remainedItemList)
+            {
+                removeItem(item);
+            }
+        }
+        public void sortItems(Comparison<T> comparison)
+        {
+            List<T> items = new List<T>(getItems());
+            items.Sort(comparison);
+            while (items.Count > 0)
+            {
+                T item = items[items.Count - 1];
+                item.transform.SetSiblingIndex(0);
+                items.RemoveAt(items.Count - 1);
             }
         }
     }

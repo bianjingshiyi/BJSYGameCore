@@ -22,6 +22,10 @@ namespace BJSYGameCore.UI
                 return _ui;
             }
         }
+        public RectTransform rectTransform
+        {
+            get { return transform as RectTransform; }
+        }
         public bool isDisplaying
         {
             get { return gameObject.activeSelf; }
@@ -66,13 +70,17 @@ namespace BJSYGameCore.UI
         }
         public string getController(string name, string[] stateNames)
         {
-            return stateNames
-                    .Where(sn => sn.Contains(name))
-                    .Select(sn => sn.Replace(name + "/", null))
-                    .FirstOrDefault(s => animator.GetCurrentAnimatorStateInfo(animator.GetLayerIndex(name + "Controller")).IsName(s));
+            foreach (string stateName in stateNames)
+            {
+                if (animator.GetCurrentAnimatorStateInfo(animator.GetLayerIndex(name + "Controller")).IsName(stateName))
+                    return stateName;
+            }
+            return null;
         }
         public void setController(string name, string value)
         {
+            if (animator.runtimeAnimatorController == null)
+                Debug.LogError("Animator没有Controller", gameObject);
             animator.Play(value, animator.GetLayerIndex(name + "Controller"));
         }
         protected virtual void Awake()
