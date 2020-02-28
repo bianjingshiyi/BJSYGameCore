@@ -10,6 +10,7 @@ using System.CodeDom;
 using System.CodeDom.Compiler;
 
 using UnityEditor;
+using UnityEditor.Animations;
 
 namespace BJSYGameCore.UI
 {
@@ -20,6 +21,8 @@ namespace BJSYGameCore.UI
         public static bool validateGenerateScript()
         {
             if (Selection.gameObjects.Length < 1)
+                return false;
+            if (Selection.gameObjects.Any(obj => PrefabUtility.IsPartOfPrefabAsset(obj)))
                 return false;
             return true;
         }
@@ -60,7 +63,7 @@ namespace BJSYGameCore.UI
         }
         #endregion
         static UGUIAutoScriptPref pref { get; set; } = null;
-        static List<GameObject> updatedGameObjectList { get; } = new List<GameObject>();
+        static Dictionary<GameObject, string> updatedGameObjectDic { get; } = new Dictionary<GameObject, string>();
         static void generateOrUpdateSelected(Type baseType)
         {
             pref = UGUIAutoScriptPref.getDefaultPref();
@@ -76,12 +79,17 @@ namespace BJSYGameCore.UI
             }
             if (!string.IsNullOrEmpty(dir))
             {
-                updatedGameObjectList.Clear();
+                updatedGameObjectDic.Clear();
                 foreach (GameObject gameObject in Selection.gameObjects)
                 {
-                    Component[] components = gameObject.GetComponentsInChildren(baseType);
+                    Component[] components = gameObject.GetComponentsInChildren(baseType, true);
                     if (components.Length > 0)
                     {
+                        Component rootComponent = gameObject.GetComponent(baseType);
+                        if (rootComponent != null)
+                            generateOrUpdateRoot(dir, gameObject, rootComponent.GetType().BaseType);
+                        else
+                            generateOrUpdateRoot(dir, gameObject, baseType);
                         foreach (Component component in components)
                         {
                             generateOrUpdateRoot(dir, component.gameObject, component.GetType().BaseType);
@@ -94,12 +102,26 @@ namespace BJSYGameCore.UI
                 AssetDatabase.Refresh();
             }
         }
-        private static void generateOrUpdateRoot(string dir, GameObject rootGameObject, Type baseType, string className = null)
+        private static string generateOrUpdateRoot(string dir, GameObject rootGameObject, Type baseType, string className = null)
         {
-            if (updatedGameObjectList.Contains(rootGameObject))
+            if (updatedGameObjectDic.ContainsKey(rootGameObject))
             {
                 Debug.Log("忽略重复的GameObject" + rootGameObject.name, rootGameObject);
-                return;
+                return updatedGameObjectDic[rootGameObject];
+            }
+            GameObject prefabGameObject = null;
+            string prefabPath = null;
+            if (PrefabUtility.IsAnyPrefabInstanceRoot(rootGameObject))
+            {
+                prefabGameObject = PrefabUtility.GetCorrespondingObjectFromSource(rootGameObject);
+                if (updatedGameObjectDic.ContainsKey(prefabGameObject))
+                {
+                    Debug.Log("忽略重复的PrefabInstance" + rootGameObject, rootGameObject);
+                    return updatedGameObjectDic[prefabGameObject];
+                }
+                prefabPath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(prefabGameObject);
+                Debug.Log("更新或生成预制件" + rootGameObject.name + "，路径：" + prefabPath, rootGameObject);
+                rootGameObject = PrefabUtility.LoadPrefabContents(prefabPath);
             }
             //确定文件名
             className = getFixedClassName(rootGameObject, baseType, className);
@@ -133,6 +155,9 @@ namespace BJSYGameCore.UI
                 rPath = targetPath.Replace(Environment.CurrentDirectory.Replace('\\', '/') + "/", string.Empty);
                 script = AssetDatabase.LoadAssetAtPath<MonoScript>(rPath);
             }
+            updatedGameObjectDic.Add(rootGameObject, className);
+            if (prefabGameObject != null)
+                updatedGameObjectDic.Add(prefabGameObject, className);
             //加载脚本文件
             FileInfo fileInfo = new FileInfo(targetPath);
             Type scriptType = script != null ? script.GetClass() : null;
@@ -164,13 +189,20 @@ namespace BJSYGameCore.UI
                 {
                     AddComponentWhenCompiledComponent addComponent = rootGameObject.AddComponent<AddComponentWhenCompiledComponent>();
                     addComponent.path = rPath;
+                    if (prefabGameObject != null)
+                        pref.updateList.Add(prefabGameObject);
                 }
             }
             else
             {
                 component.GetType().GetMethod("autoBind").Invoke(component, new object[] { });
             }
-            updatedGameObjectList.Add(rootGameObject);
+            if (prefabGameObject != null)
+            {
+                PrefabUtility.SaveAsPrefabAsset(rootGameObject, prefabPath);
+                PrefabUtility.UnloadPrefabContents(rootGameObject);
+            }
+            return className;
         }
         private static string getFixedClassName(GameObject rootGameObject, Type baseType, string className)
         {
@@ -185,11 +217,42 @@ namespace BJSYGameCore.UI
             }
             return className;
         }
+        private static GameObject getRelativePrefabGameObject(GameObject rootGameObject, GameObject childGameObject, GameObject rootPrefab)
+        {
+            if (rootGameObject == childGameObject)
+                return rootPrefab;
+            Stack<string> nameStack = new Stack<string>();
+            bool isFound = false;
+            for (Transform parent = childGameObject.transform.parent; parent != null; parent = parent.parent)
+            {
+                if (parent.transform == rootGameObject.transform)
+                {
+                    isFound = true;
+                    break;
+                }
+                else
+                    nameStack.Push(parent.gameObject.name);
+            }
+            if (isFound)
+            {
+                Transform relativeChild = rootPrefab.transform;
+                while (nameStack.Count > 0)
+                {
+                    relativeChild = relativeChild.Find(nameStack.Pop());
+                    if (relativeChild == null)
+                        return null;
+                }
+                return relativeChild.gameObject;
+            }
+            else
+                return null;
+        }
         private static CodeCompileUnit generateCompileUnit(string dir, GameObject rootGameObject, Type baseType, string className)
         {
             CodeCompileUnit unit = new CodeCompileUnit();
             CodeNamespace codeNamespace = new CodeNamespace(pref.Namespace);
             {
+                codeNamespace.Imports.Add(new CodeNamespaceImport("System"));
                 codeNamespace.Imports.Add(new CodeNamespaceImport("UnityEngine"));
                 codeNamespace.Imports.Add(new CodeNamespaceImport("UnityEngine.UI"));
                 codeNamespace.Imports.Add(new CodeNamespaceImport("BJSYGameCore.UI"));
@@ -201,9 +264,10 @@ namespace BJSYGameCore.UI
 
                     CodeMemberMethod awake = new CodeMemberMethod();
                     {
-                        awake.Attributes = MemberAttributes.Family | MemberAttributes.Final;
+                        awake.Attributes = MemberAttributes.Family | MemberAttributes.Override;
                         awake.ReturnType = new CodeTypeReference(typeof(void));
                         awake.Name = "Awake";
+                        awake.Statements.Add(new CodeMethodInvokeExpression(new CodeBaseReferenceExpression(), "Awake"));
                     }
                     codeType.Members.Add(awake);
 
@@ -245,6 +309,8 @@ namespace BJSYGameCore.UI
                         addAs(codeType, autoBind, rootGameObject, typeof(HorizontalLayoutGroup));
                     if (rootGameObject.GetComponent<GridLayoutGroup>() != null)
                         addAs(codeType, autoBind, rootGameObject, typeof(GridLayoutGroup));
+                    if (rootGameObject.GetComponent<ListLayoutGroup>() != null)
+                        addAs(codeType, autoBind, rootGameObject, typeof(ListLayoutGroup));
                     if (baseType == typeof(UIList))
                     {
                         GameObject defaultItem = null;
@@ -313,7 +379,7 @@ namespace BJSYGameCore.UI
                         {
                             GameObject gameObject = rootGameObject.transform.GetChild(i).gameObject;
                             if (defaultItem != null && gameObject != defaultItem)
-                                generateChildMembers(codeType, autoBind, rootGameObject, gameObject);
+                                generateChildMembers(dir, codeType, autoBind, rootGameObject, gameObject);
                         }
                     }
                     else if (baseType == typeof(UIPageGroup))
@@ -322,7 +388,7 @@ namespace BJSYGameCore.UI
                         for (int i = 0; i < rootGameObject.transform.childCount; i++)
                         {
                             GameObject gameObject = rootGameObject.transform.GetChild(i).gameObject;
-                            childPropList.AddRange(generateChildMembers(codeType, autoBind, rootGameObject, gameObject));
+                            childPropList.AddRange(generateChildMembers(dir, codeType, autoBind, rootGameObject, gameObject));
                         }
                         CodeMemberMethod getPagesMethod = new CodeMemberMethod();
                         {
@@ -339,7 +405,7 @@ namespace BJSYGameCore.UI
                         for (int i = 0; i < rootGameObject.transform.childCount; i++)
                         {
                             GameObject gameObject = rootGameObject.transform.GetChild(i).gameObject;
-                            generateChildMembers(codeType, autoBind, rootGameObject, gameObject);
+                            generateChildMembers(dir, codeType, autoBind, rootGameObject, gameObject);
                         }
                     }
                     awake.Statements.Add(new CodeMethodInvokeExpression(new CodeThisReferenceExpression(), "onAwake"));
@@ -350,6 +416,54 @@ namespace BJSYGameCore.UI
                         onAwakeMethod.Name = "onAwake()";
                     }
                     codeType.Members.Add(onAwakeMethod);
+                    #region Controller
+                    Animator animator = rootGameObject.GetComponent<Animator>();
+                    if (animator != null && animator.runtimeAnimatorController is AnimatorController controller)
+                    {
+                        foreach (AnimatorControllerLayer layer in controller.layers)
+                        {
+                            Match m = Regex.Match(layer.name, @"(?<name>\w+)Controller");
+                            if (m.Success)
+                            {
+                                string controllerName = m.Groups["name"].Value;
+                                CodeTypeDeclaration controllerEnum = new CodeTypeDeclaration();
+                                {
+                                    controllerEnum.Attributes = MemberAttributes.Public;
+                                    controllerEnum.IsEnum = true;
+                                    controllerEnum.Name = controllerName;
+                                    foreach (ChildAnimatorState state in layer.stateMachine.states)
+                                    {
+                                        string stateName = state.state.name;
+                                        CodeMemberField stateField = new CodeMemberField();
+                                        {
+                                            stateField.Name = stateName;
+                                        }
+                                        controllerEnum.Members.Add(stateField);
+                                    }
+                                }
+                                codeType.Members.Add(controllerEnum);
+                                CodeMemberProperty controllerProp = new CodeMemberProperty();
+                                {
+                                    controllerProp.Attributes = MemberAttributes.Public | MemberAttributes.Final;
+                                    controllerProp.Type = new CodeTypeReference(controllerName);
+                                    controllerProp.Name = controllerName + "Controller";
+                                    controllerProp.HasGet = true;
+                                    CodeExpression expr;
+                                    expr = new CodeMethodInvokeExpression(new CodeTypeReferenceExpression("Enum"), "GetNames", new CodeTypeOfExpression(controllerName));//Enum.GetNames(typeof(Type))
+                                    expr = new CodeMethodInvokeExpression(new CodeThisReferenceExpression(), "getController", new CodePrimitiveExpression(controllerName), expr);//getController("Type", Enum.GetNames(typeof(Type)))
+                                    expr = new CodeMethodInvokeExpression(new CodeTypeReferenceExpression("Enum"), "Parse", new CodeTypeOfExpression(controllerName), expr);//Enum.Parse(typeof(Type), getController("Type", Enum.GetNames(typeof(Type))))
+                                    expr = new CodeCastExpression(new CodeTypeReference(controllerName), expr);//(Type)Enum.Parse(typeof(Type), getController("Type", Enum.GetNames(typeof(Type))))
+                                    controllerProp.GetStatements.Add(new CodeMethodReturnStatement(expr));
+                                    controllerProp.HasSet = true;
+                                    expr = new CodeMethodInvokeExpression(new CodeTypeReferenceExpression("Enum"), "GetName", new CodeTypeOfExpression(controllerName), new CodePropertySetValueReferenceExpression());//Enum.GetName(typeof(Type), value)
+                                    expr = new CodeMethodInvokeExpression(new CodeThisReferenceExpression(), "setController", new CodePrimitiveExpression(controllerName), expr);//setController("Type", Enum.GetName(typeof(Type), value))
+                                    controllerProp.SetStatements.Add(expr);
+                                }
+                                codeType.Members.Add(controllerProp);
+                            }
+                        }
+                    }
+                    #endregion
                 }
                 codeNamespace.Types.Add(codeType);
             }
@@ -357,8 +471,30 @@ namespace BJSYGameCore.UI
             return unit;
         }
 
-        private static CodeMemberProperty[] generateChildMembers(CodeTypeDeclaration codeType, CodeMemberMethod initMethod, GameObject rootGameObject, GameObject gameObject)
+        private static CodeMemberProperty[] generateChildMembers(string dir, CodeTypeDeclaration codeType, CodeMemberMethod initMethod, GameObject rootGameObject, GameObject gameObject)
         {
+            if (PrefabUtility.IsAnyPrefabInstanceRoot(gameObject))
+            {
+                if (gameObject.GetComponent<UIObject>() is UIObject prefabCompo)
+                {
+                    Debug.Log("处理预制件" + gameObject, gameObject);
+                    return new CodeMemberProperty[] { generateChildComponent(codeType, initMethod, rootGameObject, gameObject, prefabCompo.GetType()) };
+                }
+                else
+                {
+                    string className = generateOrUpdateRoot(dir, gameObject, typeof(UIObject));
+                    if (!string.IsNullOrEmpty(className))
+                    {
+                        Debug.Log("处理预制件" + gameObject, gameObject);
+                        return new CodeMemberProperty[] { generateChildComponent(codeType, initMethod, rootGameObject, gameObject, className) };
+                    }
+                    else
+                    {
+                        Debug.LogWarning("无法为预制件" + gameObject + "生成脚本！", gameObject);
+                        return new CodeMemberProperty[0];
+                    }
+                }
+            }
             List<CodeMemberProperty> childPropList = new List<CodeMemberProperty>();
             if (gameObject.GetComponent<UIObject>() is UIObject uiObject)
             {
@@ -376,7 +512,7 @@ namespace BJSYGameCore.UI
             {
                 childPropList.Add(generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(ScrollRect)));
                 if (scrollRect.content != null)
-                    childPropList.AddRange(generateChildMembers(codeType, initMethod, rootGameObject, scrollRect.content.gameObject));
+                    childPropList.AddRange(generateChildMembers(dir, codeType, initMethod, rootGameObject, scrollRect.content.gameObject));
                 return childPropList.ToArray();
             }
             if (gameObject.GetComponent<InputField>() != null)
@@ -389,7 +525,7 @@ namespace BJSYGameCore.UI
                 for (int i = 0; i < gameObject.transform.childCount; i++)
                 {
                     GameObject childGameObject = gameObject.transform.GetChild(i).gameObject;
-                    childPropList.AddRange(generateChildMembers(codeType, initMethod, rootGameObject, childGameObject));
+                    childPropList.AddRange(generateChildMembers(dir, codeType, initMethod, rootGameObject, childGameObject));
                 }
                 return childPropList.ToArray();
             }
@@ -402,7 +538,9 @@ namespace BJSYGameCore.UI
             if (gameObject.GetComponent<Toggle>() != null)
                 childPropList.Add(generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Toggle)));
             if (gameObject.GetComponent<Slider>() != null)
-                childPropList.Add(generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Slider)));
+            {
+                return new CodeMemberProperty[] { generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Slider)) };
+            }
             if (gameObject.GetComponent<Scrollbar>() != null)
                 childPropList.Add(generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Scrollbar)));
             if (gameObject.GetComponent<Canvas>() != null)
@@ -413,27 +551,32 @@ namespace BJSYGameCore.UI
                 childPropList.Add(generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(HorizontalLayoutGroup)));
             if (gameObject.GetComponent<GridLayoutGroup>() != null)
                 childPropList.Add(generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(GridLayoutGroup)));
+            if (gameObject.GetComponent<ListLayoutGroup>() != null)
+                childPropList.Add(generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(ListLayoutGroup)));
             for (int i = 0; i < gameObject.transform.childCount; i++)
             {
                 GameObject childGameObject = gameObject.transform.GetChild(i).gameObject;
-                childPropList.AddRange(generateChildMembers(codeType, initMethod, rootGameObject, childGameObject));
+                childPropList.AddRange(generateChildMembers(dir, codeType, initMethod, rootGameObject, childGameObject));
             }
             return childPropList.ToArray();
         }
-
         private static CodeMemberProperty generateChildComponent(CodeTypeDeclaration codeType, CodeMemberMethod initMethod, GameObject rootGameObject, GameObject gameObject, Type type)
+        {
+            return generateChildComponent(codeType, initMethod, rootGameObject, gameObject, type.Name);
+        }
+        private static CodeMemberProperty generateChildComponent(CodeTypeDeclaration codeType, CodeMemberMethod initMethod, GameObject rootGameObject, GameObject gameObject, string typeName)
         {
             string propName;
             string prefix = gameObject.name;//先从最短名称gameObject.name开始
             string suffix;//默认后缀为字段类型，但是有些太长了需要缩写
-            if (type.BaseType == typeof(UIList))
+            if (typeName.EndsWith("List"))
                 suffix = "List";
-            else if (type == typeof(ScrollRect))
+            else if (typeName == typeof(ScrollRect).Name)
                 suffix = "Scroll";
-            else if (type == typeof(InputField))
+            else if (typeName == typeof(InputField).Name)
                 suffix = "Input";
             else
-                suffix = type.Name;
+                suffix = typeName;
             Transform parent = gameObject.transform.parent;
             do
             {
@@ -474,7 +617,7 @@ namespace BJSYGameCore.UI
                     break;//没有重名，继续
             }
             while (true);
-            CodeMemberField field = new CodeMemberField(type.Name, "_" + propName);
+            CodeMemberField field = new CodeMemberField(typeName, "_" + propName);
             {
                 field.Attributes = MemberAttributes.Private;
                 field.CustomAttributes.Add(new CodeAttributeDeclaration(nameof(SerializeField)));
@@ -484,17 +627,17 @@ namespace BJSYGameCore.UI
             {
                 prop.UserData.Add("GameObject", gameObject);
                 prop.Attributes = MemberAttributes.Public | MemberAttributes.Final;
-                prop.Type = new CodeTypeReference(type.Name);
+                prop.Type = new CodeTypeReference(typeName);
                 prop.Name = propName;
                 prop.HasGet = true;
                 prop.GetStatements.Add(new CodeConditionStatement(new CodeBinaryOperatorExpression(new CodeFieldReferenceExpression(new CodeThisReferenceExpression(), "_" + propName), CodeBinaryOperatorType.ValueEquality, new CodePrimitiveExpression(null)), new CodeStatement[]
                 {
-                    getFieldAssignStatement(rootGameObject, gameObject, type.Name, "_" + propName)
+                    getFieldAssignStatement(rootGameObject, gameObject, typeName, "_" + propName)
                 }));
                 prop.GetStatements.Add(new CodeMethodReturnStatement(new CodeFieldReferenceExpression(new CodeThisReferenceExpression(), "_" + propName)));
             }
             codeType.Members.Add(prop);
-            addAwakeFieldAssign(initMethod, rootGameObject, gameObject, type.Name, propName);
+            addAwakeFieldAssign(initMethod, rootGameObject, gameObject, typeName, propName);
             return prop;
         }
 
@@ -505,13 +648,13 @@ namespace BJSYGameCore.UI
         }
         private static CodeAssignStatement getFieldAssignStatement(GameObject rootGameObject, GameObject gameObject, string typeName, string fieldName)
         {
-            CodeMethodInvokeExpression findExpr = getFindExpr(rootGameObject, gameObject);
+            CodeExpression findExpr = getFindExpr(rootGameObject, gameObject);
             CodeAssignStatement assign = new CodeAssignStatement(new CodeFieldReferenceExpression(new CodeThisReferenceExpression(), fieldName), new CodeMethodInvokeExpression(new CodeMethodReferenceExpression(findExpr, "GetComponent", new CodeTypeReference(typeName))));
             return assign;
         }
         private static CodeAssignStatement getPropAssignStatement(GameObject rootGameObject, GameObject gameObject, string typeName, string propName)
         {
-            CodeMethodInvokeExpression findExpr = getFindExpr(rootGameObject, gameObject);
+            CodeExpression findExpr = getFindExpr(rootGameObject, gameObject);
             CodeAssignStatement assign = new CodeAssignStatement(new CodePropertyReferenceExpression(new CodeThisReferenceExpression(), propName), new CodeMethodInvokeExpression(new CodeMethodReferenceExpression(findExpr, "GetComponent", new CodeTypeReference(typeName))));
             return assign;
         }
@@ -521,11 +664,13 @@ namespace BJSYGameCore.UI
         }
         private static void addAwakePropAssign(CodeMemberMethod initMethod, GameObject rootGameObject, GameObject gameObject, string typeName, string propName)
         {
-            CodeMethodInvokeExpression findExpr = getFindExpr(rootGameObject, gameObject);
+            CodeExpression findExpr = getFindExpr(rootGameObject, gameObject);
             initMethod.Statements.Add(new CodeAssignStatement(new CodePropertyReferenceExpression(new CodeThisReferenceExpression(), propName), new CodeMethodInvokeExpression(new CodeMethodReferenceExpression(findExpr, "GetComponent", new CodeTypeReference(typeName)))));
         }
-        private static CodeMethodInvokeExpression getFindExpr(GameObject rootGameObject, GameObject gameObject)
+        private static CodeExpression getFindExpr(GameObject rootGameObject, GameObject gameObject)
         {
+            if (rootGameObject == gameObject)
+                return new CodeThisReferenceExpression();
             CodeMethodInvokeExpression findExprHead = new CodeMethodInvokeExpression(null, "Find", new CodePrimitiveExpression(gameObject.name));
             CodeMethodInvokeExpression findExpr = findExprHead;
             for (Transform parent = gameObject.transform.parent; parent != null && parent != rootGameObject.transform; parent = parent.parent)

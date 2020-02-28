@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 using UnityEditor;
 
 namespace BJSYGameCore.UI
@@ -19,6 +20,12 @@ namespace BJSYGameCore.UI
 #pragma warning restore IDE1006 // 命名样式
         {
             get { return _namespace; }
+        }
+        [SerializeField]
+        List<GameObject> _updateList = new List<GameObject>();
+        public List<GameObject> updateList
+        {
+            get { return _updateList; }
         }
         public static UGUIAutoScriptPref getDefaultPref()
         {
