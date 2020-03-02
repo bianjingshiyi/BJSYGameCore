@@ -39,6 +39,7 @@ namespace BJSYGameCore.UI
                 else if (animator.runtimeAnimatorController is AnimatorController controller)
                 {
                     AnimatorControllerLayer removeLayer = null;
+                    AnimatorControllerLayer rebuildLayer = null;
                     string controllerPath = AssetDatabase.GetAssetPath(controller);
                     string controllerDir = Path.GetDirectoryName(controllerPath);
                     foreach (AnimatorControllerLayer layer in controller.layers)
@@ -49,6 +50,7 @@ namespace BJSYGameCore.UI
                             string controllerName = m.Groups["name"].Value;
                             if (!controllerFoldDic.ContainsKey(controllerName))
                                 controllerFoldDic.Add(controllerName, false);
+                            layer.defaultWeight = 1;
                             EditorGUILayout.BeginHorizontal();
                             //展开Controller
                             controllerFoldDic[controllerName] = EditorGUILayout.Foldout(controllerFoldDic[controllerName], controllerName);
@@ -102,76 +104,62 @@ namespace BJSYGameCore.UI
                                 //状态绘制
                                 if (layer.stateMachine == null)
                                 {
-                                    layer.defaultWeight = 1;
-                                    layer.stateMachine = new AnimatorStateMachine();
-                                    foreach (string animPath in Directory.GetFiles(controllerDir, "*.anim")
-                                        .Select(s => s.Replace('\\', '/').Replace(Environment.CurrentDirectory.Replace('\\', '/') + "/", string.Empty)))
-                                    {
-                                        AnimationClip clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(animPath);
-                                        m = Regex.Match(clip.name, @"(?<controller>\w+)_(?<state>\w+)");
-                                        if (m.Success && m.Groups["controller"].Value == controllerName)
-                                        {
-                                            string stateName = m.Groups["state"].Value;
-                                            AnimatorState newState = new AnimatorState()
-                                            {
-                                                name = stateName,
-                                                motion = clip
-                                            };
-                                            layer.stateMachine.AddState(newState, new Vector3(250, layer.stateMachine.states.Length * 50));
-                                        }
-                                    }
+                                    rebuildLayer = layer;
                                 }
-                                foreach (ChildAnimatorState state in layer.stateMachine.states)
+                                else
                                 {
-                                    EditorGUILayout.BeginHorizontal();
-                                    EditorGUILayout.LabelField(state.state.name, "");
-                                    if (EditorApplication.isPlaying && GUILayout.Button(">", GUILayout.Width(20)))
+                                    foreach (ChildAnimatorState state in layer.stateMachine.states)
                                     {
-                                        (target as UIObject).setController(controllerName, state.state.name);
+                                        EditorGUILayout.BeginHorizontal();
+                                        EditorGUILayout.LabelField(state.state.name, "");
+                                        if (EditorApplication.isPlaying && GUILayout.Button(">", GUILayout.Width(20)))
+                                        {
+                                            (target as UIObject).setController(controllerName, state.state.name);
+                                        }
+                                        if (GUILayout.Button("-", GUILayout.Width(20)))
+                                            removeState = state.state;
+                                        EditorGUILayout.EndHorizontal();
                                     }
-                                    if (GUILayout.Button("-", GUILayout.Width(20)))
-                                        removeState = state.state;
+                                    if (removeState != null)
+                                    {
+                                        if (removeState.motion is AnimationClip removeClip)
+                                            AssetDatabase.DeleteAsset(AssetDatabase.GetAssetPath(removeClip));
+                                        layer.stateMachine.RemoveState(removeState);
+                                    }
+                                    EditorGUILayout.BeginHorizontal();
+                                    //新建状态
+                                    if (!controllerNewStateDic.ContainsKey(controllerName))
+                                        controllerNewStateDic.Add(controllerName, null);
+                                    controllerNewStateDic[controllerName] = EditorGUILayout.TextField(controllerNewStateDic[controllerName]);
+                                    if (GUILayout.Button("AddState"))
+                                    {
+                                        if (layer.stateMachine.states.Any(s => s.state.name == controllerNewStateDic[controllerName]))
+                                            Debug.LogError(controllerName + "中已经存在同名的状态，无法添加" + controllerNewStateDic[controllerName]);
+                                        else if (string.IsNullOrEmpty(controllerNewStateDic[controllerName]))
+                                            Debug.LogError("Controller状态名称不能为空");
+                                        else
+                                        {
+                                            if (Directory.Exists(controllerDir))
+                                            {
+                                                AnimationClip newClip = new AnimationClip();
+                                                AssetDatabase.CreateAsset(newClip, controllerDir + "/" + controllerName + "_" + controllerNewStateDic[controllerName] + ".anim");
+                                                AssetDatabase.SaveAssets();
+                                                AssetDatabase.Refresh();
+                                                AnimatorState newState = new AnimatorState()
+                                                {
+                                                    name = controllerNewStateDic[controllerName],
+                                                    motion = newClip
+                                                };
+                                                layer.stateMachine.AddState(newState, new Vector3(250, layer.stateMachine.states.Length * 50));
+                                                EditorUtility.SetDirty(controller);
+                                            }
+                                            else
+                                                Debug.LogError("文件夹" + controllerDir + "不存在", target);
+                                        }
+                                        controllerNewStateDic.Remove(controllerName);
+                                    }
                                     EditorGUILayout.EndHorizontal();
                                 }
-                                if (removeState != null)
-                                {
-                                    if (removeState.motion is AnimationClip removeClip)
-                                        AssetDatabase.DeleteAsset(AssetDatabase.GetAssetPath(removeClip));
-                                    layer.stateMachine.RemoveState(removeState);
-                                }
-                                EditorGUILayout.BeginHorizontal();
-                                //新建状态
-                                if (!controllerNewStateDic.ContainsKey(controllerName))
-                                    controllerNewStateDic.Add(controllerName, null);
-                                controllerNewStateDic[controllerName] = EditorGUILayout.TextField(controllerNewStateDic[controllerName]);
-                                if (GUILayout.Button("AddState"))
-                                {
-                                    if (layer.stateMachine.states.Any(s => s.state.name == controllerNewStateDic[controllerName]))
-                                        Debug.LogError(controllerName + "中已经存在同名的状态，无法添加" + controllerNewStateDic[controllerName]);
-                                    else if (string.IsNullOrEmpty(controllerNewStateDic[controllerName]))
-                                        Debug.LogError("Controller状态名称不能为空");
-                                    else
-                                    {
-                                        string saveDirPath = EditorUtility.SaveFolderPanel("保存新建AnimationClip", Application.dataPath, "Animations")
-                                            .Replace(Environment.CurrentDirectory.Replace('\\', '/') + "/", null);
-                                        if (!string.IsNullOrEmpty(saveDirPath))
-                                        {
-                                            AnimationClip newClip = new AnimationClip();
-                                            AssetDatabase.CreateAsset(newClip, saveDirPath + "/" + controllerName + "_" + controllerNewStateDic[controllerName] + ".anim");
-                                            AssetDatabase.SaveAssets();
-                                            AssetDatabase.Refresh();
-                                            AnimatorState newState = new AnimatorState()
-                                            {
-                                                name = controllerNewStateDic[controllerName],
-                                                motion = newClip
-                                            };
-                                            layer.stateMachine.AddState(newState, new Vector3(250, layer.stateMachine.states.Length * 50));
-                                            EditorUtility.SetDirty(controller);
-                                        }
-                                    }
-                                    controllerNewStateDic.Remove(controllerName);
-                                }
-                                EditorGUILayout.EndHorizontal();
                                 EditorGUI.indentLevel--;
                             }
                         }
@@ -179,6 +167,36 @@ namespace BJSYGameCore.UI
                     //删除Controller的实际处理
                     if (removeLayer != null)
                         controller.RemoveLayer(Array.FindIndex(controller.layers, l => l.name == removeLayer.name));
+                    //stateMachine的Layer丢失了似乎重新新建它是没用的。那就只能试试看重建它了。
+                    if (rebuildLayer != null)
+                    {
+                        string controllerName = rebuildLayer.name.Replace("Controller", string.Empty);
+                        controller.RemoveLayer(Array.FindIndex(controller.layers, l => l.name == rebuildLayer.name));
+                        AnimatorControllerLayer layer = new AnimatorControllerLayer()
+                        {
+                            name = controllerName + "Controller",
+                            defaultWeight = 1,
+                            stateMachine = new AnimatorStateMachine()
+                        };
+                        foreach (string animPath in Directory.GetFiles(controllerDir, "*.anim")
+                            .Select(s => s.Replace('\\', '/').Replace(Environment.CurrentDirectory.Replace('\\', '/') + "/", string.Empty)))
+                        {
+                            AnimationClip clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(animPath);
+                            Match m = Regex.Match(clip.name, @"(?<controller>\w+)_(?<state>\w+)");
+                            if (m.Success && m.Groups["controller"].Value == controllerName)
+                            {
+                                string stateName = m.Groups["state"].Value;
+                                AnimatorState newState = new AnimatorState()
+                                {
+                                    name = stateName,
+                                    motion = clip
+                                };
+                                layer.stateMachine.AddState(newState, new Vector3(250, layer.stateMachine.states.Length * 50));
+                            }
+                        }
+                        controller.AddLayer(layer);
+                        EditorUtility.SetDirty(controller);
+                    }
                     //新建Controller
                     EditorGUILayout.BeginHorizontal();
                     newControllerName = EditorGUILayout.TextField(newControllerName);
@@ -197,6 +215,7 @@ namespace BJSYGameCore.UI
                                 stateMachine = new AnimatorStateMachine()
                             };
                             controller.AddLayer(newLayer);
+                            EditorUtility.SetDirty(controller);
                         }
                         newControllerName = null;
                     }
