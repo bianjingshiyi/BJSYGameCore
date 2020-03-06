@@ -95,7 +95,7 @@ namespace BJSYGameCore.UI
             {
                 totalMin -= spacing;
                 totalPreferred -= spacing;
-                float currentSize = rectTransform.rect.size[axis] - totalPadding;
+                float currentSize = rectTransform.rect.size[axis];
                 if (totalPreferred < currentSize)//空间充足
                 {
                     if (currentSize > preferredSize[axis])
