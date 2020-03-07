@@ -196,6 +196,9 @@ namespace BJSYGameCore.UI
                         }
                         controller.AddLayer(layer);
                         EditorUtility.SetDirty(controller);
+                        AssetDatabase.AddObjectToAsset(layer.stateMachine, controller);
+                        AssetDatabase.SaveAssets();
+                        AssetDatabase.ImportAsset(AssetDatabase.GetAssetPath(controller));
                     }
                     //新建Controller
                     EditorGUILayout.BeginHorizontal();

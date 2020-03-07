@@ -491,6 +491,11 @@ namespace BJSYGameCore.UI
                             if (m.Success)
                             {
                                 string controllerName = m.Groups["name"].Value;
+                                if (layer.stateMachine == null)
+                                {
+                                    Debug.LogError("为" + controllerName + "控制器生成脚本失败，丢失状态机", rootGameObject);
+                                    continue;
+                                }
                                 CodeTypeDeclaration controllerEnum = new CodeTypeDeclaration();
                                 {
                                     controllerEnum.Attributes = MemberAttributes.Public;

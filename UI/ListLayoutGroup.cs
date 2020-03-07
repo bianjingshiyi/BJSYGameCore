@@ -137,6 +137,8 @@ namespace BJSYGameCore.UI
                     if (overflowType == OverflowType.extrusion)
                     {
                         float pos = axis == 0 ? padding.left : padding.top;
+                        if (rectChildren.Count < 1)
+                            return;
                         RectTransform child = rectChildren[rectChildren.Count - 1];
                         float childSize = child.rect.size[axis] * child.localScale[axis];
                         float remainedSpace = innerSize - childSize;
@@ -196,9 +198,11 @@ namespace BJSYGameCore.UI
                 }
             }
         }
+#if UNITY_EDITOR
         protected override void Reset()
         {
             preferredSize = rectTransform.rect.size;
         }
+#endif
     }
 }
