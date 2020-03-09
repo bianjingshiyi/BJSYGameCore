@@ -43,6 +43,7 @@ namespace BJSYGameCore
         }
         protected virtual void onAwake()
         {
+            local.global.loadSceneAsync()
         }
         internal protected virtual void onSceneLoad(string scenePath)
         {
