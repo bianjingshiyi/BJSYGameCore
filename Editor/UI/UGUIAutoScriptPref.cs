@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
+using System.IO;
 
 namespace BJSYGameCore.UI
 {
@@ -32,7 +33,9 @@ namespace BJSYGameCore.UI
             UGUIAutoScriptPref pref = AssetDatabase.LoadAssetAtPath<UGUIAutoScriptPref>("Assets/Editor/UIScriptGeneratorPrefs.asset");
             if (pref == null)
             {
-                pref = ScriptableObject.CreateInstance<UGUIAutoScriptPref>();
+                pref = CreateInstance<UGUIAutoScriptPref>();
+                if (!Directory.Exists("Assets/Editor"))
+                    Directory.CreateDirectory("Assets/Editor");
                 AssetDatabase.CreateAsset(pref, "Assets/Editor/UIScriptGeneratorPrefs.asset");
                 AssetDatabase.SaveAssets();
                 AssetDatabase.Refresh();
