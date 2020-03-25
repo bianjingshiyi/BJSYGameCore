@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System;
+using System.Collections;
 
 namespace BJSYGameCore.UI
 {
@@ -76,7 +77,7 @@ namespace BJSYGameCore.UI
             }
         }
     }
-    public abstract class UIList<T> : UIList where T : UIObject
+    public abstract class UIList<T> : UIList, IEnumerable<T> where T : UIObject
     {
         public new T defaultItem
         {
@@ -136,6 +137,16 @@ namespace BJSYGameCore.UI
                 item.transform.SetSiblingIndex(0);
                 items.RemoveAt(items.Count - 1);
             }
+        }
+
+        public IEnumerator<T> GetEnumerator()
+        {
+            return getItems().Cast<T>().GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return getItems().GetEnumerator();
         }
     }
 }

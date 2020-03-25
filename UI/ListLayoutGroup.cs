@@ -20,6 +20,20 @@ namespace BJSYGameCore.UI
             get { return _spacing; }
             set { SetProperty(ref _spacing, value); }
         }
+        [SerializeField]
+        bool _forceChildExpandWidth = false;
+        public bool forceChildExpandWidth
+        {
+            get { return _forceChildExpandWidth; }
+            set { SetProperty(ref _forceChildExpandWidth, value); }
+        }
+        [SerializeField]
+        bool _forceChildExpandHeight = false;
+        public bool forceChildExpandHeight
+        {
+            get { return _forceChildExpandHeight; }
+            set { SetProperty(ref _forceChildExpandHeight, value); }
+        }
         [Tooltip("在空间足以容纳所有内容，并且内容倾向于占满整个空间的时候，如果空间大于该尺寸，那么空间会倾向于缩小到该尺寸。")]
         [SerializeField]
         Vector2 _preferredSize;
@@ -63,6 +77,7 @@ namespace BJSYGameCore.UI
             float totalMin = totalPadding;
             float totalPreferred = totalPadding;
             float totalFlexible = 0;
+            bool forceChildExpand = axis == 0 ? forceChildExpandWidth : forceChildExpandHeight;
 
             bool alongOtherAxis = (isVertical ^ (axis == 1));
             for (int i = 0; i < rectChildren.Count; i++)
@@ -109,6 +124,11 @@ namespace BJSYGameCore.UI
                         totalPreferred = currentSize;
                 }
             }
+            else if (alongOtherAxis)
+            {
+                if (forceChildExpand)
+                    totalPreferred = rectTransform.rect.size[axis];
+            }
             totalPreferred = Mathf.Max(totalMin, totalPreferred);
             SetLayoutInputForAxis(totalMin, totalPreferred, totalFlexible, axis);
         }
@@ -117,16 +137,27 @@ namespace BJSYGameCore.UI
             float innerSize = rectTransform.rect.size[axis] - (axis == 0 ? padding.horizontal : padding.vertical);
             float alignmentOnAxis = GetAlignmentOnAxis(axis);
             bool alongOtherAxis = (isVertical ^ (axis == 1));
+            bool forceChildExpand = axis == 0 ? forceChildExpandWidth : forceChildExpandHeight;
 
             if (alongOtherAxis)
             {
                 for (int i = 0; i < rectChildren.Count; i++)
                 {
                     RectTransform child = rectChildren[i];
-                    float childSize = child.rect.size[axis];
-                    float scaleFactor = child.localScale[axis];
-                    float startOffset = GetStartOffset(axis, childSize * scaleFactor);
-                    SetChildAlongAxisWithScale(child, axis, startOffset, scaleFactor);
+                    if (forceChildExpand)
+                    {
+                        float childSize = rectTransform.rect.size[axis];
+                        float scaleFactor = 1;
+                        float startOffset = GetStartOffset(axis, childSize * scaleFactor);
+                        SetChildAlongAxisWithScale(child, axis, startOffset, childSize, scaleFactor);
+                    }
+                    else
+                    {
+                        float childSize = child.rect.size[axis];
+                        float scaleFactor = child.localScale[axis];
+                        float startOffset = GetStartOffset(axis, childSize * scaleFactor);
+                        SetChildAlongAxisWithScale(child, axis, startOffset, scaleFactor);
+                    }
                 }
             }
             else
