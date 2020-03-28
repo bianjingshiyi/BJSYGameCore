@@ -35,5 +35,9 @@ namespace BJSYGameCore
         {
             return duration > 0 ? now - startTime >= duration : false;
         }
+        public float getRemainedTime()
+        {
+            return startTime + duration <= Time.time ? duration - (Time.time - startTime) : 0;
+        }
     }
 }
