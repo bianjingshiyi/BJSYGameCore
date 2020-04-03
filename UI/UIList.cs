@@ -8,6 +8,7 @@ namespace BJSYGameCore.UI
 {
     public class UIList : UIObject
     {
+        #region Item
         [SerializeField]
         UIObject _defaultItem;
         public UIObject defaultItem
@@ -40,19 +41,6 @@ namespace BJSYGameCore.UI
             }
             return itemList.ToArray();
         }
-        public int childCount
-        {
-            get
-            {
-                int count = 0;
-                for (int i = 0; i < transform.childCount; i++)
-                {
-                    if (transform.GetChild(i).gameObject.activeSelf)
-                        count++;
-                }
-                return count;
-            }
-        }
         public int itemCount
         {
             get { return getItems().Length; }
@@ -76,6 +64,7 @@ namespace BJSYGameCore.UI
                 removeItem(item);
             }
         }
+        #endregion
     }
     public abstract class UIList<T> : UIList, IEnumerable<T> where T : UIObject
     {

@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using System.Collections.Generic;
 using UnityEngine;
 using BJSYGameCore;
 using UnityEngine.SceneManagement;
@@ -50,6 +51,39 @@ namespace BJSYGameCore.UI
         {
             return this as T;
         }
+        #region Child
+        public void addChild(UIObject obj)
+        {
+            obj.rectTransform.SetParent(rectTransform);
+        }
+        public bool removeChild(UIObject obj, bool destroy = false)
+        {
+            if (obj == null)
+                return false;
+            if (obj.rectTransform.parent == rectTransform)
+            {
+                obj.rectTransform.parent = null;
+                if (destroy)
+                {
+                    Destroy(obj.gameObject);
+                }
+                return true;
+            }
+            else
+                return false;
+        }
+        public UIObject[] getChildren()
+        {
+            List<UIObject> childList = new List<UIObject>();
+            for (int i = 0; i < transform.childCount; i++)
+            {
+                Transform child = transform.GetChild(i);
+                if (child.gameObject.activeSelf && child.GetComponent<UIObject>() is UIObject obj)
+                    childList.Add(obj);
+            }
+            return childList.ToArray();
+        }
+        #endregion
         #region Controller
         Animator _animator;
         public Animator animator
