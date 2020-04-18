@@ -52,17 +52,17 @@ namespace BJSYGameCore.UI
             return this as T;
         }
         #region Child
-        public void addChild(UIObject obj)
+        public void addChild(RectTransform obj)
         {
-            obj.rectTransform.SetParent(rectTransform);
+            obj.SetParent(rectTransform);
         }
-        public bool removeChild(UIObject obj, bool destroy = false)
+        public bool removeChild(RectTransform obj, bool destroy = false)
         {
             if (obj == null)
                 return false;
-            if (obj.rectTransform.parent == rectTransform)
+            if (obj.parent == rectTransform)
             {
-                obj.rectTransform.parent = null;
+                obj.parent = null;
                 if (destroy)
                 {
                     Destroy(obj.gameObject);
@@ -72,14 +72,18 @@ namespace BJSYGameCore.UI
             else
                 return false;
         }
-        public UIObject[] getChildren()
+        public RectTransform getChild(string name)
         {
-            List<UIObject> childList = new List<UIObject>();
+            return rectTransform.Find(name) as RectTransform;
+        }
+        public RectTransform[] getChildren(bool includeNotActive = false)
+        {
+            List<RectTransform> childList = new List<RectTransform>();
             for (int i = 0; i < transform.childCount; i++)
             {
                 Transform child = transform.GetChild(i);
-                if (child.gameObject.activeSelf && child.GetComponent<UIObject>() is UIObject obj)
-                    childList.Add(obj);
+                if ((!includeNotActive || child.gameObject.activeSelf) && child is RectTransform rTrans)
+                    childList.Add(rTrans);
             }
             return childList.ToArray();
         }
