@@ -7,6 +7,18 @@ namespace BJSYGameCore.UI
     public class ListLayoutGroup : LayoutGroup
     {
         [SerializeField]
+        LayoutType _layoutType;
+        public LayoutType layoutType
+        {
+            get { return _layoutType; }
+            set { SetProperty(ref _layoutType, value); }
+        }
+        public enum LayoutType
+        {
+            singlelineHorizontal,
+            singlelineVertical
+        }
+        [SerializeField]
         bool _averageSpacing = false;
         public bool averageSpaceing
         {
@@ -57,19 +69,19 @@ namespace BJSYGameCore.UI
         public override void CalculateLayoutInputHorizontal()
         {
             base.CalculateLayoutInputHorizontal();
-            calcAlongAxis(0, false);
+            calcAlongAxis(0, layoutType == LayoutType.singlelineVertical);
         }
         public override void CalculateLayoutInputVertical()
         {
-            calcAlongAxis(1, false);
+            calcAlongAxis(1, layoutType == LayoutType.singlelineVertical);
         }
         public override void SetLayoutHorizontal()
         {
-            setChildrenAlongAxis(0, false);
+            setChildrenAlongAxis(0, layoutType == LayoutType.singlelineVertical);
         }
         public override void SetLayoutVertical()
         {
-            setChildrenAlongAxis(1, false);
+            setChildrenAlongAxis(1, layoutType == LayoutType.singlelineVertical);
         }
         void calcAlongAxis(int axis, bool isVertical)
         {

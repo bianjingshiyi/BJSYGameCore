@@ -166,7 +166,13 @@ namespace BJSYGameCore.UI
                     }
                     //删除Controller的实际处理
                     if (removeLayer != null)
+                    {
+                        AssetDatabase.DeleteAsset(AssetDatabase.GetAssetPath(controller) + "/" + removeLayer.stateMachine.name);
                         controller.RemoveLayer(Array.FindIndex(controller.layers, l => l.name == removeLayer.name));
+                        EditorUtility.SetDirty(controller);
+                        AssetDatabase.SaveAssets();
+                        AssetDatabase.ImportAsset(AssetDatabase.GetAssetPath(controller));
+                    }
                     //stateMachine的Layer丢失了似乎重新新建它是没用的。那就只能试试看重建它了。
                     if (rebuildLayer != null)
                     {
@@ -177,6 +183,9 @@ namespace BJSYGameCore.UI
                             name = controllerName + "Controller",
                             defaultWeight = 1,
                             stateMachine = new AnimatorStateMachine()
+                            {
+                                name = controllerName + "Controller"
+                            }
                         };
                         foreach (string animPath in Directory.GetFiles(controllerDir, "*.anim")
                             .Select(s => s.Replace('\\', '/').Replace(Environment.CurrentDirectory.Replace('\\', '/') + "/", string.Empty)))
@@ -219,6 +228,9 @@ namespace BJSYGameCore.UI
                             };
                             controller.AddLayer(newLayer);
                             EditorUtility.SetDirty(controller);
+                            AssetDatabase.AddObjectToAsset(newLayer.stateMachine, controller);
+                            AssetDatabase.SaveAssets();
+                            AssetDatabase.ImportAsset(AssetDatabase.GetAssetPath(controller));
                         }
                         newControllerName = null;
                     }
