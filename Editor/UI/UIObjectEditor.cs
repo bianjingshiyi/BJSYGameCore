@@ -151,7 +151,11 @@ namespace BJSYGameCore.UI
                                                     motion = newClip
                                                 };
                                                 layer.stateMachine.AddState(newState, new Vector3(250, layer.stateMachine.states.Length * 50));
+
                                                 EditorUtility.SetDirty(controller);
+                                                AssetDatabase.AddObjectToAsset(newState, controller);
+                                                AssetDatabase.SaveAssets();
+                                                AssetDatabase.ImportAsset(AssetDatabase.GetAssetPath(controller));
                                             }
                                             else
                                                 Debug.LogError("文件夹" + controllerDir + "不存在", target);
