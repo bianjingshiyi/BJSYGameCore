@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using BJSYGameCore;
+using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 
 namespace BJSYGameCore.UI
@@ -132,5 +133,22 @@ namespace BJSYGameCore.UI
             }
         }
         #endregion
+        public float alpha
+        {
+            get
+            {
+                Graphic graphic = GetComponentInChildren<Graphic>();
+                if (graphic != null)
+                    return graphic.color.a;
+                return 0;
+            }
+            set
+            {
+                foreach (Graphic graphic in GetComponentsInChildren<Graphic>())
+                {
+                    graphic.color = new Color(graphic.color.r, graphic.color.g, graphic.color.b, value);
+                }
+            }
+        }
     }
 }

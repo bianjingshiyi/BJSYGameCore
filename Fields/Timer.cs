@@ -51,5 +51,20 @@ namespace BJSYGameCore
                     return 1;
             }
         }
+        /// <summary>
+        /// 获取截取计时器上一段时间的进度。
+        /// </summary>
+        /// <param name="start"></param>
+        /// <param name="end"></param>
+        /// <returns></returns>
+        public float getProgress(float start, float end)
+        {
+            if (Time.time - startTime > end)
+                return 1;
+            else if (Time.time - startTime > start)
+                return (Time.time - startTime - start) / (start - end);
+            else
+                return 0;
+        }
     }
 }
