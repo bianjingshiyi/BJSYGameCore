@@ -9,5 +9,15 @@ namespace BJSYGameCore.UI
         {
             return GetComponentInChildren<T>(true);
         }
+        /// <summary>
+        /// 获取指定类型的UI实例
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <remarks>先这么凑合着，以后再优化吧</remarks>
+        /// <returns></returns>
+        public T getObject<T>() where T : UIObject
+        {
+            return this.findInstance<T>();
+        }
     }
 }
