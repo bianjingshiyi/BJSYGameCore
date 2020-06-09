@@ -614,7 +614,9 @@ namespace BJSYGameCore.UI
             if (gameObject.GetComponent<Text>() != null)
                 childPropList.Add(generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Text)));
             if (gameObject.GetComponent<Toggle>() != null)
-                childPropList.Add(generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Toggle)));
+            {
+                return new CodeMemberProperty[] { generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Toggle)) };
+            }
             if (gameObject.GetComponent<Slider>() != null)
             {
                 return new CodeMemberProperty[] { generateChildComponent(codeType, initMethod, rootGameObject, gameObject, typeof(Slider)) };
