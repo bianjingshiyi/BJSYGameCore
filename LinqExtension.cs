@@ -1,4 +1,6 @@
-﻿using System.Linq;
+﻿using System;
+using System.Reflection;
+using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 namespace BJSYGameCore
@@ -9,5 +11,12 @@ namespace BJSYGameCore
         //{
         //    return source.(e => e is TCast) is TCast t ? t : default;
         //}
+    }
+    public static class SystemHelper
+    {
+        public static bool isObsolete(this object obj)
+        {
+            return obj.GetType().GetCustomAttribute<ObsoleteAttribute>() != null;
+        }
     }
 }
