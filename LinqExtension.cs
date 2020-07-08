@@ -18,5 +18,13 @@ namespace BJSYGameCore
         {
             return obj.GetType().GetCustomAttribute<ObsoleteAttribute>() != null;
         }
+        public static IEnumerable<T> skipUntil<T>(this IEnumerable<T> c, Func<T, bool> func)
+        {
+            return c.SkipWhile(e => !func(e));
+        }
+        public static IEnumerable<T> takeUntil<T>(this IEnumerable<T> c, Func<T, bool> func)
+        {
+            return c.TakeWhile(e => !func(e));
+        }
     }
 }
