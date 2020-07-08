@@ -6,7 +6,7 @@ namespace BJSYGameCore.Animations
 {
     public class ShaderControllerGenerator
     {
-        public CodeCompileUnit generateController(Shader shader, string Namespace)
+        public CodeCompileUnit generateGraphicController(Shader shader, string Namespace)
         {
             throw new NotImplementedException();
         }
