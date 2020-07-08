@@ -3,6 +3,9 @@ using System.IO;
 using UnityEngine;
 using System.CodeDom;
 using UnityEditor;
+using UnityEditor.Rendering;
+using UnityEngine.Rendering;
+
 namespace BJSYGameCore.Animations
 {
     public class ShaderControllerGenerator
@@ -41,7 +44,141 @@ namespace BJSYGameCore.Animations
         /// </remarks>
         public CodeCompileUnit generateGraphicController(Shader shader, string Namespace)
         {
-            throw new NotImplementedException();
+            var ccu = new CodeCompileUnit();
+            {
+                var ns = new CodeNamespace(Namespace);
+                {
+                    var tClass = new CodeTypeDeclaration(Path.GetFileName(shader.name) + "Controller")
+                    {
+                        IsClass = true,
+                        IsPartial = true,
+                        Attributes = MemberAttributes.Public,
+                    };
+                    {
+                        // 设置基类
+                        tClass.BaseTypes.Add(new CodeTypeReference(typeof(GraphMatPropCtrl)));
+
+                        // 添加方法
+                        var updateMethod = new CodeMemberMethod()
+                        {
+                            Name = "Update",
+                            Attributes = MemberAttributes.Override | MemberAttributes.Family,
+                            ReturnType = new CodeTypeReference(typeof(void))
+                        };
+                        tClass.Members.Add(updateMethod);
+
+                        var resetMethod = new CodeMemberMethod()
+                        {
+                            Name = "Reset",
+                            Attributes = MemberAttributes.Override | MemberAttributes.Family,
+                            ReturnType = new CodeTypeReference(typeof(void))
+                        };
+                        tClass.Members.Add(resetMethod);
+
+                        // 添加Prop以及向方法中添加代码
+                        for (int i = 0; i < shader.GetPropertyCount(); i++)
+                        {
+                            var pName = shader.GetPropertyName(i);
+                            var pType = shader.GetPropertyType(i);
+                            var cType = GetType(pType);
+
+                            var pMember = new CodeMemberField(cType, pName)
+                            {
+                                Attributes = MemberAttributes.Public
+                            };
+                            pMember.CustomAttributes.Add(new CodeAttributeDeclaration(new CodeTypeReference(typeof(SerializeField))));
+                            tClass.Members.Add(pMember);
+
+                            resetMethod.Statements.Add(new CodeAssignStatement(new CodeFieldReferenceExpression(new CodeBaseReferenceExpression(), pName), MaterialGetExp(pType, pName)));
+                            updateMethod.Statements.Add(MaterialSetExp(pType, pName, pName));
+                        }
+
+                        // 添加 SHADER_ID
+                        var shader_id = new CodeMemberField(typeof(int), "SHADER_ID")
+                        {
+                            Attributes = MemberAttributes.Public | MemberAttributes.Const,
+                            InitExpression = new CodePrimitiveExpression(shader.GetInstanceID())
+                        };
+                        tClass.Members.Add(shader_id);
+
+                    }
+                    ns.Types.Add(tClass);
+                }
+                ccu.Namespaces.Add(ns);
+            }
+            return ccu;
+        }
+
+        static Type GetType(ShaderPropertyType t)
+        {
+            switch (t)
+            {
+                case ShaderPropertyType.Color:
+                    return typeof(Color);
+                case ShaderPropertyType.Vector:
+                    return typeof(Vector4);
+                case ShaderPropertyType.Float:
+                    return typeof(float);
+                case ShaderPropertyType.Range:
+                    return typeof(Single);
+                case ShaderPropertyType.Texture:
+                    return typeof(Texture);
+                default:
+                    return typeof(float);
+            }
+        }
+
+        static CodeMethodInvokeExpression MaterialSetExp(ShaderPropertyType t, string name, string val)
+        {
+            var mat = new CodePropertyReferenceExpression(new CodeBaseReferenceExpression(), "material");
+            string methodName = "InvalidExp";
+            switch (t)
+            {
+                case ShaderPropertyType.Color:
+                    methodName = "SetColor";
+                    break;
+                case ShaderPropertyType.Vector:
+                    methodName = "SetVector";
+                    break;
+                case ShaderPropertyType.Range:
+                case ShaderPropertyType.Float:
+                    methodName = "SetFloat";
+                    break;
+                case ShaderPropertyType.Texture:
+                    methodName = "SetTexture";
+                    break;
+                default:
+                    break;
+            }
+            return new CodeMethodInvokeExpression(
+                new CodeMethodReferenceExpression(mat, methodName),
+                new CodePrimitiveExpression(name),
+                new CodeFieldReferenceExpression(new CodeBaseReferenceExpression(), val));
+        }
+
+        static CodeMethodInvokeExpression MaterialGetExp(ShaderPropertyType t, string name)
+        {
+            var mat = new CodePropertyReferenceExpression(new CodeBaseReferenceExpression(), "material");
+            string methodName = "InvalidExp";
+            switch (t)
+            {
+                case ShaderPropertyType.Color:
+                    methodName = "GetColor";
+                    break;
+                case ShaderPropertyType.Vector:
+                    methodName = "GetVector";
+                    break;
+                case ShaderPropertyType.Range:
+                case ShaderPropertyType.Float:
+                    methodName = "GetFloat";
+                    break;
+                case ShaderPropertyType.Texture:
+                    methodName = "GetTexture";
+                    break;
+                default:
+                    break;
+            }
+            return new CodeMethodInvokeExpression(new CodeMethodReferenceExpression(mat, methodName), new CodePrimitiveExpression(name));
         }
     }
 }
