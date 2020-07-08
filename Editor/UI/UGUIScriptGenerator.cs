@@ -7,7 +7,6 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.UI;
 using System.CodeDom;
-using System.CodeDom.Compiler;
 
 using UnityEditor;
 using UnityEditor.Animations;
@@ -173,20 +172,8 @@ namespace BJSYGameCore.UI
             FileInfo fileInfo = new FileInfo(targetPath);
             Type scriptType = script != null ? script.GetClass() : null;
             //生成脚本文件
-            using (StreamWriter writer = new StreamWriter(fileInfo.Create()))
-            {
-                CodeCompileUnit unit = generateCompileUnit(dir, parentGameObject, rootGameObject, baseType, className);
-                using (CodeDomProvider provider = CodeDomProvider.CreateProvider("CSharp"))
-                {
-                    provider.GenerateCodeFromCompileUnit(unit, writer, new CodeGeneratorOptions()
-                    {
-                        BlankLinesBetweenMembers = false,
-                        BracingStyle = "C",
-                        IndentString = "    ",
-                        VerbatimOrder = true
-                    });
-                }
-            }
+            CodeCompileUnit unit = generateCompileUnit(dir, parentGameObject, rootGameObject, baseType, className);
+            CodeDOMHelper.writeUnitToFile(fileInfo, unit);
             if (component == null)
             {
                 if (scriptType != null)
@@ -229,6 +216,9 @@ namespace BJSYGameCore.UI
             }
             return className;
         }
+
+
+
         private static string getFixedClassName(GameObject rootGameObject, Type baseType, string className)
         {
             if (string.IsNullOrEmpty(className))
