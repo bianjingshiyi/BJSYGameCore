@@ -1,16 +1,15 @@
-﻿using System;
-using System.Linq;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEditor;
-
-namespace BJSYGameCore.UI
+using System;
+using BJSYGameCore.UI;
+namespace BJSYGameCore
 {
-    class AddComponentWhenCompiled
+    class UncompiledComponentHandler
     {
         [InitializeOnLoadMethod]
         public static void replaceComponentWhenCompiled()
         {
-            foreach (var obj in UnityEngine.Object.FindObjectsOfType<AddComponentWhenCompiledComponent>())
+            foreach (var obj in UnityEngine.Object.FindObjectsOfType<UncompiledComponent>())
             {
                 if (PrefabUtility.IsPartOfNonAssetPrefabInstance(obj))
                     continue;
@@ -37,7 +36,7 @@ namespace BJSYGameCore.UI
                 string prefabPath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(prefab);
                 GameObject gameObject = PrefabUtility.LoadPrefabContents(prefabPath);
 
-                AddComponentWhenCompiledComponent obj = gameObject.GetComponent<AddComponentWhenCompiledComponent>();
+                UncompiledComponent obj = gameObject.GetComponent<UncompiledComponent>();
                 if (obj != null)
                 {
                     MonoScript script = AssetDatabase.LoadAssetAtPath<MonoScript>(obj.path);

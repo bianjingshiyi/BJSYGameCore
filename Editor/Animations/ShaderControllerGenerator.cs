@@ -5,29 +5,55 @@ using System.CodeDom;
 using UnityEditor;
 using UnityEditor.Rendering;
 using UnityEngine.Rendering;
-
+using UnityEngine.UI;
 namespace BJSYGameCore.Animations
 {
     public class ShaderControllerGenerator
     {
         [MenuItem("Assets/Create/Generate ShaderController", true, 410)]
-        public static bool validateGenerateScript()
+        public static bool validateGenerateScriptForShader()
         {
             if (Selection.activeObject is Shader)
                 return true;
             return false;
         }
         [MenuItem("Assets/Create/Generate ShaderController", false, 410)]
-        public static void generateScript()
+        public static void generateScriptForShader()
         {
             if (Selection.activeObject is Shader shader)
             {
-                FileInfo shaderFile = new FileInfo(AssetDatabase.GetAssetPath(shader));
-                CodeCompileUnit unit = new ShaderControllerGenerator().generateGraphicController(shader, "Animations");
-                FileInfo scriptFile = new FileInfo(shaderFile.Directory + "/" + Path.GetFileNameWithoutExtension(shaderFile.Name) + "Controller.cs");
-                CodeDOMHelper.writeUnitToFile(scriptFile, unit);
-                AssetDatabase.Refresh();
+                generateScript(shader);
             }
+        }
+        [MenuItem("CONTEXT/Graphic/Generate Shader Controller")]
+        public static void generateScriptForGraphic(MenuCommand command)
+        {
+            Graphic graphic = command.context as Graphic;
+            if (graphic.material == null)
+            {
+                Debug.LogError(graphic + "没有材质！");
+                return;
+            }
+            if (graphic.material.shader == null)
+            {
+                Debug.LogError(graphic + "的材质" + graphic.material + "没有着色器！");
+            }
+            string path = generateScript(graphic.material.shader);
+            UncompiledComponent.add(graphic.gameObject, path);
+        }
+        static string generateScript(Shader shader)
+        {
+            FileInfo shaderFile = new FileInfo(AssetDatabase.GetAssetPath(shader));
+            if (!shaderFile.Exists)
+            {
+                Debug.LogError(shader + "不是一个Assets中的文件！");
+                return null;
+            }
+            CodeCompileUnit unit = new ShaderControllerGenerator().generateGraphicController(shader, "Animations");
+            FileInfo scriptFile = new FileInfo(shaderFile.Directory + "/" + Path.GetFileNameWithoutExtension(shaderFile.Name) + "Controller.cs");
+            CodeDOMHelper.writeUnitToFile(scriptFile, unit);
+            AssetDatabase.Refresh();
+            return scriptFile.FullName.Replace(Environment.CurrentDirectory + "\\", string.Empty).Replace('\\', '/');
         }
         /// <summary>
         /// 

@@ -192,7 +192,7 @@ namespace BJSYGameCore.UI
                 }
                 else
                 {
-                    AddComponentWhenCompiledComponent addComponent = rootGameObject.AddComponent<AddComponentWhenCompiledComponent>();
+                    UncompiledComponent addComponent = rootGameObject.AddComponent<UncompiledComponent>();
                     addComponent.path = rPath;
                     if (prefabGameObject != null)
                         pref.updateList.Add(prefabGameObject);
