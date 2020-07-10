@@ -23,7 +23,7 @@ namespace BJSYGameCore.Animations
             if (Selection.activeObject is Shader shader)
             {
                 FileInfo shaderFile = new FileInfo(AssetDatabase.GetAssetPath(shader));
-                CodeCompileUnit unit = new CodeCompileUnit(); //new ShaderControllerGenerator().generateGraphicController(shader, "Animations");
+                CodeCompileUnit unit = new ShaderControllerGenerator().generateGraphicController(shader, "Animations");
                 FileInfo scriptFile = new FileInfo(shaderFile.Directory + "/" + Path.GetFileNameWithoutExtension(shaderFile.Name) + "Controller.cs");
                 CodeDOMHelper.writeUnitToFile(scriptFile, unit);
                 AssetDatabase.Refresh();
@@ -70,7 +70,7 @@ namespace BJSYGameCore.Animations
                         var resetMethod = new CodeMemberMethod()
                         {
                             Name = "Reset",
-                            Attributes = MemberAttributes.Override | MemberAttributes.Family,
+                            Attributes = MemberAttributes.Family,
                             ReturnType = new CodeTypeReference(typeof(void))
                         };
                         tClass.Members.Add(resetMethod);
@@ -89,7 +89,7 @@ namespace BJSYGameCore.Animations
                             pMember.CustomAttributes.Add(new CodeAttributeDeclaration(new CodeTypeReference(typeof(SerializeField))));
                             tClass.Members.Add(pMember);
 
-                            resetMethod.Statements.Add(new CodeAssignStatement(new CodeFieldReferenceExpression(new CodeBaseReferenceExpression(), pName), MaterialGetExp(pType, pName)));
+                            resetMethod.Statements.Add(new CodeAssignStatement(new CodeFieldReferenceExpression(new CodeThisReferenceExpression(), pName), MaterialGetExp(pType, pName)));
                             updateMethod.Statements.Add(MaterialSetExp(pType, pName, pName));
                         }
 
@@ -153,7 +153,7 @@ namespace BJSYGameCore.Animations
             return new CodeMethodInvokeExpression(
                 new CodeMethodReferenceExpression(mat, methodName),
                 new CodePrimitiveExpression(name),
-                new CodeFieldReferenceExpression(new CodeBaseReferenceExpression(), val));
+                new CodeFieldReferenceExpression(new CodeThisReferenceExpression(), val));
         }
 
         static CodeMethodInvokeExpression MaterialGetExp(ShaderPropertyType t, string name)
