@@ -39,6 +39,10 @@ namespace BJSYGameCore
         {
             return startTime + duration <= Time.time ? duration - (Time.time - startTime) : 0;
         }
+        public float time
+        {
+            get { return startTime < 0 ? 0 : Time.time - startTime; }
+        }
         public float progress
         {
             get
