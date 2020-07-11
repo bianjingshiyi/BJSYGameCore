@@ -1,6 +1,5 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
-
 namespace BJSYGameCore.Animations
 {
     [RequireComponent(typeof(Graphic))]
