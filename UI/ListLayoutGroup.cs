@@ -1,7 +1,6 @@
 ﻿using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
-
 namespace BJSYGameCore.UI
 {
     public class ListLayoutGroup : LayoutGroup
