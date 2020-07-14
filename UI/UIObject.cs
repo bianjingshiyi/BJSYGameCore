@@ -94,6 +94,8 @@ namespace BJSYGameCore.UI
         }
         #endregion
         #region Controller
+        [SerializeField]
+        bool _useController = false;
         Animator _animator;
         public Animator animator
         {
@@ -128,6 +130,8 @@ namespace BJSYGameCore.UI
         }
         protected virtual void Awake()
         {
+            if (!_useController)
+                return;
             foreach (string initState in initStates)
             {
                 string[] sArray = initState.Split('/');
