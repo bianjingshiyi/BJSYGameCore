@@ -33,7 +33,11 @@ namespace BJSYGameCore
         }
         public bool isExpired(float now)
         {
-            return duration > 0 ? now - startTime >= duration : false;
+            if (startTime < 0)
+                return false;
+            if (duration < 0)
+                return false;
+            return now - startTime >= duration;
         }
         public float getRemainedTime()
         {

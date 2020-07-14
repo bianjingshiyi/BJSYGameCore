@@ -2,6 +2,20 @@
 using System.Reflection;
 namespace BJSYGameCore
 {
+    public static class Do
+    {
+        public static bool seq(params Func<bool>[] actions)
+        {
+            foreach (var action in actions)
+            {
+                if (action())
+                    continue;
+                else
+                    return true;
+            }
+            return false;
+        }
+    }
     public static class SystemHelper
     {
         public static string removeHead(this string path, string head)
