@@ -15,12 +15,13 @@ namespace BJSYGameCore.UI
                 resetRatio();
             base.Update();
         }
+#if UNITY_EDITOR
         protected override void Reset()
         {
             base.Reset();
             resetRatio();
         }
-
+#endif
         private void resetRatio()
         {
             aspectMode = AspectMode.EnvelopeParent;
