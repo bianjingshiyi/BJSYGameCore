@@ -96,6 +96,10 @@ namespace BJSYGameCore.UI
         #region Controller
         [SerializeField]
         bool _useController = false;
+        public bool useController
+        {
+            get { return _useController; }
+        }
         Animator _animator;
         public Animator animator
         {
@@ -139,6 +143,20 @@ namespace BJSYGameCore.UI
                 string stateName = sArray[1];
                 setController(controllerName, stateName);
             }
+        }
+        #endregion
+        #region Property
+        Dictionary<string, object> propDic { get; } = new Dictionary<string, object>();
+        public T getProp<T>(string name)
+        {
+            if (propDic.ContainsKey(name) && propDic[name] is T t)
+                return t;
+            else
+                return default;
+        }
+        public void setProp(string name, object value)
+        {
+            propDic[name] = value;
         }
         #endregion
         public float alpha
