@@ -8,6 +8,11 @@ using UnityEditor.Animations;
 
 namespace BJSYGameCore
 {
+    [CustomPropertyDrawer(typeof(TypeStringAttribute))]
+    class TypeStringPropDrawer : PropertyDrawer
+    {
+
+    }
     [CustomPropertyDrawer(typeof(AnimNameAttribute))]
     class AnimNamePropDrawer : PropertyDrawer
     {
