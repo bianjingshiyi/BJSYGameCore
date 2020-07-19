@@ -112,9 +112,10 @@ namespace BJSYGameCore.Animations
                         var resetMethod = new CodeMemberMethod()
                         {
                             Name = "Reset",
-                            Attributes = MemberAttributes.Family,
+                            Attributes = MemberAttributes.Family | MemberAttributes.Override,
                             ReturnType = new CodeTypeReference(typeof(void))
                         };
+                        resetMethod.Statements.Add(new CodeMethodInvokeExpression(new CodeMethodReferenceExpression(new CodeBaseReferenceExpression(), "Reset")));
                         tClass.Members.Add(resetMethod);
 
                         // 添加Prop以及向方法中添加代码

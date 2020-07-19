@@ -132,6 +132,14 @@ namespace BJSYGameCore.UI
                 Debug.LogError("Animator没有Controller", gameObject);
             animator.Play(value, animator.GetLayerIndex(name + "Controller"));
         }
+        public void setBoolTrue(string name)
+        {
+            animator.SetBool(name, true);
+        }
+        public void setBoolFalse(string name)
+        {
+            animator.SetBool(name, false);
+        }
         protected virtual void Awake()
         {
             if (!_useController)

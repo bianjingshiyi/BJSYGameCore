@@ -22,6 +22,10 @@ namespace BJSYGameCore.Animations
             material = _originMaterial;
             _originMaterial = null;
         }
+        protected virtual void Reset()
+        {
+            enabled = false;
+        }
         [ContextMenu(nameof(showMatPropNames))]
         public void showMatPropNames()
         {
