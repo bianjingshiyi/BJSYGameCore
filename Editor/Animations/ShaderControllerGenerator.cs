@@ -25,7 +25,22 @@ namespace BJSYGameCore.Animations
                 generateScript(shader);
             }
         }
-        [MenuItem("CONTEXT/Graphic/Generate Shader Controller")]
+        [MenuItem("CONTEXT/Graphic/Generate Shader Controller", true)]
+        public static bool validateGenerateScriptForGraphic(MenuCommand command)
+        {
+            Graphic graphic = command.context as Graphic;
+            if (graphic.material == null)
+            {
+                return false;
+            }
+            if (graphic.material.shader == null)
+            {
+                Debug.LogError(graphic + "的材质" + graphic.material + "没有着色器！");
+                return false;
+            }
+            return true;
+        }
+        [MenuItem("CONTEXT/Graphic/Generate Shader Controller", false)]
         public static void generateScriptForGraphic(MenuCommand command)
         {
             Graphic graphic = command.context as Graphic;
@@ -37,6 +52,7 @@ namespace BJSYGameCore.Animations
             if (graphic.material.shader == null)
             {
                 Debug.LogError(graphic + "的材质" + graphic.material + "没有着色器！");
+                return;
             }
             string path = generateScript(graphic.material.shader);
             UncompiledComponent.add(graphic.gameObject, path);
