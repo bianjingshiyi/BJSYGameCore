@@ -14,5 +14,9 @@ namespace BJSYGameCore
         {
             return c.TakeWhile(e => !func(e));
         }
+        public static bool isSubset<T>(this IEnumerable<T> set, IEnumerable<T> subset)
+        {
+            return subset.All(e => set.Contains(e));
+        }
     }
 }
