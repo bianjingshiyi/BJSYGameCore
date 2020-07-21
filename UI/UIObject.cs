@@ -140,6 +140,10 @@ namespace BJSYGameCore.UI
         {
             animator.SetBool(name, false);
         }
+        public void playSound(AudioClip clip)
+        {
+            GetComponentInParent<AudioSource>().PlayOneShot(clip);
+        }
         protected virtual void Awake()
         {
             if (!_useController)
