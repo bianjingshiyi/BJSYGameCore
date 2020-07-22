@@ -9,6 +9,12 @@ namespace BJSYGameCore.UI
         {
             get { return GetComponent<Image>(); }
         }
+        protected override void Awake()
+        {
+            base.Awake();
+            if (aspectRatio != calcRatio())
+                resetRatio();
+        }
         protected override void Update()
         {
             if (aspectRatio != calcRatio())
