@@ -15,6 +15,12 @@ namespace BJSYGameCore.UI
             if (aspectRatio != calcRatio())
                 resetRatio();
         }
+        protected override void Start()
+        {
+            base.Start();
+            if (aspectRatio != calcRatio())
+                resetRatio();
+        }
         protected override void Update()
         {
             if (aspectRatio != calcRatio())
