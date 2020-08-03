@@ -15,7 +15,9 @@ namespace BJSYGameCore.UI
         public enum LayoutType
         {
             singlelineHorizontal,
-            singlelineVertical
+            singlelineVertical,
+            multilineHorizontal,
+            multilineVertical
         }
         [SerializeField]
         bool _averageSpacing = false;
@@ -90,57 +92,68 @@ namespace BJSYGameCore.UI
             float totalFlexible = 0;
             bool forceChildExpand = axis == 0 ? forceChildExpandWidth : forceChildExpandHeight;
 
-            bool alongOtherAxis = (isVertical ^ (axis == 1));
-            for (int i = 0; i < rectChildren.Count; i++)
+            if (layoutType == LayoutType.multilineHorizontal)
             {
-                RectTransform child = rectChildren[i];
-                float min = child.rect.size[axis];
-                float preferred = min;
-                float flexible = 0;
 
-                float scaleFactor = child.localScale[axis];
-                min *= scaleFactor;
-                preferred *= scaleFactor;
-                flexible *= scaleFactor;
+            }
+            else if (layoutType == LayoutType.multilineVertical)
+            {
 
-                if (alongOtherAxis)
-                {
-                    totalMin = Mathf.Max(min + totalPadding, totalMin);
-                    totalPreferred = Mathf.Max(preferred + totalPadding, totalPreferred);
-                    totalFlexible = Mathf.Max(flexible, totalFlexible);
-                }
-                else
-                {
-                    totalMin += min + spacing;
-                    totalPreferred += preferred + spacing;
-                    // Increment flexible size with element's flexible size.
-                    totalFlexible += flexible;
-                }
             }
-            if (!alongOtherAxis && rectChildren.Count > 0)
+            else
             {
-                totalMin -= spacing;
-                totalPreferred -= spacing;
-                float currentSize = rectTransform.rect.size[axis];
-                if (totalPreferred < currentSize)//空间充足
+                bool alongOtherAxis = (isVertical ^ (axis == 1));
+                for (int i = 0; i < rectChildren.Count; i++)
                 {
-                    if (currentSize > preferredSize[axis])
-                        currentSize = preferredSize[axis];
-                    if (averageSpaceing)
-                        totalPreferred = currentSize;
+                    RectTransform child = rectChildren[i];
+                    float min = child.rect.size[axis];
+                    float preferred = min;
+                    float flexible = 0;
+
+                    float scaleFactor = child.localScale[axis];
+                    min *= scaleFactor;
+                    preferred *= scaleFactor;
+                    flexible *= scaleFactor;
+
+                    if (alongOtherAxis)
+                    {
+                        totalMin = Mathf.Max(min + totalPadding, totalMin);
+                        totalPreferred = Mathf.Max(preferred + totalPadding, totalPreferred);
+                        totalFlexible = Mathf.Max(flexible, totalFlexible);
+                    }
+                    else
+                    {
+                        totalMin += min + spacing;
+                        totalPreferred += preferred + spacing;
+                        // Increment flexible size with element's flexible size.
+                        totalFlexible += flexible;
+                    }
                 }
-                else if (totalPreferred > currentSize)//空间不足
+                if (!alongOtherAxis && rectChildren.Count > 0)
                 {
-                    if (overflowType == OverflowType.extrusion)
-                        totalPreferred = currentSize;
+                    totalMin -= spacing;
+                    totalPreferred -= spacing;
+                    float currentSize = rectTransform.rect.size[axis];
+                    if (totalPreferred < currentSize)//空间充足
+                    {
+                        if (currentSize > preferredSize[axis])
+                            currentSize = preferredSize[axis];
+                        if (averageSpaceing)
+                            totalPreferred = currentSize;
+                    }
+                    else if (totalPreferred > currentSize)//空间不足
+                    {
+                        if (overflowType == OverflowType.extrusion)
+                            totalPreferred = currentSize;
+                    }
                 }
+                else if (alongOtherAxis)
+                {
+                    if (forceChildExpand)
+                        totalPreferred = rectTransform.rect.size[axis];
+                }
+                totalPreferred = Mathf.Max(totalMin, totalPreferred);
             }
-            else if (alongOtherAxis)
-            {
-                if (forceChildExpand)
-                    totalPreferred = rectTransform.rect.size[axis];
-            }
-            totalPreferred = Mathf.Max(totalMin, totalPreferred);
             SetLayoutInputForAxis(totalMin, totalPreferred, totalFlexible, axis);
         }
         void setChildrenAlongAxis(int axis, bool isVertical)
