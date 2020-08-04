@@ -146,7 +146,7 @@ namespace BJSYGameCore.UI
                 string originPath = Environment.CurrentDirectory.Replace('\\', '/') + "/" + rPath;
                 if (targetPath != originPath)
                 {
-                    if (EditorUtility.DisplayDialog("UGUI AutoScript", rootGameObject.name + "已有的组件脚本位置与目标位置不一致，是否要在目标位置创建一个新的脚本文件？", "Yes", "No"))
+                    if (pref.dontAskRegenerate ? false : EditorUtility.DisplayDialog("UGUI AutoScript", rootGameObject.name + "已有的组件脚本位置与目标位置不一致，是否要在目标位置创建一个新的脚本文件？", "Yes", "No"))
                     {
                         UnityEngine.Object.DestroyImmediate(component);//删除已有组件
                         component = null;

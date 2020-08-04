@@ -23,6 +23,12 @@ namespace BJSYGameCore.UI
             get { return _namespace; }
         }
         [SerializeField]
+        bool _dontAskRegenerate = false;
+        public bool dontAskRegenerate
+        {
+            get { return _dontAskRegenerate; }
+        }
+        [SerializeField]
         List<GameObject> _updateList = new List<GameObject>();
         public List<GameObject> updateList
         {
