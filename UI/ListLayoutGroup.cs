@@ -92,17 +92,44 @@ namespace BJSYGameCore.UI
             float totalFlexible = 0;
             bool forceChildExpand = axis == 0 ? forceChildExpandWidth : forceChildExpandHeight;
 
-            if (layoutType == LayoutType.multilineHorizontal)
+            bool alongOtherAxis = isVertical ^ (axis == 1);
+            if (layoutType == LayoutType.multilineHorizontal || layoutType == LayoutType.multilineVertical)
             {
-
-            }
-            else if (layoutType == LayoutType.multilineVertical)
-            {
-
+                if (alongOtherAxis)
+                {
+                    //尺寸取决于有多少行，每行最高多高
+                    int otherAxis = axis == 0 ? 1 : 0;
+                    float restSpace = rectTransform.rect.size[otherAxis] - totalPadding;
+                    if (rectChildren.Count > 0)
+                    {
+                        float lineWidth = 0;
+                        float maxHeight = 0;
+                        for (int i = 0; i < rectChildren.Count; i++)
+                        {
+                            RectTransform child = rectChildren[i];
+                            lineWidth += child.rect.size[otherAxis];
+                            if (lineWidth >= restSpace)
+                            {
+                                lineWidth = 0;
+                                totalMin += maxHeight;
+                                continue;
+                            }
+                            else
+                                lineWidth += spacing;
+                            if (child.rect.size[axis] > maxHeight)
+                                maxHeight = child.rect.size[axis];
+                        }
+                        totalPreferred = totalMin;
+                    }
+                }
+                else
+                {
+                    totalMin = rectTransform.rect.size[axis];
+                    totalPreferred = totalMin;
+                }
             }
             else
             {
-                bool alongOtherAxis = (isVertical ^ (axis == 1));
                 for (int i = 0; i < rectChildren.Count; i++)
                 {
                     RectTransform child = rectChildren[i];
@@ -163,91 +190,98 @@ namespace BJSYGameCore.UI
             bool alongOtherAxis = (isVertical ^ (axis == 1));
             bool forceChildExpand = axis == 0 ? forceChildExpandWidth : forceChildExpandHeight;
 
-            if (alongOtherAxis)
+            if (layoutType == LayoutType.multilineHorizontal || layoutType == LayoutType.multilineVertical)
             {
-                for (int i = 0; i < rectChildren.Count; i++)
-                {
-                    RectTransform child = rectChildren[i];
-                    if (forceChildExpand)
-                    {
-                        float childSize = rectTransform.rect.size[axis];
-                        float scaleFactor = 1;
-                        float startOffset = GetStartOffset(axis, childSize * scaleFactor);
-                        SetChildAlongAxisWithScale(child, axis, startOffset, childSize, scaleFactor);
-                    }
-                    else
-                    {
-                        float childSize = child.rect.size[axis];
-                        float scaleFactor = child.localScale[axis];
-                        float startOffset = GetStartOffset(axis, childSize * scaleFactor);
-                        SetChildAlongAxisWithScale(child, axis, startOffset, scaleFactor);
-                    }
-                }
+
             }
             else
             {
-                float expandedSize = rectChildren.Sum(child => child.rect.size[axis] * child.localScale[axis]) + spacing * (rectChildren.Count - 1);
-                if (expandedSize > innerSize)
+                if (alongOtherAxis)
                 {
-                    if (overflowType == OverflowType.extrusion)
+                    for (int i = 0; i < rectChildren.Count; i++)
                     {
-                        float pos = axis == 0 ? padding.left : padding.top;
-                        if (rectChildren.Count < 1)
-                            return;
-                        RectTransform child = rectChildren[rectChildren.Count - 1];
-                        float childSize = child.rect.size[axis] * child.localScale[axis];
-                        float remainedSpace = innerSize - childSize;
-                        float remainedExpandedSize = expandedSize - childSize;
-                        for (int i = 0; i < rectChildren.Count; i++)
+                        RectTransform child = rectChildren[i];
+                        if (forceChildExpand)
                         {
-                            child = rectChildren[i];
-                            childSize = child.rect.size[axis];
-                            float scaleFactor = child.localScale[axis];
-                            SetChildAlongAxisWithScale(child, axis, pos, scaleFactor);
-                            pos += remainedSpace / remainedExpandedSize * (childSize * scaleFactor + spacing);
+                            float childSize = rectTransform.rect.size[axis];
+                            float scaleFactor = 1;
+                            float startOffset = GetStartOffset(axis, childSize * scaleFactor);
+                            SetChildAlongAxisWithScale(child, axis, startOffset, childSize, scaleFactor);
                         }
-                    }
-                    else
-                    {
-                        float pos = GetStartOffset(axis, GetTotalPreferredSize(axis) - (axis == 0 ? padding.horizontal : padding.vertical));
-                        for (int i = 0; i < rectChildren.Count; i++)
+                        else
                         {
-                            RectTransform child = rectChildren[i];
                             float childSize = child.rect.size[axis];
                             float scaleFactor = child.localScale[axis];
-                            SetChildAlongAxisWithScale(child, axis, pos, scaleFactor);
-                            pos += spacing + childSize * scaleFactor;
+                            float startOffset = GetStartOffset(axis, childSize * scaleFactor);
+                            SetChildAlongAxisWithScale(child, axis, startOffset, scaleFactor);
                         }
                     }
                 }
                 else
                 {
-                    if (expandedSize < innerSize && averageSpaceing)
+                    float expandedSize = rectChildren.Sum(child => child.rect.size[axis] * child.localScale[axis]) + spacing * (rectChildren.Count - 1);
+                    if (expandedSize > innerSize)
                     {
-                        float totalSize = rectChildren.Sum(child => child.rect.size[axis] * child.localScale[axis]);
-                        float remainedSpace = innerSize - totalSize;
-                        float averageSpacing = remainedSpace / (rectChildren.Count + 1);
-                        float pos = padding.left;
-                        for (int i = 0; i < rectChildren.Count; i++)
+                        if (overflowType == OverflowType.extrusion)
                         {
-                            RectTransform child = rectChildren[i];
-                            float childSize = child.rect.size[axis];
-                            float scaleFactor = child.localScale[axis];
-                            pos += averageSpacing;
-                            SetChildAlongAxisWithScale(child, axis, pos, scaleFactor);
-                            pos += childSize * scaleFactor;
+                            float pos = axis == 0 ? padding.left : padding.top;
+                            if (rectChildren.Count < 1)
+                                return;
+                            RectTransform child = rectChildren[rectChildren.Count - 1];
+                            float childSize = child.rect.size[axis] * child.localScale[axis];
+                            float remainedSpace = innerSize - childSize;
+                            float remainedExpandedSize = expandedSize - childSize;
+                            for (int i = 0; i < rectChildren.Count; i++)
+                            {
+                                child = rectChildren[i];
+                                childSize = child.rect.size[axis];
+                                float scaleFactor = child.localScale[axis];
+                                SetChildAlongAxisWithScale(child, axis, pos, scaleFactor);
+                                pos += remainedSpace / remainedExpandedSize * (childSize * scaleFactor + spacing);
+                            }
+                        }
+                        else
+                        {
+                            float pos = GetStartOffset(axis, GetTotalPreferredSize(axis) - (axis == 0 ? padding.horizontal : padding.vertical));
+                            for (int i = 0; i < rectChildren.Count; i++)
+                            {
+                                RectTransform child = rectChildren[i];
+                                float childSize = child.rect.size[axis];
+                                float scaleFactor = child.localScale[axis];
+                                SetChildAlongAxisWithScale(child, axis, pos, scaleFactor);
+                                pos += spacing + childSize * scaleFactor;
+                            }
                         }
                     }
                     else
                     {
-                        float pos = GetStartOffset(axis, GetTotalPreferredSize(axis) - (axis == 0 ? padding.horizontal : padding.vertical));
-                        for (int i = 0; i < rectChildren.Count; i++)
+                        if (expandedSize < innerSize && averageSpaceing)
                         {
-                            RectTransform child = rectChildren[i];
-                            float childSize = child.rect.size[axis];
-                            float scaleFactor = child.localScale[axis];
-                            SetChildAlongAxisWithScale(child, axis, pos, scaleFactor);
-                            pos += spacing + childSize * scaleFactor;
+                            float totalSize = rectChildren.Sum(child => child.rect.size[axis] * child.localScale[axis]);
+                            float remainedSpace = innerSize - totalSize;
+                            float averageSpacing = remainedSpace / (rectChildren.Count + 1);
+                            float pos = padding.left;
+                            for (int i = 0; i < rectChildren.Count; i++)
+                            {
+                                RectTransform child = rectChildren[i];
+                                float childSize = child.rect.size[axis];
+                                float scaleFactor = child.localScale[axis];
+                                pos += averageSpacing;
+                                SetChildAlongAxisWithScale(child, axis, pos, scaleFactor);
+                                pos += childSize * scaleFactor;
+                            }
+                        }
+                        else
+                        {
+                            float pos = GetStartOffset(axis, GetTotalPreferredSize(axis) - (axis == 0 ? padding.horizontal : padding.vertical));
+                            for (int i = 0; i < rectChildren.Count; i++)
+                            {
+                                RectTransform child = rectChildren[i];
+                                float childSize = child.rect.size[axis];
+                                float scaleFactor = child.localScale[axis];
+                                SetChildAlongAxisWithScale(child, axis, pos, scaleFactor);
+                                pos += spacing + childSize * scaleFactor;
+                            }
                         }
                     }
                 }
