@@ -1,6 +1,7 @@
 ﻿using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections.Generic;
 namespace BJSYGameCore.UI
 {
     public class ListLayoutGroup : LayoutGroup
@@ -70,19 +71,19 @@ namespace BJSYGameCore.UI
         public override void CalculateLayoutInputHorizontal()
         {
             base.CalculateLayoutInputHorizontal();
-            calcAlongAxis(0, layoutType == LayoutType.singlelineVertical);
+            calcAlongAxis(0, layoutType == LayoutType.singlelineVertical || layoutType == LayoutType.multilineVertical);
         }
         public override void CalculateLayoutInputVertical()
         {
-            calcAlongAxis(1, layoutType == LayoutType.singlelineVertical);
+            calcAlongAxis(1, layoutType == LayoutType.singlelineVertical || layoutType == LayoutType.multilineVertical);
         }
         public override void SetLayoutHorizontal()
         {
-            setChildrenAlongAxis(0, layoutType == LayoutType.singlelineVertical);
+            setChildrenAlongAxis(0, layoutType == LayoutType.singlelineVertical || layoutType == LayoutType.multilineVertical);
         }
         public override void SetLayoutVertical()
         {
-            setChildrenAlongAxis(1, layoutType == LayoutType.singlelineVertical);
+            setChildrenAlongAxis(1, layoutType == LayoutType.singlelineVertical || layoutType == LayoutType.multilineVertical);
         }
         void calcAlongAxis(int axis, bool isVertical)
         {
@@ -107,18 +108,19 @@ namespace BJSYGameCore.UI
                         for (int i = 0; i < rectChildren.Count; i++)
                         {
                             RectTransform child = rectChildren[i];
-                            lineWidth += child.rect.size[otherAxis];
+                            lineWidth += child.rect.size[otherAxis] * child.localScale[otherAxis];
                             if (lineWidth >= restSpace)
                             {
-                                lineWidth = 0;
+                                lineWidth = child.rect.size[otherAxis] * child.localScale[otherAxis] + spacing;
                                 totalMin += maxHeight;
-                                continue;
+                                maxHeight = 0;
                             }
                             else
                                 lineWidth += spacing;
                             if (child.rect.size[axis] > maxHeight)
                                 maxHeight = child.rect.size[axis];
                         }
+                        totalMin += maxHeight;
                         totalPreferred = totalMin;
                     }
                 }
@@ -189,10 +191,96 @@ namespace BJSYGameCore.UI
             float alignmentOnAxis = GetAlignmentOnAxis(axis);
             bool alongOtherAxis = (isVertical ^ (axis == 1));
             bool forceChildExpand = axis == 0 ? forceChildExpandWidth : forceChildExpandHeight;
-
+            int otherAxis = axis == 0 ? 1 : 0;
             if (layoutType == LayoutType.multilineHorizontal || layoutType == LayoutType.multilineVertical)
             {
-
+                if (alongOtherAxis)
+                {
+                    List<RectTransform> lineChildren = new List<RectTransform>();
+                    float restSpace = rectTransform.rect.size[otherAxis] - (otherAxis == 0 ? padding.horizontal : padding.vertical);
+                    float lineWidth = 0;
+                    float heightOffset = 0;
+                    float maxHeight = 0;
+                    for (int i = 0; i < rectChildren.Count; i++)
+                    {
+                        RectTransform child = rectChildren[i];
+                        float childWidth = child.rect.size[otherAxis];
+                        float childHeight;
+                        float widthScaleFactor = child.localScale[otherAxis];
+                        lineWidth += childWidth * widthScaleFactor;
+                        if (lineWidth >= restSpace)
+                        {
+                            lineWidth = childWidth * widthScaleFactor + spacing;
+                            for (int j = 0; j < lineChildren.Count; j++)
+                            {
+                                RectTransform lineChild = lineChildren[j];
+                                childHeight = lineChild.rect.size[axis];
+                                float heightScaleFactor = lineChild.localScale[axis];
+                                float startOffset = heightOffset + GetStartOffset(axis, childHeight * heightScaleFactor);
+                                SetChildAlongAxisWithScale(lineChild, axis, startOffset, heightScaleFactor);
+                            }
+                            lineChildren.Clear();
+                            heightOffset += maxHeight;
+                            maxHeight = 0;
+                        }
+                        else
+                            lineWidth += spacing;
+                        lineChildren.Add(child);
+                        childHeight = child.rect.size[axis];
+                        if (childHeight > maxHeight)
+                            maxHeight = childHeight;
+                    }
+                    for (int i = 0; i < lineChildren.Count; i++)
+                    {
+                        RectTransform lineChild = lineChildren[i];
+                        float childHeight = lineChild.rect.size[axis];
+                        float heightScaleFactor = lineChild.localScale[axis];
+                        float startOffset = heightOffset + GetStartOffset(axis, childHeight * heightScaleFactor);
+                        SetChildAlongAxisWithScale(lineChild, axis, startOffset, heightScaleFactor);
+                    }
+                }
+                else
+                {
+                    List<RectTransform> lineChildren = new List<RectTransform>();
+                    float restSpace = GetTotalPreferredSize(axis) - (axis == 0 ? padding.horizontal : padding.vertical);
+                    float pos;
+                    float lineWidth = 0;
+                    for (int i = 0; i < rectChildren.Count; i++)
+                    {
+                        RectTransform child = rectChildren[i];
+                        float childWidth = child.rect.size[axis];
+                        float scaleFactor = child.localScale[axis];
+                        lineWidth += childWidth * scaleFactor;
+                        if (lineWidth >= restSpace)
+                        {
+                            float lineRestSpace = lineWidth - childWidth * scaleFactor - spacing;
+                            pos = GetStartOffset(axis, lineRestSpace);
+                            lineWidth = childWidth * scaleFactor + spacing;
+                            for (int j = 0; j < lineChildren.Count; j++)
+                            {
+                                RectTransform lineChild = lineChildren[j];
+                                childWidth = lineChild.rect.size[axis];
+                                scaleFactor = lineChild.localScale[axis];
+                                SetChildAlongAxisWithScale(lineChild, axis, pos, scaleFactor);
+                                pos += spacing + childWidth * scaleFactor;
+                            }
+                            lineChildren.Clear();
+                        }
+                        else
+                            lineWidth += spacing;
+                        lineChildren.Add(child);
+                    }
+                    lineWidth -= spacing;
+                    pos = GetStartOffset(axis, lineWidth);
+                    for (int i = 0; i < lineChildren.Count; i++)
+                    {
+                        RectTransform child = lineChildren[i];
+                        float childWidth = child.rect.size[axis];
+                        float scaleFactor = child.localScale[axis];
+                        SetChildAlongAxisWithScale(child, axis, pos, scaleFactor);
+                        pos += spacing + childWidth * scaleFactor;
+                    }
+                }
             }
             else
             {
