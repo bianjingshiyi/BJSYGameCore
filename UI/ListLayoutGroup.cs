@@ -28,8 +28,8 @@ namespace BJSYGameCore.UI
             set { SetProperty(ref _averageSpacing, value); }
         }
         [SerializeField]
-        float _spacing = 0;
-        public float spacing
+        Vector2 _spacing;
+        public Vector2 spacing
         {
             get { return _spacing; }
             set { SetProperty(ref _spacing, value); }
@@ -111,12 +111,12 @@ namespace BJSYGameCore.UI
                             lineWidth += child.rect.size[otherAxis] * child.localScale[otherAxis];
                             if (lineWidth >= restSpace)
                             {
-                                lineWidth = child.rect.size[otherAxis] * child.localScale[otherAxis] + spacing;
-                                totalMin += maxHeight;
+                                lineWidth = child.rect.size[otherAxis] * child.localScale[otherAxis] + spacing[otherAxis];
+                                totalMin += maxHeight + spacing[axis];
                                 maxHeight = 0;
                             }
                             else
-                                lineWidth += spacing;
+                                lineWidth += spacing[otherAxis];
                             if (child.rect.size[axis] > maxHeight)
                                 maxHeight = child.rect.size[axis];
                         }
@@ -152,16 +152,16 @@ namespace BJSYGameCore.UI
                     }
                     else
                     {
-                        totalMin += min + spacing;
-                        totalPreferred += preferred + spacing;
+                        totalMin += min + spacing[axis];
+                        totalPreferred += preferred + spacing[axis];
                         // Increment flexible size with element's flexible size.
                         totalFlexible += flexible;
                     }
                 }
                 if (!alongOtherAxis && rectChildren.Count > 0)
                 {
-                    totalMin -= spacing;
-                    totalPreferred -= spacing;
+                    totalMin -= spacing[axis];
+                    totalPreferred -= spacing[axis];
                     float currentSize = rectTransform.rect.size[axis];
                     if (totalPreferred < currentSize)//空间充足
                     {
@@ -210,7 +210,7 @@ namespace BJSYGameCore.UI
                         lineWidth += childWidth * widthScaleFactor;
                         if (lineWidth >= restSpace)
                         {
-                            lineWidth = childWidth * widthScaleFactor + spacing;
+                            lineWidth = childWidth * widthScaleFactor + spacing[otherAxis];
                             for (int j = 0; j < lineChildren.Count; j++)
                             {
                                 RectTransform lineChild = lineChildren[j];
@@ -220,11 +220,11 @@ namespace BJSYGameCore.UI
                                 SetChildAlongAxisWithScale(lineChild, axis, startOffset, heightScaleFactor);
                             }
                             lineChildren.Clear();
-                            heightOffset += maxHeight;
+                            heightOffset += maxHeight + spacing[axis];
                             maxHeight = 0;
                         }
                         else
-                            lineWidth += spacing;
+                            lineWidth += spacing[otherAxis];
                         lineChildren.Add(child);
                         childHeight = child.rect.size[axis];
                         if (childHeight > maxHeight)
@@ -245,6 +245,8 @@ namespace BJSYGameCore.UI
                     float restSpace = GetTotalPreferredSize(axis) - (axis == 0 ? padding.horizontal : padding.vertical);
                     float pos;
                     float lineWidth = 0;
+                    float lineRequireSpace;
+                    float lineSurplusSpace;
                     for (int i = 0; i < rectChildren.Count; i++)
                     {
                         RectTransform child = rectChildren[i];
@@ -253,32 +255,39 @@ namespace BJSYGameCore.UI
                         lineWidth += childWidth * scaleFactor;
                         if (lineWidth >= restSpace)
                         {
-                            float lineRestSpace = lineWidth - childWidth * scaleFactor - spacing;
-                            pos = GetStartOffset(axis, lineRestSpace);
-                            lineWidth = childWidth * scaleFactor + spacing;
+                            lineRequireSpace = lineWidth - childWidth * scaleFactor - spacing[axis];
+                            lineSurplusSpace = restSpace - lineRequireSpace;
+                            pos = GetStartOffset(axis, averageSpaceing ? restSpace : lineRequireSpace);
+                            lineWidth = childWidth * scaleFactor + spacing[axis];
                             for (int j = 0; j < lineChildren.Count; j++)
                             {
                                 RectTransform lineChild = lineChildren[j];
                                 childWidth = lineChild.rect.size[axis];
                                 scaleFactor = lineChild.localScale[axis];
                                 SetChildAlongAxisWithScale(lineChild, axis, pos, scaleFactor);
-                                pos += spacing + childWidth * scaleFactor;
+                                pos += spacing[axis] + childWidth * scaleFactor;
+                                if (averageSpaceing)
+                                    pos += lineSurplusSpace / (lineChildren.Count - 1);
                             }
                             lineChildren.Clear();
                         }
                         else
-                            lineWidth += spacing;
+                            lineWidth += spacing[axis];
                         lineChildren.Add(child);
                     }
-                    lineWidth -= spacing;
-                    pos = GetStartOffset(axis, lineWidth);
+                    lineWidth -= spacing[axis];
+                    lineRequireSpace = lineWidth;
+                    lineSurplusSpace = restSpace - lineRequireSpace;
+                    pos = GetStartOffset(axis, averageSpaceing ? restSpace : lineRequireSpace);
                     for (int i = 0; i < lineChildren.Count; i++)
                     {
                         RectTransform child = lineChildren[i];
                         float childWidth = child.rect.size[axis];
                         float scaleFactor = child.localScale[axis];
                         SetChildAlongAxisWithScale(child, axis, pos, scaleFactor);
-                        pos += spacing + childWidth * scaleFactor;
+                        pos += spacing[axis] + childWidth * scaleFactor;
+                        if (averageSpaceing)
+                            pos += lineSurplusSpace / (lineChildren.Count - 1);
                     }
                 }
             }
@@ -307,7 +316,7 @@ namespace BJSYGameCore.UI
                 }
                 else
                 {
-                    float expandedSize = rectChildren.Sum(child => child.rect.size[axis] * child.localScale[axis]) + spacing * (rectChildren.Count - 1);
+                    float expandedSize = rectChildren.Sum(child => child.rect.size[axis] * child.localScale[axis]) + spacing[axis] * (rectChildren.Count - 1);
                     if (expandedSize > innerSize)
                     {
                         if (overflowType == OverflowType.extrusion)
@@ -325,7 +334,7 @@ namespace BJSYGameCore.UI
                                 childSize = child.rect.size[axis];
                                 float scaleFactor = child.localScale[axis];
                                 SetChildAlongAxisWithScale(child, axis, pos, scaleFactor);
-                                pos += remainedSpace / remainedExpandedSize * (childSize * scaleFactor + spacing);
+                                pos += remainedSpace / remainedExpandedSize * (childSize * scaleFactor + spacing[axis]);
                             }
                         }
                         else
@@ -337,7 +346,7 @@ namespace BJSYGameCore.UI
                                 float childSize = child.rect.size[axis];
                                 float scaleFactor = child.localScale[axis];
                                 SetChildAlongAxisWithScale(child, axis, pos, scaleFactor);
-                                pos += spacing + childSize * scaleFactor;
+                                pos += spacing[axis] + childSize * scaleFactor;
                             }
                         }
                     }
@@ -368,7 +377,7 @@ namespace BJSYGameCore.UI
                                 float childSize = child.rect.size[axis];
                                 float scaleFactor = child.localScale[axis];
                                 SetChildAlongAxisWithScale(child, axis, pos, scaleFactor);
-                                pos += spacing + childSize * scaleFactor;
+                                pos += spacing[axis] + childSize * scaleFactor;
                             }
                         }
                     }
