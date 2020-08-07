@@ -42,6 +42,8 @@ namespace BJSYGameCore.UI
 
         private float calcRatio()
         {
+            if (image == null || image.sprite == null)
+                return 1;
             return image.sprite.rect.width / image.sprite.rect.height;
         }
     }
