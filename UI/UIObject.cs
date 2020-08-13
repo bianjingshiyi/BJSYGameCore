@@ -166,6 +166,13 @@ namespace BJSYGameCore.UI
             else
                 return default;
         }
+        public object getProp(string name)
+        {
+            if (propDic.ContainsKey(name))
+                return propDic[name];
+            else
+                return null;
+        }
         public void setProp(string name, object value)
         {
             propDic[name] = value;
