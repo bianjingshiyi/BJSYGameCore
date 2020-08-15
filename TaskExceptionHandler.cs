@@ -1,5 +1,4 @@
-﻿#if UNITY_EDITOR
-using UnityEngine;
+﻿using UnityEngine;
 using System.Threading.Tasks;
 namespace BJSYGameCore
 {
@@ -32,4 +31,3 @@ namespace BJSYGameCore
         }
     }
 }
-#endif
