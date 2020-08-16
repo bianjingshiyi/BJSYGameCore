@@ -1,6 +1,5 @@
 ﻿using UnityEngine;
 using BJSYGameCore;
-
 namespace BJSYGameCore.UI
 {
     public class UIManager : Manager
