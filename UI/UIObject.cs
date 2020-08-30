@@ -4,7 +4,6 @@ using UnityEngine;
 using BJSYGameCore;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
-
 namespace BJSYGameCore.UI
 {
     public class UIObject : MonoBehaviour

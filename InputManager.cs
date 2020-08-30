@@ -1,7 +1,7 @@
 ﻿using UnityEngine.EventSystems;
 using UnityEngine;
 using System.Collections.Generic;
-namespace BJSYGameCore.UI
+namespace BJSYGameCore
 {
     public class InputManager : Manager
     {
