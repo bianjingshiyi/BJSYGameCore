@@ -1,6 +1,5 @@
 ﻿using System.IO;
 using UnityEngine;
-using ExcelLibrary.SpreadSheet;
 using UnityEngine.Networking;
 using System.Threading.Tasks;
 using System.Net.Http;
@@ -8,8 +7,6 @@ using System;
 using System.Data;
 using System.Collections.Generic;
 using System.Runtime.Serialization.Formatters.Binary;
-using ExcelDataReader;
-
 namespace BJSYGameCore
 {
     public class ResourceManager : Manager
@@ -124,18 +121,6 @@ namespace BJSYGameCore
             public WeakReference wref;
         }
         #endregion
-        [Obsolete("Use loadExcelAsDataSet instead.")]
-        public Task<Workbook> loadExcel(string path, PlatformCompability platform = null, string curDir = null)
-        {
-            if (string.IsNullOrEmpty(path))
-                return null;
-
-            platform = platform ?? PlatformCompability.Current;
-            if (platform.RequireWebRequest)
-                return loadExcelByWebRequest(path, curDir);
-
-            return loadExcelBySystemIO(path, curDir);
-        }
         /// <summary>
         /// 加载贴图
         /// </summary>
@@ -327,14 +312,6 @@ namespace BJSYGameCore
             texture.LoadImage(await loadBytesBySystemIO(path, curDir));
             return texture;
         }
-
-        public Task<Workbook> loadExcelBySystemIO(string path, string curDir)
-        {
-            using (FileStream stream = getFileStream(path, curDir))
-            {
-                return Task.FromResult(Workbook.Load(stream));
-            }
-        }
         public Task<DataSet> loadDataSetBySystemIO(string path, string curDir)
         {
             using (FileStream stream = getFileStream(path, curDir))
@@ -360,14 +337,6 @@ namespace BJSYGameCore
                     });
                     return Task.FromResult(result);
                 }
-            }
-        }
-        private async Task<Workbook> loadExcelByWebRequest(string path, string currDir)
-        {
-            byte[] data = await loadBytesByWebRequest(path, currDir);
-            using (MemoryStream stream = new MemoryStream(data))
-            {
-                return Workbook.Load(stream);
             }
         }
         private async Task<DataSet> loadDataSetByWebRequest(string path, string currDir)
