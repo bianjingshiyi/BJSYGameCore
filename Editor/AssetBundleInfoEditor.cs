@@ -4,8 +4,8 @@ using UnityEditor;
 using UObject = UnityEngine.Object;
 namespace BJSYGameCore
 {
-    [CustomEditor(typeof(BundleInfoKeeper), true)]
-    public class BundleInfoKeeperEditor : Editor
+    [CustomEditor(typeof(AssetBundleInfo), true)]
+    public class AssetBundleInfoEditor : Editor
     {
         public override void OnInspectorGUI()
         {
@@ -29,6 +29,15 @@ namespace BJSYGameCore
             importer.assetBundleName = null;
             importer.SaveAndReimport();
             return manifest;
+        }
+        public static void buildAssetBundle(AssetBundleInfo info)
+        {
+            foreach (var bundleName in AssetDatabase.GetAllAssetBundleNames())
+            {
+                if (bundleName == AssetDatabase.GetAssetPath(info))
+                    continue;//跳过自己
+                AssetBundleInfoItem item = info.bundleList.Find(i => i.name == bundleName);
+            }
         }
     }
 }

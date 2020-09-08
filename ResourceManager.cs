@@ -7,6 +7,7 @@ using System;
 using System.Data;
 using System.Collections.Generic;
 using System.Runtime.Serialization.Formatters.Binary;
+using ExcelDataReader;
 namespace BJSYGameCore
 {
     public class ResourceManager : Manager
