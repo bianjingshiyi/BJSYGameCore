@@ -1,9 +1,10 @@
 ﻿using UnityEngine;
 using System;
 using System.Collections.Generic;
+using UObject = UnityEngine.Object;
 namespace BJSYGameCore
 {
-    public class ResourceManager : Manager
+    public class ResourceManager : Manager, IDisposable
     {
         #region 公开接口
         public T load<T>(string path)
@@ -34,9 +35,7 @@ namespace BJSYGameCore
             saveToCache(path, res);
             return res;
         }
-        #endregion
-        #region AssetBundle
-        T loadFromBundle<T>(string path)
+        public T loadFromBundle<T>(string path)
         {
             //如果有，需要做一些关于热更新的处理，但是现在没有。
             AssetBundle bundle;
@@ -50,6 +49,17 @@ namespace BJSYGameCore
             }
             return default;
         }
+        public UObject loadFromBundle(string path)
+        {
+            return null;
+        }
+        public void Dispose()
+        {
+            cacheDic.Clear();
+            Destroy(gameObject);
+        }
+        #endregion
+        #region AssetBundle
         bool loadBundleFromCache(string path, out AssetBundle bundle)
         {
             if (bundleCacheDic.TryGetValue(path, out var item))
@@ -67,7 +77,7 @@ namespace BJSYGameCore
         }
         #endregion
         #region 缓存
-        bool loadFromCache<T>(string path, out T res)
+        public bool loadFromCache<T>(string path, out T res)
         {
             if (cacheDic.TryGetValue(path, out var item))
             {
