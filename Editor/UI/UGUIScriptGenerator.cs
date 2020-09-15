@@ -63,7 +63,7 @@ namespace BJSYGameCore.UI
         #endregion
         static UGUIAutoScriptPref pref { get; set; } = null;
         static Dictionary<GameObject, string> updatedGameObjectDic { get; } = new Dictionary<GameObject, string>();
-        static void generateOrUpdateSelected(Type baseType)
+        static void generateOrUpdateSelected(Type baseType, bool rootOnly = true)
         {
             pref = UGUIAutoScriptPref.getDefaultPref();
             string dir;
@@ -81,21 +81,32 @@ namespace BJSYGameCore.UI
                 updatedGameObjectDic.Clear();
                 foreach (GameObject gameObject in Selection.gameObjects)
                 {
-                    Component[] components = gameObject.GetComponentsInChildren(baseType, true);
-                    if (components.Length > 0)
+                    if (rootOnly)
                     {
-                        Component rootComponent = gameObject.GetComponent(baseType);
-                        if (rootComponent != null)
-                            generateOrUpdateRoot(dir, null, gameObject, rootComponent.GetType().BaseType);
+                        Component component = gameObject.GetComponent(baseType);
+                        if (component != null)
+                            generateOrUpdateRoot(dir, null, gameObject, component.GetType().BaseType);
                         else
                             generateOrUpdateRoot(dir, null, gameObject, baseType);
-                        foreach (Component component in components)
-                        {
-                            generateOrUpdateRoot(dir, gameObject, component.gameObject, component.GetType().BaseType);
-                        }
                     }
                     else
-                        generateOrUpdateRoot(dir, null, gameObject, baseType);//没有，重新生成
+                    {
+                        Component[] components = gameObject.GetComponentsInChildren(baseType, true);
+                        if (components.Length > 0)
+                        {
+                            Component rootComponent = gameObject.GetComponent(baseType);
+                            if (rootComponent != null)
+                                generateOrUpdateRoot(dir, null, gameObject, rootComponent.GetType().BaseType);
+                            else
+                                generateOrUpdateRoot(dir, null, gameObject, baseType);
+                            foreach (Component component in components)
+                            {
+                                generateOrUpdateRoot(dir, gameObject, component.gameObject, component.GetType().BaseType);
+                            }
+                        }
+                        else
+                            generateOrUpdateRoot(dir, null, gameObject, baseType);//没有，重新生成
+                    }
                 }
                 AssetDatabase.SaveAssets();
                 AssetDatabase.Refresh();
@@ -109,6 +120,7 @@ namespace BJSYGameCore.UI
                 return updatedGameObjectDic[rootGameObject];
             }
             GameObject prefabGameObject = null;
+            GameObject rootPrefabGameObject = null;
             string prefabPath = null;
             if (PrefabUtility.IsAnyPrefabInstanceRoot(rootGameObject))
             {
@@ -119,7 +131,12 @@ namespace BJSYGameCore.UI
                     return updatedGameObjectDic[prefabGameObject];
                 }
                 prefabPath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(prefabGameObject);
-                //Debug.Log("更新或生成预制件" + rootGameObject.name + "，路径：" + prefabPath, rootGameObject);
+                rootPrefabGameObject = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+                if (updatedGameObjectDic.ContainsKey(rootPrefabGameObject))
+                {
+                    return updatedGameObjectDic[rootPrefabGameObject];
+                }
+                Debug.Log("更新或生成预制件" + rootGameObject.name + "，路径：" + prefabPath, rootGameObject);
                 rootGameObject = PrefabUtility.LoadPrefabContents(prefabPath);
                 parentGameObject = null;//Prefab是没有Parent的。
             }
@@ -168,6 +185,8 @@ namespace BJSYGameCore.UI
             updatedGameObjectDic.Add(rootGameObject, className);
             if (prefabGameObject != null)
                 updatedGameObjectDic.Add(prefabGameObject, className);
+            if (rootPrefabGameObject != null && !updatedGameObjectDic.ContainsKey(rootPrefabGameObject))
+                updatedGameObjectDic.Add(rootPrefabGameObject, className);
             //加载脚本文件
             FileInfo fileInfo = new FileInfo(targetPath);
             Type scriptType = script != null ? script.GetClass() : null;
