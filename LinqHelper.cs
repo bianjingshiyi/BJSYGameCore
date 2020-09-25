@@ -4,7 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 namespace BJSYGameCore
 {
-    public static class LinqExtension
+    public static class LinqHelper
     {
         public static IEnumerable<T> skipUntil<T>(this IEnumerable<T> c, Func<T, bool> func)
         {
