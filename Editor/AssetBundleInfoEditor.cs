@@ -71,20 +71,27 @@ namespace BJSYGameCore
                 //打包完毕，处理AssetBundleInfo，首先处理生成的Manifest
                 if (manifest != null)
                 {
-                    foreach (var bundleName in manifest.GetAllAssetBundles().Append(dirInfo.Name))
+                    string manifestBundleName = dirInfo.Name;
+                    AssetBundle bundle = AssetBundle.LoadFromFile(outputDir + "/" + manifestBundleName);
+                    info.manifest = new AssetBundleInfoItem(manifestBundleName, outputDir + "/" + manifestBundleName);
+                    info.manifest.assetList.AddRange(bundle.GetAllAssetNames().Select(p => new ResourceInfo(bundle.name, p)));
+                    bundle.Unload(true);
+                    foreach (var bundleName in manifest.GetAllAssetBundles())
                     {
-                        AssetBundle bundle = AssetBundle.LoadFromFile(outputDir + "/" + bundleName);
+                        bundle = AssetBundle.LoadFromFile(outputDir + "/" + bundleName);
                         AssetBundleInfoItem item = info.bundleList.Find(b => b.name == bundle.name);
                         if (item == null)
                         {
-                            item = new AssetBundleInfoItem(bundleName, null);
+                            item = new AssetBundleInfoItem(bundleName, outputDir + "/" + bundleName);
                             info.bundleList.Add(item);
                         }
                         item.assetList.Clear();
-                        item.assetList.AddRange(bundle.GetAllAssetNames().Select(p =>
-                            new AssetInfoItem(bundlesInfo.First(b =>
-                                b.name == bundle.name).assetList.First(a =>
-                                    a.assetPath == p).path, p)));
+                        foreach (var assetName in bundle.GetAllAssetNames())
+                        {
+                            AssetBundleInfoItem bundleInfo = bundlesInfo.First(b => (string.IsNullOrEmpty(b.variant) ? b.name.ToLower() : (b.name + "." + b.variant).ToLower()) == bundle.name);
+                            ResourceInfo assetInfo = bundleInfo.assetList.Find(a => a.assetPath == assetName);
+                            item.assetList.Add(new ResourceInfo(assetInfo.path, assetName));
+                        }
                         bundle.Unload(true);
                     }
                     return true;

@@ -26,8 +26,8 @@ namespace Tests
             using (AssetBundleInfo info = ScriptableObject.CreateInstance<AssetBundleInfo>())
             {
                 AssetBundleInfoEditor.build(info, PATH_BUILD_OUTPUT, new AssetBundleInfoItem(TEST_BUNDLE_NAME, TEST_BUNDLE_VARIANT,
-                    new AssetInfoItem(AssetDatabase.GetAssetPath(asset))));
-                Assert.AreEqual(2, info.bundleList.Count);
+                    new ResourceInfo(AssetDatabase.GetAssetPath(asset))));
+                Assert.AreEqual(1, info.bundleList.Count);
                 Assert.AreEqual(TEST_BUNDLE_NAME.ToLower() + "." + TEST_BUNDLE_VARIANT.ToLower(), info.bundleList[0].name);
 
                 AssetBundle bundle = AssetBundle.LoadFromFile(PATH_BUILD_OUTPUT + "/" + info.bundleList[0].name);
@@ -61,9 +61,9 @@ namespace Tests
                 using (AssetBundleInfo info = ScriptableObject.CreateInstance<AssetBundleInfo>())
                 {
                     AssetBundleInfoEditor.build(info, PATH_BUILD_OUTPUT, new AssetBundleInfoItem(TEST_BUNDLE_NAME, TEST_BUNDLE_VARIANT,
-                        new AssetInfoItem(PATH_TEST_MATB, AssetDatabase.GetAssetPath(asset))));
+                        new ResourceInfo(PATH_TEST_MATB, AssetDatabase.GetAssetPath(asset))));
 
-                    var loadedAsset = manager.loadFromBundle(TEST_BUNDLE_NAME + "." + TEST_BUNDLE_VARIANT + "/" + PATH_TEST_MATB);
+                    var loadedAsset = manager.loadFromAssetBundle(info, TEST_BUNDLE_NAME + "." + TEST_BUNDLE_VARIANT + "/" + PATH_TEST_MATB);
                     Assert.NotNull(loadedAsset);
                     Assert.AreEqual(asset.name, loadedAsset.name);
                 }

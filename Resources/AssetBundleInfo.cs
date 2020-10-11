@@ -16,10 +16,13 @@ namespace BJSYGameCore
         /// </summary>
         public int codeVersion = 1;
         /// <summary>
+        /// ManifestBundle信息
+        /// </summary>
+        public AssetBundleInfoItem manifest = null;
+        /// <summary>
         /// Bundle列表
         /// </summary>
         public List<AssetBundleInfoItem> bundleList = new List<AssetBundleInfoItem>();
-
         public void Dispose()
         {
             bundleList.Clear();
@@ -45,6 +48,10 @@ namespace BJSYGameCore
         /// </summary>
         public string variant = null;
         /// <summary>
+        /// Bundle打包之后的相对路径
+        /// </summary>
+        public string path = null;
+        /// <summary>
         /// Bundle版本号
         /// </summary>
         public int version = 1;
@@ -63,16 +70,22 @@ namespace BJSYGameCore
         /// <summary>
         /// Bundle包含的Asset
         /// </summary>
-        public List<AssetInfoItem> assetList = new List<AssetInfoItem>();
+        public List<ResourceInfo> assetList = new List<ResourceInfo>();
         public AssetBundleInfoItem()
         {
         }
-        public AssetBundleInfoItem(string name, string variant)
+        public AssetBundleInfoItem(string name, string path)
+        {
+            this.name = name;
+            this.path = path;
+        }
+        public AssetBundleInfoItem(string name, string variant, string path)
         {
             this.name = name;
             this.variant = variant;
+            this.path = path;
         }
-        public AssetBundleInfoItem(string name, string variant, params AssetInfoItem[] assets)
+        public AssetBundleInfoItem(string name, string variant, params ResourceInfo[] assets)
         {
             this.name = name;
             this.variant = variant;
@@ -80,19 +93,28 @@ namespace BJSYGameCore
         }
     }
     [Serializable]
-    public class AssetInfoItem
+    public class ResourceInfo
     {
         public string path;
-        public string assetPath;
-        public AssetInfoItem()
+        [SerializeField]
+        string _assetPath;
+        public string assetPath
+        {
+            get { return _assetPath; }
+            set
+            {
+                _assetPath = value.ToLower();
+            }
+        }
+        public ResourceInfo()
         {
         }
-        public AssetInfoItem(string assetPath)
+        public ResourceInfo(string assetPath)
         {
             path = assetPath;
             this.assetPath = assetPath;
         }
-        public AssetInfoItem(string path, string assetPath)
+        public ResourceInfo(string path, string assetPath)
         {
             this.path = path;
             this.assetPath = assetPath;
