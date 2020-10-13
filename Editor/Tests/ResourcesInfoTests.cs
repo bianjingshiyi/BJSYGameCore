@@ -10,22 +10,39 @@ using BJSYGameCore.Tests;
 
 namespace Tests
 {
-    public class AssetBundleInfoTests
+    public class ResourcesInfoTests
     {
+        const string PATH_RESOURCE_TO_LOAD = "ResourceToLoad";
+        const string PATH_RESOURCE_NOT_TO_LOAD = "ResourceNotToLoad";
         const string PATH_BUILD_OUTPUT = "Tests/AssetBundles";
         const string PATH_TEST_MATB = "Materials/MatB";
         const string TEST_BUNDLE_NAME = "Tests";
         const string TEST_BUNDLE_VARIANT = "Variant";
         /// <summary>
+        /// 打包所有类型的资源并生成它们的信息。
+        /// </summary>
+        [Test]
+        public void buildAndCheckInfoTest()
+        {
+            using (ResourcesInfo info = ScriptableObject.CreateInstance<ResourcesInfo>())
+            {
+                ResourcesInfoEditor.build(info, PATH_BUILD_OUTPUT);
+                var resourceToLoad = info.resourceList.Find(r => r.path == PATH_RESOURCE_TO_LOAD);
+                Assert.NotNull(resourceToLoad);
+                var resourceNotToLoad = info.resourceList.Find(r => r.path == PATH_RESOURCE_NOT_TO_LOAD);
+                Assert.Null(resourceNotToLoad);
+            }
+        }
+        /// <summary>
         /// 只打指定目标的AssetBundle。
         /// </summary>
         [Test]
-        public void buildTest()
+        public void buildSelectedTest()
         {
             Object asset = Resources.Load(PATH_TEST_MATB);
-            using (AssetBundleInfo info = ScriptableObject.CreateInstance<AssetBundleInfo>())
+            using (ResourcesInfo info = ScriptableObject.CreateInstance<ResourcesInfo>())
             {
-                AssetBundleInfoEditor.build(info, PATH_BUILD_OUTPUT, new AssetBundleInfoItem(TEST_BUNDLE_NAME, TEST_BUNDLE_VARIANT,
+                ResourcesInfoEditor.build(info, PATH_BUILD_OUTPUT, new AssetBundleInfoItem(TEST_BUNDLE_NAME, TEST_BUNDLE_VARIANT,
                     new ResourceInfo(AssetDatabase.GetAssetPath(asset))));
                 Assert.AreEqual(1, info.bundleList.Count);
                 Assert.AreEqual(TEST_BUNDLE_NAME.ToLower() + "." + TEST_BUNDLE_VARIANT.ToLower(), info.bundleList[0].name);
@@ -58,9 +75,9 @@ namespace Tests
             using (ResourceManager manager = ResourceManagerTests.createManager())
             {
                 Object asset = Resources.Load(PATH_TEST_MATB);
-                using (AssetBundleInfo info = ScriptableObject.CreateInstance<AssetBundleInfo>())
+                using (ResourcesInfo info = ScriptableObject.CreateInstance<ResourcesInfo>())
                 {
-                    AssetBundleInfoEditor.build(info, PATH_BUILD_OUTPUT, new AssetBundleInfoItem(TEST_BUNDLE_NAME, TEST_BUNDLE_VARIANT,
+                    ResourcesInfoEditor.build(info, PATH_BUILD_OUTPUT, new AssetBundleInfoItem(TEST_BUNDLE_NAME, TEST_BUNDLE_VARIANT,
                         new ResourceInfo(PATH_TEST_MATB, AssetDatabase.GetAssetPath(asset))));
 
                     var loadedAsset = manager.loadFromAssetBundle(info, TEST_BUNDLE_NAME + "." + TEST_BUNDLE_VARIANT + "/" + PATH_TEST_MATB);

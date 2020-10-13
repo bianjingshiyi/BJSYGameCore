@@ -13,7 +13,7 @@ namespace BJSYGameCore
         /// <param name="abInfo">AssetBundle相关信息</param>
         /// <param name="path">资源路径，格式为包名/资源相对路径</param>
         /// <returns></returns>
-        public UObject loadFromAssetBundle(AssetBundleInfo abInfo, string path)
+        public UObject loadFromAssetBundle(ResourcesInfo abInfo, string path)
         {
             if (string.IsNullOrEmpty(path))
                 throw new ArgumentException("资源地址不能为空", nameof(path));
@@ -43,7 +43,7 @@ namespace BJSYGameCore
             throw new NotImplementedException();
         }
         #endregion
-        AssetBundle loadBundle(AssetBundleInfo bundleInfo, AssetBundleInfoItem itemInfo)
+        AssetBundle loadBundle(ResourcesInfo bundleInfo, AssetBundleInfoItem itemInfo)
         {
             //尝试从缓存中加载
             if (loadBundleFromCache(itemInfo.name, out var bundle))

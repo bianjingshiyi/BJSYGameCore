@@ -8,8 +8,8 @@ using System;
 
 namespace BJSYGameCore
 {
-    [CustomEditor(typeof(AssetBundleInfo), true)]
-    public class AssetBundleInfoEditor : Editor
+    [CustomEditor(typeof(ResourcesInfo), true)]
+    public class ResourcesInfoEditor : Editor
     {
         public override void OnInspectorGUI()
         {
@@ -18,10 +18,10 @@ namespace BJSYGameCore
             {
                 string path = EditorUtility.SaveFolderPanel("保存AssetBundle", Application.streamingAssetsPath, "AssetBundles");
                 if (Directory.Exists(path))
-                    build(target as AssetBundleInfo, path);
+                    build(target as ResourcesInfo, path);
             }
         }
-        public static bool build(AssetBundleInfo info, string outputDir, params AssetBundleInfoItem[] bundlesInfo)
+        public static bool build(ResourcesInfo info, string outputDir, params AssetBundleInfoItem[] bundlesInfo)
         {
             if (info == null)
                 throw new ArgumentNullException(nameof(info));

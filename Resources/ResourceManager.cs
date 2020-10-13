@@ -9,8 +9,8 @@ namespace BJSYGameCore
     {
         #region 字段
         [SerializeField]
-        AssetBundleInfo _assetBundleInfo;
-        public AssetBundleInfo assetBundleInfo
+        ResourcesInfo _assetBundleInfo;
+        public ResourcesInfo assetBundleInfo
         {
             get { return _assetBundleInfo; }
             set { _assetBundleInfo = value; }
@@ -61,7 +61,7 @@ namespace BJSYGameCore
         {
             throw new NotImplementedException();
         }
-        public T loadFromBundle<T>(AssetBundleInfo abInfo, string path)
+        public T loadFromBundle<T>(ResourcesInfo abInfo, string path)
         {
             if (loadFromAssetBundle(abInfo, path) is T t)
                 return t;

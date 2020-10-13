@@ -4,8 +4,8 @@ using System.Collections.Generic;
 
 namespace BJSYGameCore
 {
-    [CreateAssetMenu(fileName = nameof(AssetBundleInfo), menuName = nameof(BJSYGameCore) + "/" + nameof(AssetBundleInfo))]
-    public class AssetBundleInfo : ScriptableObject, IDisposable
+    [CreateAssetMenu(fileName = nameof(ResourcesInfo), menuName = nameof(BJSYGameCore) + "/" + nameof(ResourcesInfo))]
+    public class ResourcesInfo : ScriptableObject, IDisposable
     {
         /// <summary>
         /// AssetBundleInfo自身的版本号
@@ -23,6 +23,10 @@ namespace BJSYGameCore
         /// Bundle列表
         /// </summary>
         public List<AssetBundleInfoItem> bundleList = new List<AssetBundleInfoItem>();
+        /// <summary>
+        /// 资源信息列表
+        /// </summary>
+        public List<ResourceInfo> resourceList = new List<ResourceInfo>();
         public void Dispose()
         {
             bundleList.Clear();
@@ -35,6 +39,12 @@ namespace BJSYGameCore
             Destroy(this);
 #endif
         }
+#if UNITY_EDITOR
+        protected void OnValidate()
+        {
+            //TODO:检查代码版本变更。
+        }
+#endif
     }
     [Serializable]
     public class AssetBundleInfoItem
