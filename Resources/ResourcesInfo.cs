@@ -105,6 +105,17 @@ namespace BJSYGameCore
     [Serializable]
     public class ResourceInfo
     {
+        /// <summary>
+        /// 版本
+        /// </summary>
+        public int version;
+        /// <summary>
+        /// 资源类型
+        /// </summary>
+        public ResourceType type;
+        /// <summary>
+        /// 资源路径
+        /// </summary>
         public string path;
         [SerializeField]
         string _assetPath;
@@ -129,5 +140,11 @@ namespace BJSYGameCore
             this.path = path;
             this.assetPath = assetPath;
         }
+    }
+    public enum ResourceType
+    {
+        resource,
+        assetbundle,
+        file
     }
 }
