@@ -7,28 +7,11 @@ using BJSYGameCore;
 using System.IO;
 using UnityEditor;
 using BJSYGameCore.Tests;
-using System.Linq;
 using System;
 using Object = UnityEngine.Object;
 
 namespace Tests
 {
-    public class OtherEditorTests
-    {
-        const string PATH_BUILD_OUTPUT = "Tests/AssetBundles";
-        const string PATH_ASSET_TO_PACK = "Assets/Plugins/BJSYGameCore/Tests/AssetToPack.prefab";
-        [Test]
-        public void buildTest()
-        {
-            BuildPipeline.BuildAssetBundles(PATH_BUILD_OUTPUT, BuildAssetBundleOptions.None, BuildTarget.StandaloneWindows);
-            AssetImporter importer = AssetImporter.GetAtPath(PATH_ASSET_TO_PACK);
-            string path = PATH_BUILD_OUTPUT + "/" + importer.assetBundleName + "." + importer.assetBundleVariant;
-            Assert.True(File.Exists(path));
-            AssetBundle bundle = AssetBundle.LoadFromFile(path);
-            Assert.AreEqual(importer.assetBundleName + "." + importer.assetBundleVariant, bundle.name);
-            Assert.True(bundle.GetAllAssetNames().Contains(PATH_ASSET_TO_PACK.ToLower()));
-        }
-    }
     public class ResourcesInfoTests
     {
         const string PATH_RESOURCE_TO_LOAD = "ResourceToLoad";
@@ -114,6 +97,8 @@ namespace Tests
                         Assert.AreEqual(asset.name, resource.name);
                         //File
                         Assert.True(File.Exists(PATH_FILE_TO_READ));
+                        //文件一般都是直接通过System.IO或者WebRequest来读取文件流，所以这里不做读取测试。
+                        //其实是我懒得写。
                     });
                 }
             }
