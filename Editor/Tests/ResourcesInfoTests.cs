@@ -8,6 +8,8 @@ using System.IO;
 using UnityEditor;
 using BJSYGameCore.Tests;
 using System.Linq;
+using System;
+using Object = UnityEngine.Object;
 
 namespace Tests
 {
@@ -32,10 +34,8 @@ namespace Tests
         const string PATH_RESOURCE_TO_LOAD = "ResourceToLoad";
         const string PATH_RESOURCE_NOT_TO_LOAD = "ResourceNotToLoad";
         const string PATH_ASSET_TO_PACK = "Assets/Plugins/BJSYGameCore/Tests/AssetToPack.prefab";
+        const string PATH_FILE_TO_READ = "Assets/StreamingAssets/FileToRead.txt";
         const string PATH_BUILD_OUTPUT = "Tests/AssetBundles";
-        const string PATH_TEST_MATB = "Materials/MatB";
-        const string TEST_BUNDLE_NAME = "Tests";
-        const string TEST_BUNDLE_VARIANT = "Variant";
         /// <summary>
         /// 打包所有类型的资源并生成它们的信息。
         /// 包括一个“需要加载的资源”，类型是Resource，path是Resources文件夹下相对路径。
@@ -46,46 +46,34 @@ namespace Tests
         {
             using (ResourcesInfo info = ScriptableObject.CreateInstance<ResourcesInfo>())
             {
-                ResourcesInfoEditor.build(info, PATH_BUILD_OUTPUT);
-                var resourceToLoad = info.resourceList.Find(r => r.type == ResourceType.resource && r.path == PATH_RESOURCE_TO_LOAD);
-                Assert.NotNull(resourceToLoad);
-                var resourceNotToLoad = info.resourceList.Find(r => r.path == PATH_RESOURCE_NOT_TO_LOAD);
-                Assert.Null(resourceNotToLoad);
-                var assetToPack = info.resourceList.Find(r => r.type == ResourceType.assetbundle && r.path == PATH_ASSET_TO_PACK);
-                Assert.NotNull(assetToPack);
+                usingTempFile(() =>
+                {
+                    ResourcesInfoEditor.build(info, PATH_BUILD_OUTPUT);
+                    var resourceToLoad = info.resourceList.Find(r => r.type == ResourceType.resource && r.path == PATH_RESOURCE_TO_LOAD);
+                    Assert.NotNull(resourceToLoad);
+                    var resourceNotToLoad = info.resourceList.Find(r => r.path == PATH_RESOURCE_NOT_TO_LOAD);
+                    Assert.Null(resourceNotToLoad);
+                    var assetToPack = info.resourceList.Find(r => r.type == ResourceType.assetbundle && r.path == PATH_ASSET_TO_PACK);
+                    Assert.NotNull(assetToPack);
+                    var fileToRead = info.resourceList.Find(r => r.type == ResourceType.file && r.path == PATH_FILE_TO_READ);
+                    Assert.NotNull(fileToRead);
+                });
             }
         }
-        /// <summary>
-        /// 只打指定目标的AssetBundle。
-        /// </summary>
-        [Test]
-        public void buildSelectedTest()
+        void usingTempFile(Action action)
         {
-            Object asset = Resources.Load(PATH_TEST_MATB);
-            using (ResourcesInfo info = ScriptableObject.CreateInstance<ResourcesInfo>())
+            //文件
+            bool isFileTemp = false;
+            if (!Directory.Exists(Path.GetDirectoryName(PATH_FILE_TO_READ)))
+                Directory.CreateDirectory(Path.GetDirectoryName(PATH_FILE_TO_READ));
+            if (!File.Exists(PATH_FILE_TO_READ))
             {
-                ResourcesInfoEditor.build(info, PATH_BUILD_OUTPUT, new AssetBundleInfoItem(TEST_BUNDLE_NAME, TEST_BUNDLE_VARIANT,
-                    new ResourceInfo(AssetDatabase.GetAssetPath(asset))));
-                Assert.AreEqual(1, info.bundleList.Count);
-                Assert.AreEqual(TEST_BUNDLE_NAME.ToLower() + "." + TEST_BUNDLE_VARIANT.ToLower(), info.bundleList[0].name);
-
-                AssetBundle bundle = AssetBundle.LoadFromFile(PATH_BUILD_OUTPUT + "/" + info.bundleList[0].name);
-                Assert.NotNull(bundle);
-                Assert.AreEqual(1, bundle.GetAllAssetNames().Length);
-                Object loadedAsset = bundle.LoadAsset(AssetDatabase.GetAssetPath(asset).ToLower());
-                Assert.AreEqual(asset.name, loadedAsset.name);
-
-                bundle = AssetBundle.LoadFromFile(PATH_BUILD_OUTPUT + "/" + new DirectoryInfo(PATH_BUILD_OUTPUT).Name);
-                Assert.NotNull(bundle);
-                foreach (var assetName in bundle.GetAllAssetNames())
-                {
-                    AssetBundleManifest manifest = bundle.LoadAsset<AssetBundleManifest>(assetName);
-                    foreach (var assetNameInManifest in manifest.GetAllAssetBundles())
-                    {
-                        Assert.AreEqual((TEST_BUNDLE_NAME + "." + TEST_BUNDLE_VARIANT).ToLower(), assetNameInManifest);
-                    }
-                }
+                isFileTemp = true;
+                File.Create(PATH_FILE_TO_READ);
             }
+            action?.Invoke();
+            if (isFileTemp)
+                File.Delete(PATH_FILE_TO_READ);
         }
         /// <summary>
         /// build可以在打包的时候指定资源打包进的Bundle和路径，
@@ -96,15 +84,37 @@ namespace Tests
         {
             using (ResourceManager manager = ResourceManagerTests.createManager())
             {
-                Object asset = Resources.Load(PATH_TEST_MATB);
                 using (ResourcesInfo info = ScriptableObject.CreateInstance<ResourcesInfo>())
                 {
-                    ResourcesInfoEditor.build(info, PATH_BUILD_OUTPUT, new AssetBundleInfoItem(TEST_BUNDLE_NAME, TEST_BUNDLE_VARIANT,
-                        new ResourceInfo(PATH_TEST_MATB, AssetDatabase.GetAssetPath(asset))));
-
-                    var loadedAsset = manager.loadFromAssetBundle(info, TEST_BUNDLE_NAME + "." + TEST_BUNDLE_VARIANT + "/" + PATH_TEST_MATB);
-                    Assert.NotNull(loadedAsset);
-                    Assert.AreEqual(asset.name, loadedAsset.name);
+                    usingTempFile(() =>
+                    {
+                        ResourcesInfoEditor.build(info, PATH_BUILD_OUTPUT, new ResourceInfo()
+                        {
+                            type = ResourceType.resource,
+                            path = PATH_RESOURCE_TO_LOAD
+                        },
+                        new ResourceInfo()
+                        {
+                            type = ResourceType.assetbundle,
+                            path = PATH_ASSET_TO_PACK
+                        },
+                        new ResourceInfo()
+                        {
+                            type = ResourceType.file,
+                            path = PATH_FILE_TO_READ
+                        });
+                        //Resources
+                        Object asset = Resources.Load(PATH_RESOURCE_TO_LOAD);
+                        Object resource = manager.loadFromResources(info.getInfoByPath("res:" + PATH_RESOURCE_TO_LOAD));
+                        Assert.AreEqual(asset, resource);
+                        //AssetBundle
+                        asset = AssetDatabase.LoadAssetAtPath<GameObject>(PATH_ASSET_TO_PACK);
+                        resource = manager.loadFromAssetBundle(info.getInfoByPath("ab:" + PATH_ASSET_TO_PACK));
+                        Assert.IsInstanceOf<GameObject>(resource);
+                        Assert.AreEqual(asset.name, resource.name);
+                        //File
+                        Assert.True(File.Exists(PATH_FILE_TO_READ));
+                    });
                 }
             }
         }

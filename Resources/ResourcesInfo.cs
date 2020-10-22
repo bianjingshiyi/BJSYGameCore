@@ -27,6 +27,10 @@ namespace BJSYGameCore
         /// 资源信息列表
         /// </summary>
         public List<ResourceInfo> resourceList = new List<ResourceInfo>();
+        public ResourceInfo getInfoByPath(string path)
+        {
+            throw new NotImplementedException();
+        }
         public void Dispose()
         {
             bundleList.Clear();

@@ -21,7 +21,11 @@ namespace BJSYGameCore
                     build(target as ResourcesInfo, path);
             }
         }
-        public static bool build(ResourcesInfo info, string outputDir, params AssetBundleInfoItem[] bundlesInfo)
+        public static bool build(ResourcesInfo info, string outputDir, params ResourceInfo[] assetsInfo)
+        {
+            throw new NotImplementedException();
+        }
+        public static bool build(ResourcesInfo info, string outputDir, AssetBundleInfoItem[] bundlesInfo)
         {
             if (info == null)
                 throw new ArgumentNullException(nameof(info));

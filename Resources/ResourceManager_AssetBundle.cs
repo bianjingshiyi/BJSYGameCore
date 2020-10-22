@@ -8,6 +8,35 @@ namespace BJSYGameCore
     {
         #region 公共成员
         /// <summary>
+        /// 从Resources中加载资源。
+        /// </summary>
+        /// <param name="info"></param>
+        /// <returns></returns>
+        public UObject loadFromResources(ResourceInfo info)
+        {
+            throw new NotImplementedException();
+        }
+        /// <summary>
+        /// 从AssetBundle中加载资源。
+        /// </summary>
+        /// <param name="info"></param>
+        /// <returns></returns>
+        public UObject loadFromAssetBundle(ResourceInfo info)
+        {
+            throw new NotImplementedException();
+        }
+#if UNITY_EDITOR
+        /// <summary>
+        /// 从AssetDatabase中加载资源。
+        /// </summary>
+        /// <param name="info"></param>
+        /// <returns></returns>
+        public UObject loadFromAssetDatabase(ResourceInfo info)
+        {
+            throw new NotImplementedException();
+        }
+#endif
+        /// <summary>
         /// 从AssetBundle中加载资源。
         /// </summary>
         /// <param name="abInfo">AssetBundle相关信息</param>
