@@ -50,7 +50,7 @@ namespace BJSYGameCore
             if (index < 0)
                 throw new ArgumentException(path + "不是有效的资源地址格式", nameof(path));
             string bundleName = path.Substring(0, index).ToLower();
-            AssetBundleInfoItem bundleInfo = abInfo.bundleList.Find(b => b.name == bundleName);
+            AssetBundleInfoItem bundleInfo = abInfo.bundleList.Find(b => b.bundleName == bundleName);
             if (bundleInfo != null)
             {
                 string assetPath = path.Substring(index + 1, path.Length - index - 1);
@@ -75,12 +75,12 @@ namespace BJSYGameCore
         AssetBundle loadBundle(ResourcesInfo bundleInfo, AssetBundleInfoItem itemInfo)
         {
             //尝试从缓存中加载
-            if (loadBundleFromCache(itemInfo.name, out var bundle))
+            if (loadBundleFromCache(itemInfo.bundleName, out var bundle))
             {
                 return bundle;
             }
             //没有缓存，先获取Bundle依赖性
-            if (!loadBundleFromCache(bundleInfo.manifest.name, out var manifestBundle))
+            if (!loadBundleFromCache(bundleInfo.manifest.bundleName, out var manifestBundle))
             {
                 manifestBundle = loadBundleFromFileOrWeb(bundleInfo.manifest);
                 if (manifestBundle == null)
@@ -88,20 +88,20 @@ namespace BJSYGameCore
                     Debug.LogError("加载AssetBundleManifest失败");
                     return null;
                 }
-                saveBundleToCache(bundleInfo.manifest.name, manifestBundle);
+                saveBundleToCache(bundleInfo.manifest.bundleName, manifestBundle);
             }
             AssetBundleManifest manifest = manifestBundle.LoadAsset<AssetBundleManifest>(bundleInfo.manifest.assetList[0].assetPath);
             //加载依赖Bundle
-            var dependencies = manifest.GetDirectDependencies(itemInfo.name);
+            var dependencies = manifest.GetDirectDependencies(itemInfo.bundleName);
             List<string> dependenceList = null;
             if (dependencies != null && dependencies.Length > 0)
             {
                 foreach (var dependence in dependencies)
                 {
-                    AssetBundle dependencedBundle = loadBundle(bundleInfo, bundleInfo.bundleList.Find(b => b.name == dependence));
+                    AssetBundle dependencedBundle = loadBundle(bundleInfo, bundleInfo.bundleList.Find(b => b.bundleName == dependence));
                     if (dependencedBundle == null)
                     {
-                        Debug.LogError("加载" + itemInfo.name + "的依赖项" + dependence + "失败");
+                        Debug.LogError("加载" + itemInfo.bundleName + "的依赖项" + dependence + "失败");
                         return null;
                     }
                     else
@@ -116,7 +116,7 @@ namespace BJSYGameCore
             bundle = loadBundleFromFileOrWeb(itemInfo);
             if (bundle != null)
             {
-                var cacheItem = saveBundleToCache(itemInfo.name, bundle);
+                var cacheItem = saveBundleToCache(itemInfo.bundleName, bundle);
                 cacheItem.dependenceList = dependenceList;
                 return bundle;
             }

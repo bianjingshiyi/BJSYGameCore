@@ -9,13 +9,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 05271ea9a798b9347aa9f1a4755b37a4, type: 3}
+  m_Script: {fileID: 11500000, guid: 8c89effd8f83c384296609acf108f2ac, type: 3}
   m_Name: ResourcesInfo
   m_EditorClassIdentifier: 
   version: 1
   codeVersion: 1
+  resourceList: []
   manifest:
-    name: 
+    bundleName: 
     variant: 
     path: 
     version: 1

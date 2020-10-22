@@ -11,6 +11,9 @@ namespace BJSYGameCore
     [CustomEditor(typeof(ResourcesInfo), true)]
     public class ResourcesInfoEditor : Editor
     {
+        const string RESOURCES_BUNDLENAME = "Resources";
+        const string STREAMINGASSETS_BUNDLENAME = "StreamingAssets";
+
         public override void OnInspectorGUI()
         {
             base.OnInspectorGUI();
@@ -18,13 +21,68 @@ namespace BJSYGameCore
             {
                 string path = EditorUtility.SaveFolderPanel("保存AssetBundle", Application.streamingAssetsPath, "AssetBundles");
                 if (Directory.Exists(path))
-                    build(target as ResourcesInfo, path);
+                    Build(target as ResourcesInfo, path);
             }
         }
-        public static bool build(ResourcesInfo info, string outputDir, params ResourceInfo[] assetsInfo)
-        {
-            throw new NotImplementedException();
+
+        static void GetAllFileNamesInPath(string path, ref List<string> allFileNames) {
+            DirectoryInfo directoryInfo = new DirectoryInfo(path);
+            foreach(FileInfo info in directoryInfo.GetFiles()) {
+                if(info.Extension!=".meta")
+                    allFileNames.Add(info.Name);
+            }
+            foreach(DirectoryInfo info in directoryInfo.GetDirectories()) {
+                GetAllFileNamesInPath(info.FullName, ref allFileNames);
+            }
         }
+
+        public static bool Build(ResourcesInfo info, string outputDir, params ResourceInfo[] assetsInfo) {
+            if (info == null) { throw new ArgumentNullException(nameof(info)); }
+            DirectoryInfo dirInfo = new DirectoryInfo(outputDir);
+            if (!dirInfo.Exists) { dirInfo.Create(); }
+            if (assetsInfo == null || assetsInfo.Length <= 0) {
+                string resourcesPath = Application.streamingAssetsPath.ToLower().Replace("streamingassets", "resources");
+                List<string> fileNamesInResources = new List<string>();
+                GetAllFileNamesInPath(resourcesPath,ref fileNamesInResources);
+                foreach (string fileName in fileNamesInResources) {
+                    info.resourceList.Add(new ResourceInfo {
+                        type = ResourceType.Resources,
+                        path = fileName.Split('.')[0].ToLower(),
+                        version = info.version
+                    });
+                }
+                List<string> fileNamesInStreamingAssets = new List<string>();
+                GetAllFileNamesInPath(Application.streamingAssetsPath, ref fileNamesInStreamingAssets);
+                foreach (string fileName in fileNamesInStreamingAssets) {
+                    info.resourceList.Add(new ResourceInfo {
+                        type = ResourceType.File,
+                        path = ("Assets/StreamingAssets/"+fileName).ToLower(),
+                        version = info.version
+                    });
+                }
+                AssetBundleManifest manifest = BuildPipeline.BuildAssetBundles(outputDir,
+                BuildAssetBundleOptions.StrictMode | BuildAssetBundleOptions.ChunkBasedCompression,
+                EditorUserBuildSettings.activeBuildTarget);
+                foreach(var bundleName in manifest.GetAllAssetBundles()) {
+                    string bundlePath = Path.Combine(outputDir, bundleName);
+                    AssetBundle bundle = AssetBundle.LoadFromFile(bundlePath);
+                    foreach(var path in bundle.GetAllAssetNames()) {
+                        info.resourceList.Add(new ResourceInfo {
+                            path = path,
+                            type = ResourceType.Assetbundle,
+                            bundleName = bundle.name,
+                            version = info.version
+                        });
+                    }
+                }
+                return true;
+            }
+            else {
+                // todo ： assetsInfo存在时，增量打包功能
+                return false;
+            }
+        }
+
         public static bool build(ResourcesInfo info, string outputDir, AssetBundleInfoItem[] bundlesInfo)
         {
             if (info == null)
@@ -61,7 +119,7 @@ namespace BJSYGameCore
                 foreach (var assetInfo in bundleInfo.assetList)
                 {
                     importer = AssetImporter.GetAtPath(assetInfo.assetPath);
-                    importer.assetBundleName = bundleInfo.name;
+                    importer.assetBundleName = bundleInfo.bundleName;
                     if (!string.IsNullOrEmpty(bundleInfo.variant))
                         importer.assetBundleVariant = bundleInfo.variant;
                     importer.SaveAndReimport();
@@ -83,7 +141,7 @@ namespace BJSYGameCore
                     foreach (var bundleName in manifest.GetAllAssetBundles())
                     {
                         bundle = AssetBundle.LoadFromFile(outputDir + "/" + bundleName);
-                        AssetBundleInfoItem item = info.bundleList.Find(b => b.name == bundle.name);
+                        AssetBundleInfoItem item = info.bundleList.Find(b => b.bundleName == bundle.name);
                         if (item == null)
                         {
                             item = new AssetBundleInfoItem(bundleName, outputDir + "/" + bundleName);
@@ -92,7 +150,7 @@ namespace BJSYGameCore
                         item.assetList.Clear();
                         foreach (var assetName in bundle.GetAllAssetNames())
                         {
-                            AssetBundleInfoItem bundleInfo = bundlesInfo.First(b => (string.IsNullOrEmpty(b.variant) ? b.name.ToLower() : (b.name + "." + b.variant).ToLower()) == bundle.name);
+                            AssetBundleInfoItem bundleInfo = bundlesInfo.First(b => (string.IsNullOrEmpty(b.variant) ? b.bundleName.ToLower() : (b.bundleName + "." + b.variant).ToLower()) == bundle.name);
                             ResourceInfo assetInfo = bundleInfo.assetList.Find(a => a.assetPath == assetName);
                             item.assetList.Add(new ResourceInfo(assetInfo.path, assetName));
                         }
