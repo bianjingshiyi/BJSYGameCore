@@ -33,7 +33,7 @@ namespace BJSYGameCore
         /// <returns></returns>
         public UObject loadFromAssetDatabase(ResourceInfo info)
         {
-            throw new NotImplementedException();
+            return UnityEditor.AssetDatabase.LoadAssetAtPath<UObject>(info.path);
         }
 #endif
         /// <summary>

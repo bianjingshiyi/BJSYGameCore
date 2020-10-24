@@ -21,7 +21,6 @@ namespace Tests
         const string PATH_ASSET_TO_PACK = "Assets/Plugins/BJSYGameCore/Tests/AssetToPack.prefab";
         const string PATH_FILE_TO_READ = "Assets/StreamingAssets/FileToRead.txt";
         const string PATH_BUILD_OUTPUT = "Tests/AssetBundles";
-        const string TEST_BUNDLE_NAME = "TestBundleName";
         /// <summary>
         /// 打包所有类型的资源并生成它们的信息。
         /// 包括一个“需要加载的资源”，类型是Resource，path是Resources文件夹下相对路径。
@@ -34,7 +33,7 @@ namespace Tests
             {
                 usingTempFile(() =>
                 {
-                    ResourcesInfoEditor.Build(info, PATH_BUILD_OUTPUT);
+                    ResourcesInfoEditor.build(info, PATH_BUILD_OUTPUT);
                     var resourceToLoad = info.resourceList.Find(r => r.type == ResourceType.Resources && r.path == PATH_RESOURCE_TO_LOAD);
                     Assert.NotNull(resourceToLoad);
                     var resourceNotToLoad = info.resourceList.Find(r => r.path == PATH_RESOURCE_NOT_TO_LOAD);
@@ -77,7 +76,7 @@ namespace Tests
                 {
                     usingTempFile(() =>
                     {
-                        ResourcesInfoEditor.Build(info, PATH_BUILD_OUTPUT, new ResourceInfo()
+                        ResourcesInfoEditor.build(info, PATH_BUILD_OUTPUT, new ResourceInfo()
                         {
                             type = ResourceType.Resources,
                             path = PATH_RESOURCE_TO_LOAD
@@ -86,7 +85,6 @@ namespace Tests
                         {
                             type = ResourceType.Assetbundle,
                             path = PATH_ASSET_TO_PACK,
-                            bundleName = TEST_BUNDLE_NAME
                         },
                         new ResourceInfo()
                         {
@@ -113,21 +111,22 @@ namespace Tests
 
         [Test]
         public void TestSomeAPI() {
-            List<string> list = new List<string>();
-            GetAllPathInStreamingAssets(Application.streamingAssetsPath, ref list);
+            //List<string> list = new List<string>();
+            //GetAllPathInStreamingAssets(Application.streamingAssetsPath, ref list);
             //foreach (var str in list)
             //    Debug.Log(str);
 
-            foreach (var path in AssetDatabase.GetAllAssetPaths()) {
-                if (Regex.IsMatch(path, @".\.{1}[\w]+")) {
-                    string[] strs = path.Split('/');
-                    if (strs.Any(s => s == "Resources") && strs.Any(s => s == "Assets"))
-                        Debug.Log(path);
-                    if (strs.Any(s => s == "StreamingAssets") && strs.Any(s => s == "Assets"))
-                        Debug.Log(path);
-                }
-                
-            }
+            //foreach (var path in AssetDatabase.GetAllAssetPaths()) {
+            //    if (Regex.IsMatch(path, @".\.{1}[\w]+")) {
+            //        string[] strs = path.Split('/');
+            //        if (strs.Any(s => s == "Resources") && strs.Any(s => s == "Assets"))
+            //            Debug.Log(path);
+            //        if (strs.Any(s => s == "StreamingAssets") && strs.Any(s => s == "Assets"))
+            //            Debug.Log(path);
+            //    }
+            //}
+
+
 
             Assert.IsTrue(true);
         }

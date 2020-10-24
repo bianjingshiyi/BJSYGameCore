@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.Versioning;
+using System.Text.RegularExpressions;
 
 namespace BJSYGameCore
 {
@@ -22,7 +23,29 @@ namespace BJSYGameCore
         public List<ResourceInfo> resourceList = new List<ResourceInfo>();
         public ResourceInfo getInfoByPath(string path)
         {
-            return resourceList.Find(r => r.path == path);
+            ResourceInfo res = null;
+            if (path.Contains(":")) {
+                string prefix = path.Split(':')[0];
+                string realPath = path.Split(':')[1];
+                switch (prefix) {
+                    case "res":
+                        res = resourceList.Find(r => r.type == ResourceType.Resources && r.path == realPath);
+                        break;
+                    case "ab":
+                        res =  resourceList.Find(r => r.type == ResourceType.Assetbundle && r.path == realPath);
+                        break;
+                    default:
+                        Debug.LogError("ResourcesInfo::getInfoByPath 资源path的前缀不合法！！！");
+                        break;
+                }
+            }
+            else {
+                res = resourceList.Find(r => r.type == ResourceType.File && r.path == path);
+            }
+            if (res == null) 
+                Debug.LogError("ResourcesInfo::getInfoByPath 找不到资源，请检查路径是否错误");
+            return res;
+
         }
 
         /// <summary>

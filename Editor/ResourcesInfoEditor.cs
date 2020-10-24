@@ -22,7 +22,7 @@ namespace BJSYGameCore
             {
                 string path = EditorUtility.SaveFolderPanel("保存AssetBundle", Application.streamingAssetsPath, "AssetBundles");
                 if (Directory.Exists(path))
-                    Build(target as ResourcesInfo, path);
+                    build(target as ResourcesInfo, path);
             }
         }
 
@@ -34,7 +34,7 @@ namespace BJSYGameCore
                         if (strs.Any(s => s == "Resources") && strs.All(s => s != "Editor")) {
                             info.resourceList.Add(new ResourceInfo {
                                 type = ResourceType.Resources,
-                                path = Regex.Match(path, @"Resources/{1}\w+").ToString().removeHead("Resources/"),
+                                path = Regex.Match(path, @"/Resources/{1}\w+").ToString().removeHead("/Resources/"),
                                 version = info.version
                             });
                         }
@@ -54,7 +54,7 @@ namespace BJSYGameCore
             }
         }
 
-        public static bool Build(ResourcesInfo info, string outputDir, params ResourceInfo[] assetsInfo) {
+        public static bool build(ResourcesInfo info, string outputDir, params ResourceInfo[] assetsInfo) {
             BuildInfoOfResourcesAndFile(info,assetsInfo);
             if (info == null) { throw new ArgumentNullException(nameof(info)); }
             DirectoryInfo dirInfo = new DirectoryInfo(outputDir);
@@ -81,7 +81,8 @@ namespace BJSYGameCore
             }
             foreach (var assetInfo in assetsInfo.Where(a=>a.type==ResourceType.Assetbundle)) {
                 importer = AssetImporter.GetAtPath(assetInfo.path);
-                importer.assetBundleName = assetInfo.bundleName;
+                if(assetInfo.bundleName != null)
+                    importer.assetBundleName = assetInfo.bundleName;
                 importer.SaveAndReimport();
             }
             try {
