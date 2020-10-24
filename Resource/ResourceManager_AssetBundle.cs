@@ -14,7 +14,7 @@ namespace BJSYGameCore
         /// <returns></returns>
         public UObject loadFromResources(ResourceInfo info)
         {
-            throw new NotImplementedException();
+            return Resources.Load(info.path);
         }
         /// <summary>
         /// 从AssetBundle中加载资源。

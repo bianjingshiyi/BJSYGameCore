@@ -9,6 +9,8 @@ using UnityEditor;
 using BJSYGameCore.Tests;
 using System;
 using Object = UnityEngine.Object;
+using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace Tests
 {
@@ -19,6 +21,7 @@ namespace Tests
         const string PATH_ASSET_TO_PACK = "Assets/Plugins/BJSYGameCore/Tests/AssetToPack.prefab";
         const string PATH_FILE_TO_READ = "Assets/StreamingAssets/FileToRead.txt";
         const string PATH_BUILD_OUTPUT = "Tests/AssetBundles";
+        const string TEST_BUNDLE_NAME = "TestBundleName";
         /// <summary>
         /// 打包所有类型的资源并生成它们的信息。
         /// 包括一个“需要加载的资源”，类型是Resource，path是Resources文件夹下相对路径。
@@ -32,11 +35,11 @@ namespace Tests
                 usingTempFile(() =>
                 {
                     ResourcesInfoEditor.Build(info, PATH_BUILD_OUTPUT);
-                    var resourceToLoad = info.resourceList.Find(r => r.type == ResourceType.Resources && r.path == PATH_RESOURCE_TO_LOAD.ToLower());
+                    var resourceToLoad = info.resourceList.Find(r => r.type == ResourceType.Resources && r.path == PATH_RESOURCE_TO_LOAD);
                     Assert.NotNull(resourceToLoad);
                     var resourceNotToLoad = info.resourceList.Find(r => r.path == PATH_RESOURCE_NOT_TO_LOAD);
                     Assert.Null(resourceNotToLoad);
-                    var fileToRead = info.resourceList.Find(r => r.type == ResourceType.File && r.path == PATH_FILE_TO_READ.ToLower());
+                    var fileToRead = info.resourceList.Find(r => r.type == ResourceType.File && r.path == PATH_FILE_TO_READ);
                     Assert.NotNull(fileToRead);
                     var assetToPack = info.resourceList.Find(r => r.type == ResourceType.Assetbundle && r.path == PATH_ASSET_TO_PACK.ToLower());
                     Assert.NotNull(assetToPack);
@@ -59,6 +62,8 @@ namespace Tests
             if (isFileTemp)
                 File.Delete(PATH_FILE_TO_READ);
         }
+
+        
         /// <summary>
         /// build可以在打包的时候指定资源打包进的Bundle和路径，
         /// 资源加载可以通过"ab:包名/指定路径"来进行加载。
@@ -80,7 +85,8 @@ namespace Tests
                         new ResourceInfo()
                         {
                             type = ResourceType.Assetbundle,
-                            path = PATH_ASSET_TO_PACK
+                            path = PATH_ASSET_TO_PACK,
+                            bundleName = TEST_BUNDLE_NAME
                         },
                         new ResourceInfo()
                         {
@@ -106,11 +112,23 @@ namespace Tests
         }
 
         [Test]
-        public void getAllAssets() {
+        public void TestSomeAPI() {
             List<string> list = new List<string>();
             GetAllPathInStreamingAssets(Application.streamingAssetsPath, ref list);
-            foreach (var str in list)
-                Debug.Log(str);
+            //foreach (var str in list)
+            //    Debug.Log(str);
+
+            foreach (var path in AssetDatabase.GetAllAssetPaths()) {
+                if (Regex.IsMatch(path, @".\.{1}[\w]+")) {
+                    string[] strs = path.Split('/');
+                    if (strs.Any(s => s == "Resources") && strs.Any(s => s == "Assets"))
+                        Debug.Log(path);
+                    if (strs.Any(s => s == "StreamingAssets") && strs.Any(s => s == "Assets"))
+                        Debug.Log(path);
+                }
+                
+            }
+
             Assert.IsTrue(true);
         }
 
