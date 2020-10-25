@@ -9,6 +9,8 @@ namespace BJSYGameCore
     [CreateAssetMenu(fileName = nameof(ResourcesInfo), menuName = nameof(BJSYGameCore) + "/" + nameof(ResourcesInfo))]
     public class ResourcesInfo : ScriptableObject, IDisposable
     {
+        public ResourceInfo manifestInfo;
+        public string bundleOutputPath;
         /// <summary>
         /// AssetBundleInfo自身的版本号
         /// </summary>
@@ -32,27 +34,25 @@ namespace BJSYGameCore
                         res = resourceList.Find(r => r.type == ResourceType.Resources && r.path == realPath);
                         break;
                     case "ab":
-                        res =  resourceList.Find(r => r.type == ResourceType.Assetbundle && r.path == realPath);
+                        res =  resourceList.Find(r => r.type == ResourceType.Assetbundle && r.path == realPath.ToLower());
                         break;
                     default:
-                        Debug.LogError("ResourcesInfo::getInfoByPath 资源path的前缀不合法！！！");
-                        break;
+                        throw new ArgumentException("ResourcesInfo::getInfoByPath 资源path的前缀不合法！！！");
                 }
             }
             else {
                 res = resourceList.Find(r => r.type == ResourceType.File && r.path == path);
             }
-            if (res == null) 
-                Debug.LogError("ResourcesInfo::getInfoByPath 找不到资源，请检查路径是否错误");
+            if (res == null)
+                throw new ArgumentException("ResourcesInfo::getInfoByPath 找不到资源，请检查路径是否错误");
             return res;
-
         }
 
         /// <summary>
         /// ManifestBundle信息
         /// </summary>
         [Obsolete("这些变量要扔进历史垃圾堆")]
-        public AssetBundleInfoItem manifest = null;
+        public AssetBundleInfoItem manifest_old = null;
         /// <summary>
         /// Bundle列表
         /// </summary>
@@ -145,6 +145,7 @@ namespace BJSYGameCore
     [Serializable]
     public class ResourceInfo
     {
+        
         /// <summary>
         /// 版本
         /// </summary>

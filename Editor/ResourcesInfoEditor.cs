@@ -27,7 +27,7 @@ namespace BJSYGameCore
         }
 
         static void BuildInfoOfResourcesAndFile(ResourcesInfo info, params ResourceInfo[] assetsInfo) {
-            if(assetsInfo == null || assetsInfo.Length <= 0) {
+            if (assetsInfo == null || assetsInfo.Length <= 0) {
                 foreach (string path in AssetDatabase.GetAllAssetPaths().Where(p => Regex.IsMatch(p, @".\.{1}\w+"))) {
                     string[] strs = path.Split('/');
                     if (strs.Any(s => s == "Assets")) {
@@ -49,16 +49,17 @@ namespace BJSYGameCore
                 }
             }
             else {
-                foreach (ResourceInfo assetInfo in assetsInfo)
+                foreach (ResourceInfo assetInfo in assetsInfo.Where(
+                    a => a.type == ResourceType.Resources || a.type == ResourceType.File))
                     info.resourceList.Add(assetInfo);
             }
         }
 
         public static bool build(ResourcesInfo info, string outputDir, params ResourceInfo[] assetsInfo) {
-            BuildInfoOfResourcesAndFile(info,assetsInfo);
             if (info == null) { throw new ArgumentNullException(nameof(info)); }
             DirectoryInfo dirInfo = new DirectoryInfo(outputDir);
             if (!dirInfo.Exists) { dirInfo.Create(); }
+            info.bundleOutputPath = outputDir;
             AssetImporter importer;
             Dictionary<string, string> nameCacheDic = null;
             Dictionary<string, string> variantCacheDic = null;
@@ -79,6 +80,7 @@ namespace BJSYGameCore
                     }
                 }
             }
+            //暂时清空了其他物体的AssetBundle信息，可以开始设置并打包AssetBundle了
             foreach (var assetInfo in assetsInfo.Where(a=>a.type==ResourceType.Assetbundle)) {
                 importer = AssetImporter.GetAtPath(assetInfo.path);
                 if(assetInfo.bundleName != null)
@@ -89,7 +91,20 @@ namespace BJSYGameCore
                 AssetBundleManifest manifest = BuildPipeline.BuildAssetBundles(outputDir,
                 BuildAssetBundleOptions.StrictMode | BuildAssetBundleOptions.ChunkBasedCompression,
                 EditorUserBuildSettings.activeBuildTarget);
+                //打包完毕，处理AssetBundleInfo，首先处理生成的Manifest
                 if (manifest != null) {
+                    string manifestBundleName = dirInfo.Name;
+                    AssetBundle manifestBundle = AssetBundle.LoadFromFile(outputDir + "/" + manifestBundleName);
+                    if (info.manifestInfo == null) {
+                        info.manifestInfo = new ResourceInfo {
+                            path = "AssetBundleManifest",
+                            type = ResourceType.Assetbundle,
+                            bundleName = manifestBundleName,
+                            version = info.version
+                        };
+                    }
+                    manifestBundle.Unload(true);
+                    //处理所有的AB包
                     foreach (var bundleName in manifest.GetAllAssetBundles()) {
                         string bundlePath = Path.Combine(outputDir, bundleName);
                         AssetBundle bundle = AssetBundle.LoadFromFile(bundlePath);
@@ -108,11 +123,11 @@ namespace BJSYGameCore
                                 }
                                 info.resourceList.Add(assetInfo);
                             }
-                                
                         }
                         bundle.Unload(true);
                     }
                 }
+                BuildInfoOfResourcesAndFile(info, assetsInfo);
                 return true;
             }
             finally {
@@ -126,6 +141,7 @@ namespace BJSYGameCore
                     }
                 }
             }
+
         }
 
         [Obsolete("这个函数可以扔进历史垃圾桶了")]
@@ -181,8 +197,8 @@ namespace BJSYGameCore
                 {
                     string manifestBundleName = dirInfo.Name;
                     AssetBundle bundle = AssetBundle.LoadFromFile(outputDir + "/" + manifestBundleName);
-                    info.manifest = new AssetBundleInfoItem(manifestBundleName, outputDir + "/" + manifestBundleName);
-                    info.manifest.assetList.AddRange(bundle.GetAllAssetNames().Select(p => new ResourceInfo(bundle.name, p)));
+                    info.manifest_old = new AssetBundleInfoItem(manifestBundleName, outputDir + "/" + manifestBundleName);
+                    info.manifest_old.assetList.AddRange(bundle.GetAllAssetNames().Select(p => new ResourceInfo(bundle.name, p)));
                     bundle.Unload(true);
                     foreach (var bundleName in manifest.GetAllAssetBundles())
                     {

@@ -2,6 +2,9 @@
 using System;
 using System.Collections.Generic;
 using UObject = UnityEngine.Object;
+using JetBrains.Annotations;
+using System.IO;
+
 namespace BJSYGameCore
 {
     public partial class ResourceManager
@@ -14,16 +17,75 @@ namespace BJSYGameCore
         /// <returns></returns>
         public UObject loadFromResources(ResourceInfo info)
         {
-            return Resources.Load(info.path);
+            UObject obj = null;
+            if (loadFromCache<UObject>(info.path,out obj)) { return obj;}
+            obj = Resources.Load(info.path);
+            if (obj == null) { throw new ArgumentException("info.path 路径有误，无法loadFromAssetBundle"); }
+            saveToCache(info.path, obj);
+            return obj;
         }
         /// <summary>
         /// 从AssetBundle中加载资源。
         /// </summary>
         /// <param name="info"></param>
         /// <returns></returns>
-        public UObject loadFromAssetBundle(ResourceInfo info)
-        {
-            throw new NotImplementedException();
+        public UObject loadFromAssetBundle(ResourceInfo info) {
+            //直接去UObject缓存找UObject
+            if (!loadFromCache<UObject>(info.path, out var obj)) {
+                //上一步找不到，就在AB包缓存去找info的AB包并Load出UObject
+                if (!loadBundleFromCache(info.bundleName, out var infoBundle)) {
+                    //上一步找不到，就去加载info的AB包，
+                    //在这之前要加载依赖，在UObject缓存找manifest
+                    if (!loadFromCache<AssetBundleManifest>(resourcesInfo.manifestInfo.path, out var manifest)) {
+                        //上一步找不到，就在AB包缓存去找manifest的AB包并Load出manifest
+                        if (!loadBundleFromCache(resourcesInfo.manifestInfo.bundleName, out var manifestBundle)) {
+                            manifestBundle = loadBundleFromFileOrWeb(resourcesInfo.manifestInfo.bundleName);
+                            if (manifestBundle == null) {
+                                Debug.LogError("加载AssetBundleManifest失败");
+                                return null;
+                            }
+                            else {
+                                saveBundleToCache(resourcesInfo.manifestInfo.bundleName, manifestBundle);
+                            }
+                        }
+                        manifest = manifestBundle.LoadAsset<AssetBundleManifest>(resourcesInfo.manifestInfo.path);
+                    }
+                    //加载依赖项
+                    var dependencies = manifest.GetDirectDependencies(info.bundleName);
+                    List<string> dependenceList = null;
+                    if (dependencies != null && dependencies.Length > 0) {
+                        foreach (var dependence in dependencies) {
+                            AssetBundle dependencedBundle = loadBundleFromFileOrWeb(dependence);
+                            if(dependencedBundle == null) {
+                                Debug.LogError("加载" + info.bundleName + "的依赖项" + dependence + "失败");
+                                return null;
+                            }
+                            else {
+                                //记录依赖
+                                if (dependenceList == null)
+                                    dependenceList = new List<string>();
+                                dependenceList.Add(dependence);
+                            }
+                        }
+                    }
+                    infoBundle = loadBundleFromFileOrWeb(info.bundleName);
+                    if (infoBundle == null) {
+                        Debug.LogError($"加载{info.path}失败");
+                        return null;
+                    }
+                    else {
+                        var cacheItem = saveBundleToCache(info.bundleName, infoBundle);
+                        cacheItem.dependenceList = dependenceList;
+                    }
+                }
+                obj = infoBundle.LoadAsset(info.path);
+                if (obj == null) {
+                    Debug.LogError($"从AB包加载{info.path}失败");
+                    return null;
+                }
+                else { saveToCache(info.path, obj); }
+            }
+            return obj;
         }
 #if UNITY_EDITOR
         /// <summary>
@@ -33,9 +95,16 @@ namespace BJSYGameCore
         /// <returns></returns>
         public UObject loadFromAssetDatabase(ResourceInfo info)
         {
-            return UnityEditor.AssetDatabase.LoadAssetAtPath<UObject>(info.path);
+            UObject obj = null;
+            if (loadFromCache<UObject>(info.path, out obj)) { return obj; }
+            obj = UnityEditor.AssetDatabase.LoadAssetAtPath<UObject>(info.path);
+            if (obj == null) { throw new ArgumentException("info.path 路径有误，无法loadFromAssetBundle"); }
+            saveToCache(info.path, obj);
+            return obj;
         }
 #endif
+
+
         /// <summary>
         /// 从AssetBundle中加载资源。
         /// </summary>
@@ -80,17 +149,17 @@ namespace BJSYGameCore
                 return bundle;
             }
             //没有缓存，先获取Bundle依赖性
-            if (!loadBundleFromCache(bundleInfo.manifest.bundleName, out var manifestBundle))
+            if (!loadBundleFromCache(bundleInfo.manifest_old.bundleName, out var manifestBundle))
             {
-                manifestBundle = loadBundleFromFileOrWeb(bundleInfo.manifest);
+                manifestBundle = loadBundleFromFileOrWeb(bundleInfo.manifest_old);
                 if (manifestBundle == null)
                 {
                     Debug.LogError("加载AssetBundleManifest失败");
                     return null;
                 }
-                saveBundleToCache(bundleInfo.manifest.bundleName, manifestBundle);
+                saveBundleToCache(bundleInfo.manifest_old.bundleName, manifestBundle);
             }
-            AssetBundleManifest manifest = manifestBundle.LoadAsset<AssetBundleManifest>(bundleInfo.manifest.assetList[0].assetPath);
+            AssetBundleManifest manifest = manifestBundle.LoadAsset<AssetBundleManifest>(bundleInfo.manifest_old.assetList[0].assetPath);
             //加载依赖Bundle
             var dependencies = manifest.GetDirectDependencies(itemInfo.bundleName);
             List<string> dependenceList = null;
@@ -128,6 +197,10 @@ namespace BJSYGameCore
             //TODO:AssetBundle加载的Web实现。
             return AssetBundle.LoadFromFile(info.path);
         }
+        AssetBundle loadBundleFromFileOrWeb(string bundleName) {
+            return AssetBundle.LoadFromFile(Path.Combine(resourcesInfo.bundleOutputPath,bundleName));
+        }
+
         bool loadBundleFromCache(string name, out AssetBundle bundle)
         {
             if (bundleCacheDic.TryGetValue(name, out var item))

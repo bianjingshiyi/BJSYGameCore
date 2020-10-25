@@ -91,6 +91,7 @@ namespace Tests
                             type = ResourceType.File,
                             path = PATH_FILE_TO_READ
                         });
+                        manager.resourcesInfo = info;
                         //Resources
                         Object asset = Resources.Load(PATH_RESOURCE_TO_LOAD);
                         Object resource = manager.loadFromResources(info.getInfoByPath("res:" + PATH_RESOURCE_TO_LOAD));
@@ -109,36 +110,5 @@ namespace Tests
             }
         }
 
-        [Test]
-        public void TestSomeAPI() {
-            //List<string> list = new List<string>();
-            //GetAllPathInStreamingAssets(Application.streamingAssetsPath, ref list);
-            //foreach (var str in list)
-            //    Debug.Log(str);
-
-            //foreach (var path in AssetDatabase.GetAllAssetPaths()) {
-            //    if (Regex.IsMatch(path, @".\.{1}[\w]+")) {
-            //        string[] strs = path.Split('/');
-            //        if (strs.Any(s => s == "Resources") && strs.Any(s => s == "Assets"))
-            //            Debug.Log(path);
-            //        if (strs.Any(s => s == "StreamingAssets") && strs.Any(s => s == "Assets"))
-            //            Debug.Log(path);
-            //    }
-            //}
-
-
-
-            Assert.IsTrue(true);
-        }
-
-        void GetAllPathInStreamingAssets(string path, ref List<string> allPath) {
-            DirectoryInfo directoryInfo = new DirectoryInfo(path);
-            foreach (FileInfo info in directoryInfo.GetFiles()) {
-                allPath.Add(info.Name);
-            }
-            foreach (DirectoryInfo info in directoryInfo.GetDirectories()) {
-                GetAllPathInStreamingAssets(info.FullName, ref allPath);
-            }
-        }
     }
 }

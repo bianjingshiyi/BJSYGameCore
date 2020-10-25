@@ -9,11 +9,11 @@ namespace BJSYGameCore
     {
         #region 字段
         [SerializeField]
-        ResourcesInfo _assetBundleInfo;
-        public ResourcesInfo assetBundleInfo
+        ResourcesInfo _resourcesInfo;
+        public ResourcesInfo resourcesInfo
         {
-            get { return _assetBundleInfo; }
-            set { _assetBundleInfo = value; }
+            get { return _resourcesInfo; }
+            set { _resourcesInfo = value; }
         }
         #endregion
         #region 公开接口
@@ -42,9 +42,9 @@ namespace BJSYGameCore
                 else
                     throw new InvalidCastException("资源\"" + path + "\"" + uRes + "不是" + typeof(T).Name);
             }
-            else if (path.StartsWith("ab:") && assetBundleInfo != null)
+            else if (path.StartsWith("ab:") && resourcesInfo != null)
             {
-                res = loadFromBundle<T>(assetBundleInfo, path.Substring(3, path.Length - 3));
+                res = loadFromBundle<T>(resourcesInfo, path.Substring(3, path.Length - 3));
             }
             else
                 throw new InvalidOperationException("无法加载类型为" + typeof(T).Name + "的资源" + path);
