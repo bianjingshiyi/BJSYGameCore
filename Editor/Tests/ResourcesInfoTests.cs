@@ -29,6 +29,7 @@ namespace Tests
         /// 打包所有类型的资源并生成它们的信息。
         /// 包括一个“需要加载的资源”，类型是Resource，path是Resources文件夹下相对路径。
         /// 不包括“不需要加载的资源”，因为它位于Editor文件夹下。
+        /// 不包括MonoScript。
         /// 包括所有设置了AssetBundle信息的Asset。
         /// 包括StreamingAssets下的所有文件信息。
         /// </summary>
@@ -40,13 +41,20 @@ namespace Tests
                 usingTempFile(() =>
                 {
                     ResourcesInfoEditor.build(info, PATH_BUILD_OUTPUT);
+
                     Assert.AreEqual(PATH_BUILD_OUTPUT, info.bundleOutputPath);
+
                     var resourceToLoad = info.resourceList.Find(r => r.type == ResourceType.Resources && r.path == PATH_RESOURCE_TO_LOAD);
                     Assert.NotNull(resourceToLoad);
+
                     var resourceNotToLoad = info.resourceList.Find(r => r.path == PATH_RESOURCE_NOT_TO_LOAD);
                     Assert.Null(resourceNotToLoad);
+
+                    Assert.False(info.resourceList.Exists(r => r.type == ResourceType.Resources && Path.GetFileNameWithoutExtension(r.path) == nameof(ResourceManager)));
+
                     var fileToRead = info.resourceList.Find(r => r.type == ResourceType.File && r.path == PATH_FILE_TO_READ);
                     Assert.NotNull(fileToRead);
+
                     var assetToPack = info.resourceList.Find(r => r.type == ResourceType.Assetbundle && r.path == PATH_ASSET_TO_PACK.ToLower());
                     Assert.NotNull(assetToPack);
                 });
