@@ -41,14 +41,14 @@ namespace BJSYGameCore
             if (!loadFromCache<Object>(info.path, out var obj))
             {
                 //上一步找不到，就在AB包缓存去找info的AB包并Load出UObject
-                if (!loadBundleFromCache(info.bundleName, out var infoBundle))
+                if (!loadAssetBundleFromCache(info.bundleName, out var infoBundle))
                 {
                     //上一步找不到，就去加载info的AB包，
                     //在这之前要加载依赖，在UObject缓存找manifest
                     if (!loadFromCache<AssetBundleManifest>(resourcesInfo.manifestInfo.path, out var manifest))
                     {
                         //上一步找不到，就在AB包缓存去找manifest的AB包并Load出manifest
-                        if (!loadBundleFromCache(resourcesInfo.manifestInfo.bundleName, out var manifestBundle))
+                        if (!loadAssetBundleFromCache(resourcesInfo.manifestInfo.bundleName, out var manifestBundle))
                         {
                             manifestBundle = loadBundleFromFileOrWeb(resourcesInfo.manifestInfo.bundleName);
                             if (manifestBundle == null)
@@ -158,6 +158,10 @@ namespace BJSYGameCore
             }
             return null;
         }
+        public AssetBundle loadAssetBundle(ResourceInfo info)
+        {
+            throw new NotImplementedException();
+        }
         #endregion
         #region 私有成员
         ResourceInfo getResourceInfo(string path)
@@ -168,12 +172,12 @@ namespace BJSYGameCore
         AssetBundle loadBundle(ResourcesInfo bundleInfo, AssetBundleInfoItem itemInfo)
         {
             //尝试从缓存中加载
-            if (loadBundleFromCache(itemInfo.bundleName, out var bundle))
+            if (loadAssetBundleFromCache(itemInfo.bundleName, out var bundle))
             {
                 return bundle;
             }
             //没有缓存，先获取Bundle依赖性
-            if (!loadBundleFromCache(bundleInfo.manifest_old.bundleName, out var manifestBundle))
+            if (!loadAssetBundleFromCache(bundleInfo.manifest_old.bundleName, out var manifestBundle))
             {
                 manifestBundle = loadBundleFromFileOrWeb(bundleInfo.manifest_old);
                 if (manifestBundle == null)
@@ -224,17 +228,6 @@ namespace BJSYGameCore
         AssetBundle loadBundleFromFileOrWeb(string bundleName)
         {
             return AssetBundle.LoadFromFile(Path.Combine(resourcesInfo.bundleOutputPath, bundleName));
-        }
-
-        bool loadBundleFromCache(string name, out AssetBundle bundle)
-        {
-            if (bundleCacheDic.TryGetValue(name, out var item))
-            {
-                bundle = item.bundle;
-                return true;
-            }
-            bundle = null;
-            return false;
         }
         BundleCacheItem saveBundleToCache(string name, AssetBundle bundle)
         {

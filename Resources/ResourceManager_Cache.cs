@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-
+using UnityEngine;
 namespace BJSYGameCore
 {
     public partial class ResourceManager
     {
-        #region 缓存
+        #region 公共成员
         public bool loadFromCache<T>(string path, out T res)
         {
             if (cacheDic.TryGetValue(path, out var item))
@@ -33,6 +33,18 @@ namespace BJSYGameCore
                 return false;
             }
         }
+        public bool loadAssetBundleFromCache(string name, out AssetBundle bundle)
+        {
+            if (bundleCacheDic.TryGetValue(name, out var item))
+            {
+                bundle = item.bundle;
+                return true;
+            }
+            bundle = null;
+            return false;
+        }
+        #endregion
+        #region 私有成员
         void saveToCache(string path, object res)
         {
             if (cacheDic.TryGetValue(path, out var item) && ReferenceEquals(item.wref.Target, res))

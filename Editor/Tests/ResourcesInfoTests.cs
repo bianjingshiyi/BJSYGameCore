@@ -11,6 +11,7 @@ using System;
 using Object = UnityEngine.Object;
 using System.Linq;
 using System.Text.RegularExpressions;
+using UnityEngine.Rendering;
 
 namespace Tests
 {
@@ -153,7 +154,7 @@ namespace Tests
                 ResourceInfo resInfo = manager.resourcesInfo.getInfoByPath(resInfoFilePath);
                 Assert.AreEqual(ResourceType.File, resInfo.type);
                 Assert.AreEqual(resInfoFilePath, resInfo.path);
-                string resInfoABPath = "ab:" + BUNDLENAME_RESOURCESINFO + "/" + PATH_RESOURCESINFO;
+                string resInfoABPath = "ab:" + PATH_RESOURCESINFO;
                 resInfo = manager.resourcesInfo.getInfoByPath(resInfoABPath);
                 Assert.AreEqual(ResourceType.Assetbundle, resInfo.type);
                 Assert.AreEqual(BUNDLENAME_RESOURCESINFO, resInfo.bundleName);
@@ -177,7 +178,7 @@ namespace Tests
                 Assert.AreEqual(ResourceType.File, resInfo.type);
                 Assert.AreEqual(manifestFilePath, resInfo.path);
 
-                string manifestABPath = "ab:/" + ASSETNAME_MANIFEST;
+                string manifestABPath = "ab:" + ASSETNAME_MANIFEST;
                 resInfo = manager.resourcesInfo.getInfoByPath(manifestABPath);
                 Assert.AreEqual(ResourceType.Assetbundle, resInfo.type);
                 Assert.True(string.IsNullOrEmpty(resInfo.bundleName));
@@ -185,6 +186,32 @@ namespace Tests
 
                 AssetBundleManifest manifest = manager.load<AssetBundleManifest>(resInfo);
                 Assert.NotNull(manifest);
+            });
+        }
+        /// <summary>
+        /// 加载一个资源的正确思路应该是，先加载ResourcesInfo，因为它是所有资源的元数据
+        /// 然后加载AssetBundleManifest，因为它是所有AssetBundle的元数据
+        /// 然后检查这个要加载的资源是不是位于AssetBundle中，如果是则去找AssetBundle对应的文件信息
+        /// 再根据文件信息加载出AssetBundle，再从AssetBundle中加载出所需要的资源。
+        /// </summary>
+        [Test]
+        public void loadAssetTest()
+        {
+            createManagerBuildAndAssert(manager =>
+            {
+                Assert.NotNull(manager.resourcesInfo);
+                manager.load<AssetBundleManifest>(manager.resourcesInfo.getInfoByPath("ab:" + ASSETNAME_MANIFEST));
+
+                ResourceInfo resInfo = manager.resourcesInfo.getInfoByPath("ab:" + PATH_ASSET_TO_PACK);
+                Assert.AreEqual(ResourceType.Assetbundle, resInfo.type);
+                Assert.AreEqual(PATH_ASSET_TO_PACK, resInfo.path);
+
+                resInfo = manager.resourcesInfo.resourceList.Find(r => r.type == ResourceType.File && r.bundleName == resInfo.bundleName);
+                AssetBundle bundle = manager.loadAssetBundle(resInfo);
+                Assert.True(manager.loadAssetBundleFromCache(bundle.name, out bundle));
+
+                Object asset = bundle.LoadAsset(PATH_ASSET_TO_PACK.ToLower());
+                Assert.AreEqual(Path.GetFileNameWithoutExtension(PATH_ASSET_TO_PACK), asset.name);
             });
         }
     }
