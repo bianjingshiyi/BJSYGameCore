@@ -1,6 +1,5 @@
 ﻿using UnityEngine;
 using System;
-using UObject = UnityEngine.Object;
 using System.Threading.Tasks;
 
 namespace BJSYGameCore
@@ -50,6 +49,16 @@ namespace BJSYGameCore
                 throw new InvalidOperationException("无法加载类型为" + typeof(T).Name + "的资源" + path);
             saveToCache(path, res);
             return res;
+        }
+        /// <summary>
+        /// 同步的加载一个资源
+        /// </summary>
+        /// <typeparam name="T">资源类型</typeparam>
+        /// <param name="info">资源信息</param>
+        /// <returns>加载的资源</returns>
+        public T load<T>(ResourceInfo info)
+        {
+            throw new NotImplementedException();
         }
         /// <summary>
         /// 异步的加载一个资源。
