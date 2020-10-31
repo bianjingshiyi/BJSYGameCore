@@ -74,8 +74,8 @@ namespace BJSYGameCore
             else
             {
                 foreach (ResourceInfo assetInfo in assetsInfo.Where(
-                    a => a.type == ResourceType.Resources || a.type == ResourceType.File))
-                    info.resourceList.Add(assetInfo);
+                    a => a.type == ResourceType.Resources || a.type == ResourceType.File)) { info.resourceList.Add(assetInfo); }
+                //检查一下AB包的Manifest信息是否存在
                 string manifestBundleName = Path.GetFileNameWithoutExtension(info.bundleOutputPath);
                 if (info.resourceList.Find(r=>r.bundleName == manifestBundleName)!=null) {
                     info.resourceList.Add(new ResourceInfo {
