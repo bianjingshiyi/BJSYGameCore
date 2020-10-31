@@ -166,7 +166,7 @@ namespace Tests
                 resInfo = manager.resourcesInfo.getInfoByPath(resInfoABPath);
                 Assert.AreEqual(ResourceType.Assetbundle, resInfo.type);
                 Assert.AreEqual(BUNDLENAME_RESOURCESINFO, resInfo.bundleName);
-                Assert.AreEqual(PATH_RESOURCESINFO, resInfo.path);
+                Assert.AreEqual(PATH_RESOURCESINFO.ToLower(), resInfo.path);
                 manager.resourcesInfo = manager.load<ResourcesInfo>(resInfo);
                 Assert.NotNull(manager.resourcesInfo);
             });
@@ -189,7 +189,7 @@ namespace Tests
                 string manifestABPath = "ab:" + ASSETNAME_MANIFEST;
                 resInfo = manager.resourcesInfo.getInfoByPath(manifestABPath);
                 Assert.AreEqual(ResourceType.Assetbundle, resInfo.type);
-                Assert.True(string.IsNullOrEmpty(resInfo.bundleName));
+                Assert.True(!string.IsNullOrEmpty(resInfo.bundleName));
                 Assert.AreEqual(ASSETNAME_MANIFEST, resInfo.path);
 
                 AssetBundleManifest manifest = manager.load<AssetBundleManifest>(resInfo);
@@ -212,13 +212,13 @@ namespace Tests
 
                 ResourceInfo resInfo = manager.resourcesInfo.getInfoByPath("ab:" + PATH_ASSET_TO_PACK);
                 Assert.AreEqual(ResourceType.Assetbundle, resInfo.type);
-                Assert.AreEqual(PATH_ASSET_TO_PACK, resInfo.path);
+                Assert.AreEqual(PATH_ASSET_TO_PACK.ToLower(), resInfo.path);
 
                 resInfo = manager.resourcesInfo.resourceList.Find(r => r.type == ResourceType.File && r.bundleName == resInfo.bundleName);
                 AssetBundle bundle = manager.loadAssetBundle(resInfo);
                 Assert.True(manager.loadAssetBundleFromCache(bundle.name, out bundle));
 
-                Object asset = bundle.LoadAsset(PATH_ASSET_TO_PACK.ToLower());
+                Object asset = bundle.LoadAsset(PATH_ASSET_TO_PACK);
                 Assert.AreEqual(Path.GetFileNameWithoutExtension(PATH_ASSET_TO_PACK), asset.name);
             });
         }

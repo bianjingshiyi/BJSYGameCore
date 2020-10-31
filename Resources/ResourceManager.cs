@@ -1,6 +1,10 @@
 ﻿using UnityEngine;
 using System;
 using System.Threading.Tasks;
+using BJSYGameCore.UI;
+using System.CodeDom;
+using System.IO;
+using UnityEngine.Networking;
 
 namespace BJSYGameCore
 {
@@ -56,9 +60,39 @@ namespace BJSYGameCore
         /// <typeparam name="T">资源类型</typeparam>
         /// <param name="info">资源信息</param>
         /// <returns>加载的资源</returns>
-        public T load<T>(ResourceInfo info)
+        public T load<T>(ResourceInfo info)where T:UnityEngine.Object
         {
-            throw new NotImplementedException();
+            switch (typeof(T).Name) {
+                case nameof(ResourcesInfo):
+                    if (resourcesInfo.resourceList.Contains(info))
+                        return resourcesInfo as T;
+                    else {
+                        Debug.LogError($"ResourceManager::resoucesInfo里面没有{info.path}");
+                        return null;
+                    }
+                case nameof(AssetBundleManifest):
+                    return loadAssetBundleManifest(info) as T;
+                default:
+                    switch (info.type) {
+                        case ResourceType.Assetbundle:
+                            if (typeof(T).Name == nameof(AssetBundle)) {
+                                return loadAssetBundle(info) as T;
+                            }
+                            else return loadFromAssetBundle(info.path) as T;
+                        case ResourceType.Resources:
+                            return loadFromResources(info.path) as T;
+                        case ResourceType.File:
+                            //using (UnityWebRequest req = UnityWebRequest.Get(Application.streamingAssetsPath + info.path)) {
+                            //    req.SendWebRequest();
+                            //    while (!req.isDone) {Debug.Log("loading"); }
+                            //    req.downloadHandler.data;
+                            //}
+                            //todo  : 不知道该如何处理，先放着.....
+                            return null;
+                    }
+                    return null;
+            }
+
         }
         /// <summary>
         /// 异步的加载一个资源。
@@ -70,6 +104,7 @@ namespace BJSYGameCore
         {
             throw new NotImplementedException();
         }
+        [Obsolete]
         public T loadFromBundle<T>(ResourcesInfo abInfo, string path)
         {
             if (loadFromAssetBundle(abInfo, path) is T t)
@@ -89,6 +124,6 @@ namespace BJSYGameCore
             Destroy(gameObject);
 #endif
         }
-        #endregion        
+#endregion
     }
 }

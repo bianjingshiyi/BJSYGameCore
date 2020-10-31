@@ -3,13 +3,13 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.Versioning;
 using System.Text.RegularExpressions;
+using System.IO;
 
 namespace BJSYGameCore
 {
     [CreateAssetMenu(fileName = nameof(ResourcesInfo), menuName = nameof(BJSYGameCore) + "/" + nameof(ResourcesInfo))]
     public class ResourcesInfo : ScriptableObject, IDisposable
     {
-        public ResourceInfo manifestInfo;
         public string bundleOutputPath;
         /// <summary>
         /// AssetBundleInfo自身的版本号

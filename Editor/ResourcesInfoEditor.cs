@@ -26,16 +26,18 @@ namespace BJSYGameCore
             }
         }
 
-        static void BuildInfoOfResourcesAndFile(ResourcesInfo info, params ResourceInfo[] assetsInfo)
+        static void BuildInfoOfResourcesAndFile(ResourcesInfo info,params ResourceInfo[] assetsInfo)
         {
             if (assetsInfo == null || assetsInfo.Length <= 0)
             {
-                foreach (string path in AssetDatabase.GetAllAssetPaths().Where(p => Regex.IsMatch(p, @".\.{1}\w+")))
+                //取得有文件后缀的路径
+                foreach (string path in AssetDatabase.GetAllAssetPaths().Where(p => File.Exists(p)))
                 {
                     string[] strs = path.Split('/');
                     if (strs.Any(s => s == "Assets"))
                     {
-                        if (strs.Any(s => s == "Resources") && strs.All(s => s != "Editor"))
+                        //取得Resources下面的文件，注意：过滤Editor下的Resources，过滤脚本
+                        if (strs.Any(s => s == "Resources") && strs.All(s => s != "Editor") && !strs.Last().EndsWith(".cs"))
                         {
                             info.resourceList.Add(new ResourceInfo
                             {
@@ -43,15 +45,28 @@ namespace BJSYGameCore
                                 path = Regex.Match(path, @"/Resources/{1}\w+").ToString().removeHead("/Resources/"),
                                 version = info.version
                             });
+                            //Debug.Log($"{Regex.Match(path, @"/Resources/{1}\w+").ToString().removeHead("/Resources/")}");
                         }
-                        else if (strs.Any(s => s == "StreamingAssets"))
+                        //取得StreamingAssets下面的文件，注意:过滤xxx.mainfest
+                        else if (strs.Any(s => s == "StreamingAssets") && !strs.Last().EndsWith(".manifest"))
                         {
-                            info.resourceList.Add(new ResourceInfo
-                            {
-                                type = ResourceType.File,
-                                path = path,
-                                version = info.version
-                            });
+                            if (path.Contains(info.bundleOutputPath)) {
+                                var tempInfo = info.resourceList.Find(r => Path.GetFileName(path) == r.bundleName);
+                                if (tempInfo != null)
+                                    info.resourceList.Add(new ResourceInfo {
+                                        type = ResourceType.File,
+                                        path = path,
+                                        bundleName = tempInfo.bundleName,
+                                        version = info.version
+                                    });
+                            }
+                            else{
+                                info.resourceList.Add(new ResourceInfo {
+                                    type = ResourceType.File,
+                                    path = path,
+                                    version = info.version
+                                });
+                            }
                         }
                     }
                 }
@@ -61,6 +76,16 @@ namespace BJSYGameCore
                 foreach (ResourceInfo assetInfo in assetsInfo.Where(
                     a => a.type == ResourceType.Resources || a.type == ResourceType.File))
                     info.resourceList.Add(assetInfo);
+                string manifestBundleName = Path.GetFileNameWithoutExtension(info.bundleOutputPath);
+                if (info.resourceList.Find(r=>r.bundleName == manifestBundleName)!=null) {
+                    info.resourceList.Add(new ResourceInfo {
+                        path = info.bundleOutputPath+"/"+manifestBundleName,
+                        type = ResourceType.File,
+                        bundleName = manifestBundleName,
+                        version = info.version
+                    });
+                }
+
             }
         }
 
@@ -111,19 +136,12 @@ namespace BJSYGameCore
                 //打包完毕，处理AssetBundleInfo，首先处理生成的Manifest
                 if (manifest != null)
                 {
-                    string manifestBundleName = dirInfo.Name;
-                    AssetBundle manifestBundle = AssetBundle.LoadFromFile(outputDir + "/" + manifestBundleName);
-                    if (info.manifestInfo == null)
-                    {
-                        info.manifestInfo = new ResourceInfo
-                        {
-                            path = "AssetBundleManifest",
-                            type = ResourceType.Assetbundle,
-                            bundleName = manifestBundleName,
-                            version = info.version
-                        };
-                    }
-                    manifestBundle.Unload(true);
+                    info.resourceList.Add(new ResourceInfo {
+                        path = "assetbundlemanifest",
+                        type = ResourceType.Assetbundle,
+                        bundleName = dirInfo.Name,
+                        version = info.version
+                    });
                     //处理所有的AB包
                     foreach (var bundleName in manifest.GetAllAssetBundles())
                     {
@@ -152,7 +170,7 @@ namespace BJSYGameCore
                         bundle.Unload(true);
                     }
                 }
-                BuildInfoOfResourcesAndFile(info, assetsInfo);
+                BuildInfoOfResourcesAndFile(info,assetsInfo);
                 return true;
             }
             finally
@@ -169,7 +187,6 @@ namespace BJSYGameCore
                     }
                 }
             }
-
         }
     }
 }
