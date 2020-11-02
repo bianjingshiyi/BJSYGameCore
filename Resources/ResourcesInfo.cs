@@ -47,7 +47,10 @@ namespace BJSYGameCore
                 throw new ArgumentException("ResourcesInfo::getInfoByPath 找不到资源，请检查路径是否错误");
             return res;
         }
-
+        public ResourceInfo getAssetBundleInfoByName(string bundleName)
+        {
+            return resourceList.Find(r => r.type == ResourceType.File && r.bundleName == bundleName);
+        }
         /// <summary>
         /// ManifestBundle信息
         /// </summary>

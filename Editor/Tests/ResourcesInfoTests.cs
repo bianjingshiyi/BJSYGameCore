@@ -12,6 +12,7 @@ using Object = UnityEngine.Object;
 using System.Linq;
 using System.Text.RegularExpressions;
 using UnityEngine.Rendering;
+using System.Threading.Tasks;
 
 namespace Tests
 {
@@ -20,6 +21,7 @@ namespace Tests
         const string PATH_RESOURCE_TO_LOAD = "ResourceToLoad";
         const string PATH_RESOURCE_NOT_TO_LOAD = "ResourceNotToLoad";
         const string PATH_ASSET_TO_PACK = "Assets/Plugins/BJSYGameCore/Tests/AssetToPack.prefab";
+        const string PATH_DEPENDENT_ASSET = "Assets/Plugins/BJSYGameCore/Tests/DependentAsset.prefab";
         const string PATH_FILE_TO_READ = "Assets/StreamingAssets/FileToRead.txt";
         const string PATH_BUILD_OUTPUT = "Assets/StreamingAssets/AssetBundles";
         const string PATH_RESOURCESINFO = "Assets/Plugins/BJSYGameCore/Tests/ResourcesInfo.asset";
@@ -117,9 +119,17 @@ namespace Tests
         {
             createManagerBuildAndAssert(loadAllKindResAssert);
         }
-        private void createManagerBuildAndAssert(Action<ResourceManager> onAssert)
+        private void createManagerBuildAndAssert(Action<ResourceManager> onAssert, bool reCreate = true)
         {
-            using (ResourceManager manager = ResourceManagerTests.createManager())
+            if (!reCreate && manager != null)
+            {
+                usingTempFile(() =>
+                {
+                    onAssert?.Invoke(manager);
+                });
+                return;
+            }
+            using (manager = ResourceManagerTests.createManager())
             {
                 using (ResourcesInfo info = ScriptableObject.CreateInstance<ResourcesInfo>())
                 {
@@ -131,7 +141,9 @@ namespace Tests
                     });
                 }
             }
+            manager = null;
         }
+        ResourceManager manager;
         private static void loadAllKindResAssert(ResourceManager manager)
         {
             //Resources
@@ -214,13 +226,151 @@ namespace Tests
                 Assert.AreEqual(ResourceType.Assetbundle, resInfo.type);
                 Assert.AreEqual(PATH_ASSET_TO_PACK.ToLower(), resInfo.path);
 
-                resInfo = manager.resourcesInfo.resourceList.Find(r => r.type == ResourceType.File && r.bundleName == resInfo.bundleName);
+                resInfo = manager.resourcesInfo.getAssetBundleInfoByName(resInfo.bundleName);
                 AssetBundle bundle = manager.loadAssetBundle(resInfo);
                 Assert.True(manager.loadAssetBundleFromCache(bundle.name, out bundle));
 
                 Object asset = bundle.LoadAsset(PATH_ASSET_TO_PACK);
                 Assert.AreEqual(Path.GetFileNameWithoutExtension(PATH_ASSET_TO_PACK), asset.name);
             });
+        }
+        /// <summary>
+        /// 已经被加载过的资源可以直接从缓存中读取。
+        /// </summary>
+        [Test]
+        public void loadFromCacheTest()
+        {
+            createManagerBuildAndAssert(manager =>
+            {
+                GameObject res = manager.load<GameObject>("res:" + PATH_RESOURCE_TO_LOAD);
+                Assert.NotNull(res);
+                Assert.True(manager.loadFromCache("res:" + PATH_RESOURCE_TO_LOAD, out GameObject cachedRes));
+                Assert.AreEqual(res, cachedRes);
+            }, false);
+        }
+        /// <summary>
+        /// 已经被加载过的资源包可以直接从缓存中读取。
+        /// </summary>
+        [Test]
+        public void loadAssetBundleFromCacheTest()
+        {
+            createManagerBuildAndAssert(manager =>
+            {
+                AssetBundle bundle = manager.loadAssetBundle(
+                    manager.resourcesInfo.getAssetBundleInfoByName(
+                        manager.resourcesInfo.getInfoByPath("ab:" + PATH_ASSET_TO_PACK).bundleName));
+                Assert.NotNull(bundle);
+                Assert.True(manager.loadAssetBundleFromCache(
+                    manager.resourcesInfo.getInfoByPath("ab:" + PATH_ASSET_TO_PACK).bundleName, out AssetBundle cachedBundle));
+                Assert.AreEqual(bundle, cachedBundle);
+            }, false);
+        }
+        /// <summary>
+        /// 异步加载资源
+        /// </summary>
+        /// <returns></returns>
+        [UnityTest]
+        public IEnumerator loadAllKindResAsyncTest()
+        {
+            yield return createManagerBuildAndAssertAsync(loadAllKindResAsyncAssert, false);
+        }
+        IEnumerator loadAllKindResAsyncAssert(ResourceManager manager)
+        {
+            //Resources
+            var loadOp = Resources.LoadAsync(PATH_RESOURCE_TO_LOAD);
+            yield return loadOp;
+            Object asset = loadOp.asset;
+            var objTask = manager.loadFromResourcesAsync<Object>("res:" + PATH_RESOURCE_TO_LOAD);
+            yield return objTask.wait();
+            Object resource = objTask.Result;
+            Assert.AreEqual(asset, resource);
+            //AssetBundle
+            asset = AssetDatabase.LoadAssetAtPath<GameObject>(PATH_ASSET_TO_PACK);
+            var goTask = manager.loadFromAssetBundleAsync<GameObject>("ab:" + PATH_ASSET_TO_PACK);
+            yield return goTask.wait();
+            resource = goTask.Result;
+            Assert.IsInstanceOf<GameObject>(resource);
+            Assert.AreEqual(asset.name, resource.name);
+            //File
+            Assert.True(File.Exists(PATH_FILE_TO_READ));
+            //文件一般都是直接通过System.IO或者WebRequest来读取文件流，所以这里不做读取测试。
+            //其实是我懒得写。
+        }
+        IEnumerator createManagerBuildAndAssertAsync(Func<ResourceManager, IEnumerator> onAssert, bool reCreate = false)
+        {
+            if (!reCreate && manager != null)
+            {
+                bool isFileTemp = false;
+                if (!Directory.Exists(Path.GetDirectoryName(PATH_FILE_TO_READ)))
+                    Directory.CreateDirectory(Path.GetDirectoryName(PATH_FILE_TO_READ));
+                if (!File.Exists(PATH_FILE_TO_READ))
+                {
+                    isFileTemp = true;
+                    File.Create(PATH_FILE_TO_READ).Close();
+                }
+                yield return onAssert?.Invoke(manager);
+                if (isFileTemp)
+                    File.Delete(PATH_FILE_TO_READ);
+                yield break;
+            }
+            using (manager = ResourceManagerTests.createManager())
+            {
+                using (ResourcesInfo info = ScriptableObject.CreateInstance<ResourcesInfo>())
+                {
+                    bool isFileTemp = false;
+                    if (!Directory.Exists(Path.GetDirectoryName(PATH_FILE_TO_READ)))
+                        Directory.CreateDirectory(Path.GetDirectoryName(PATH_FILE_TO_READ));
+                    if (!File.Exists(PATH_FILE_TO_READ))
+                    {
+                        isFileTemp = true;
+                        File.Create(PATH_FILE_TO_READ).Close();
+                    }
+                    ResourcesInfoEditor.build(info, PATH_BUILD_OUTPUT);
+                    manager.resourcesInfo = info;
+                    yield return onAssert?.Invoke(manager);
+                    if (isFileTemp)
+                        File.Delete(PATH_FILE_TO_READ);
+                }
+            }
+            manager = null;
+        }
+        /// <summary>
+        /// 同时异步加载多个AssetBundle应当只存在一个AssetBundle加载线程，
+        /// 当这个AssetBundle加载完成之后，其他的Task也会完成。
+        /// </summary>
+        /// <returns></returns>
+        [UnityTest]
+        public IEnumerator loadBundleAsyncSameTimeTest()
+        {
+            yield return createManagerBuildAndAssertAsync(loadBundleAsyncSameTimeTest, false);
+        }
+        IEnumerator loadBundleAsyncSameTimeTest(ResourceManager manager)
+        {
+            var task1 = manager.loadAssetBundleAsync(
+                manager.resourcesInfo.getAssetBundleInfoByName(
+                    manager.resourcesInfo.getInfoByPath("ab:" + PATH_ASSET_TO_PACK).bundleName));
+            var task2 = manager.loadAssetBundleAsync(
+                manager.resourcesInfo.getAssetBundleInfoByName(
+                    manager.resourcesInfo.getInfoByPath("ab:" + PATH_ASSET_TO_PACK).bundleName));
+            yield return task1.wait();
+            Assert.AreEqual(task1.IsCompleted, task2.IsCompleted);
+        }
+        /// <summary>
+        /// 在加载AssetBundle的时候会先加载所有依赖包，然后再加载本体。
+        /// </summary>
+        /// <returns></returns>
+        [UnityTest]
+        public IEnumerator loadDenpendentBundleTest()
+        {
+            yield return createManagerBuildAndAssertAsync(loadDenpendentBundleAssert, false);
+        }
+        IEnumerator loadDenpendentBundleAssert(ResourceManager manager)
+        {
+            yield return manager.loadAssetBundleAsync(
+               manager.resourcesInfo.getAssetBundleInfoByName(
+                   manager.resourcesInfo.getInfoByPath("ab:" + PATH_DEPENDENT_ASSET).bundleName)).wait();
+            Assert.True(manager.loadAssetBundleFromCache(manager.resourcesInfo.getInfoByPath("ab:" + PATH_ASSET_TO_PACK).bundleName, out _));
+            Assert.True(manager.loadAssetBundleFromCache(manager.resourcesInfo.getInfoByPath("ab:" + PATH_ASSET_TO_PACK).bundleName, out _));
         }
     }
 }

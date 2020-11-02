@@ -10,6 +10,8 @@ namespace Tests
     {
         const string PATH_BUILD_OUTPUT = "Tests/AssetBundles";
         const string PATH_ASSET_TO_PACK = "Assets/Plugins/BJSYGameCore/Tests/AssetToPack.prefab";
+        const string BUNDLE_NAME_TEST_VARIANT = "test.varaint";
+        const string BUNDLE_NAME_DEPENDENT = "dependent";
         [Test]
         public void buildTest()
         {
@@ -44,6 +46,14 @@ namespace Tests
             Assert.True(bundle.GetAllAssetNames().Contains(PATH_ASSET_TO_PACK.ToLower()));
             Object asset = bundle.LoadAsset(PATH_ASSET_TO_PACK.ToLower());
             Assert.AreEqual(Path.GetFileNameWithoutExtension(PATH_ASSET_TO_PACK), asset.name);
+        }
+        [Test]
+        public void dependentTest()
+        {
+            BuildPipeline.BuildAssetBundles(PATH_BUILD_OUTPUT, BuildAssetBundleOptions.None, BuildTarget.StandaloneWindows);
+            AssetBundle bundle = AssetBundle.LoadFromFile(PATH_BUILD_OUTPUT + "/" + Path.GetFileNameWithoutExtension(PATH_BUILD_OUTPUT));
+            AssetBundleManifest manifest = bundle.LoadAsset<AssetBundleManifest>(bundle.GetAllAssetNames()[0]);
+            Assert.True(manifest.GetAllDependencies(BUNDLE_NAME_DEPENDENT).Contains(BUNDLE_NAME_TEST_VARIANT));
         }
     }
 }

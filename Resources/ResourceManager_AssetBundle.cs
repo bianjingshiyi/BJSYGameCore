@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Object = UnityEngine.Object;
 using JetBrains.Annotations;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace BJSYGameCore
 {
@@ -15,7 +16,8 @@ namespace BJSYGameCore
         /// </summary>
         /// <param name="info"></param>
         /// <returns></returns>
-        public Object loadFromResources(string path) {
+        public Object loadFromResources(string path)
+        {
             //checkPathIsValid(path);
             ResourceInfo info = resourcesInfo.getInfoByPath(path);
             Object obj;
@@ -27,6 +29,10 @@ namespace BJSYGameCore
             saveToCache(info.path, obj);
             return obj;
         }
+        public Task<T> loadFromResourcesAsync<T>(string path)
+        {
+            throw new NotImplementedException();
+        }
         /// <summary>
         /// 从AssetBundle中加载资源。
         /// </summary>
@@ -37,12 +43,14 @@ namespace BJSYGameCore
             //checkPathIsValid(path);
             ResourceInfo info = resourcesInfo.getInfoByPath(path);
             //直接去UObject缓存找UObject
-            if (!loadFromCache<Object>(info.path, out var obj)) {
+            if (!loadFromCache<Object>(info.path, out var obj))
+            {
                 //上一步找不到，就加载AB包并Load出UObject
                 AssetBundle infoBundle = loadAssetBundle(info);
                 obj = infoBundle.LoadAsset(info.path);
 
-                if (obj == null) {
+                if (obj == null)
+                {
                     Debug.LogError($"从AB包加载{info.path}失败");
                     return null;
                 }
@@ -50,9 +58,15 @@ namespace BJSYGameCore
             }
             return obj;
         }
-        public AssetBundle loadAssetBundle(ResourceInfo info) {
+        public Task<T> loadFromAssetBundleAsync<T>(string path)
+        {
+            throw new NotImplementedException();
+        }
+        public AssetBundle loadAssetBundle(ResourceInfo info)
+        {
             //尝试在AB包Cache去获取infoBundle
-            if (!loadAssetBundleFromCache(info.bundleName, out var infoBundle)) {
+            if (!loadAssetBundleFromCache(info.bundleName, out var infoBundle))
+            {
                 //上一步找不到，就去加载info的AB包，
                 //在这之前要加载依赖
                 string manifestPath = resourcesInfo.bundleOutputPath + "/" +
@@ -62,14 +76,18 @@ namespace BJSYGameCore
                 //加载依赖项
                 var dependencies = manifest.GetDirectDependencies(info.bundleName);
                 List<string> dependenceList = null;
-                if (dependencies != null && dependencies.Length > 0) {
-                    foreach (var dependence in dependencies) {
+                if (dependencies != null && dependencies.Length > 0)
+                {
+                    foreach (var dependence in dependencies)
+                    {
                         AssetBundle dependencedBundle = loadBundleFromFileOrWeb(dependence);
-                        if (dependencedBundle == null) {
+                        if (dependencedBundle == null)
+                        {
                             Debug.LogError("加载" + info.bundleName + "的依赖项" + dependence + "失败");
                             return null;
                         }
-                        else {
+                        else
+                        {
                             //记录依赖
                             if (dependenceList == null)
                                 dependenceList = new List<string>();
@@ -78,18 +96,24 @@ namespace BJSYGameCore
                     }
                 }
                 infoBundle = loadBundleFromFileOrWeb(info.bundleName);
-                if (infoBundle == null) {
+                if (infoBundle == null)
+                {
                     Debug.LogError($"加载AB包{info.bundleName}失败");
                     return null;
                 }
-                else {
+                else
+                {
                     var cacheItem = saveBundleToCache(info.bundleName, infoBundle);
                     cacheItem.dependenceList = dependenceList;
                 }
             }
             return infoBundle;
         }
-        #if UNITY_EDITOR
+        public Task<AssetBundle> loadAssetBundleAsync(ResourceInfo info)
+        {
+            throw new NotImplementedException();
+        }
+#if UNITY_EDITOR
         /// <summary>
         /// 从AssetDatabase中加载资源。
         /// </summary>
@@ -104,20 +128,25 @@ namespace BJSYGameCore
             saveToCache(info.path, obj);
             return obj;
         }
-        #endif
+#endif
         #endregion
         #region 私有成员
-        AssetBundleManifest loadAssetBundleManifest(ResourceInfo manifestInfo) {
+        AssetBundleManifest loadAssetBundleManifest(ResourceInfo manifestInfo)
+        {
             //在UObject缓存找manifest
-            if (!loadFromCache<AssetBundleManifest>(manifestInfo.path, out var manifest)) {
+            if (!loadFromCache<AssetBundleManifest>(manifestInfo.path, out var manifest))
+            {
                 //上一步找不到，就在AB包缓存去找manifest的AB包并Load出manifest
-                if (!loadAssetBundleFromCache(manifestInfo.bundleName, out var manifestBundle)) {
+                if (!loadAssetBundleFromCache(manifestInfo.bundleName, out var manifestBundle))
+                {
                     manifestBundle = loadBundleFromFileOrWeb(manifestInfo.bundleName);
-                    if (manifestBundle == null) {
+                    if (manifestBundle == null)
+                    {
                         Debug.LogError("加载AssetBundleManifest失败");
                         return null;
                     }
-                    else {
+                    else
+                    {
                         saveBundleToCache(manifestInfo.bundleName, manifestBundle);
                     }
                 }
@@ -129,7 +158,8 @@ namespace BJSYGameCore
         {
             throw new NotImplementedException();
         }
-        void checkPathIsValid(string path) {
+        void checkPathIsValid(string path)
+        {
             //路径格式校验
             if (string.IsNullOrEmpty(path))
                 throw new ArgumentException("资源地址不能为空", nameof(path));
@@ -137,18 +167,21 @@ namespace BJSYGameCore
             if (index < 0)
                 throw new ArgumentException(path + "不是有效的资源地址格式", nameof(path));
         }
-        AssetBundle loadBundleFromFileOrWeb(string bundleName) {
+        AssetBundle loadBundleFromFileOrWeb(string bundleName)
+        {
             //TODO:AssetBundle加载的Web实现。
-            return AssetBundle.LoadFromFile(resourcesInfo.bundleOutputPath+"/"+bundleName);
+            return AssetBundle.LoadFromFile(resourcesInfo.bundleOutputPath + "/" + bundleName);
         }
-        BundleCacheItem saveBundleToCache(string name, AssetBundle bundle) {
+        BundleCacheItem saveBundleToCache(string name, AssetBundle bundle)
+        {
             BundleCacheItem cacheItem = new BundleCacheItem() { bundle = bundle };
             bundleCacheDic[name] = cacheItem;
             return cacheItem;
         }
         Dictionary<string, BundleCacheItem> bundleCacheDic { get; } = new Dictionary<string, BundleCacheItem>();
         [Serializable]
-        class BundleCacheItem {
+        class BundleCacheItem
+        {
             public AssetBundle bundle = null;
             public List<string> dependenceList = null;
         }
@@ -156,14 +189,17 @@ namespace BJSYGameCore
 
 
         [Obsolete]
-        public Object loadFromAssetBundle(ResourceInfo info) {
+        public Object loadFromAssetBundle(ResourceInfo info)
+        {
             checkPathIsValid(info.path);
             //直接去UObject缓存找UObject
-            if (!loadFromCache<Object>(info.path, out var obj)) {
+            if (!loadFromCache<Object>(info.path, out var obj))
+            {
                 //上一步找不到，就加载AB包并Load出UObject
                 AssetBundle infoBundle = loadAssetBundle(info);
                 obj = infoBundle.LoadAsset(info.path);
-                if (obj == null) {
+                if (obj == null)
+                {
                     Debug.LogError($"从AB包加载{info.path}失败");
                     return null;
                 }
@@ -172,7 +208,8 @@ namespace BJSYGameCore
             return obj;
         }
         [Obsolete]
-        public Object loadFromResources(ResourceInfo info) {
+        public Object loadFromResources(ResourceInfo info)
+        {
             checkPathIsValid(info.path);
             Object obj;
             if (loadFromCache(info.path, out obj))
@@ -190,7 +227,8 @@ namespace BJSYGameCore
         /// <param name="path">资源路径，格式为包名/资源相对路径</param>
         /// <returns></returns>
         [Obsolete]
-        public Object loadFromAssetBundle(ResourcesInfo abInfo, string path) {
+        public Object loadFromAssetBundle(ResourcesInfo abInfo, string path)
+        {
             if (string.IsNullOrEmpty(path))
                 throw new ArgumentException("资源地址不能为空", nameof(path));
             int index = path.Replace('\\', '/').IndexOf('/');
@@ -198,10 +236,12 @@ namespace BJSYGameCore
                 throw new ArgumentException(path + "不是有效的资源地址格式", nameof(path));
             string bundleName = path.Substring(0, index).ToLower();
             AssetBundleInfoItem bundleInfo = abInfo.bundleList.Find(b => b.bundleName == bundleName);
-            if (bundleInfo != null) {
+            if (bundleInfo != null)
+            {
                 string assetPath = path.Substring(index + 1, path.Length - index - 1);
                 ResourceInfo assetInfo = bundleInfo.assetList.Find(a => a.path == assetPath);
-                if (assetInfo != null) {
+                if (assetInfo != null)
+                {
                     AssetBundle bundle = loadBundle(abInfo, bundleInfo);
                     Object asset = bundle.LoadAsset(assetInfo.assetPath);
                     saveToCache(path, asset);
