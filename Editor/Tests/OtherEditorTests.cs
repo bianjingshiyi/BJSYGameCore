@@ -55,5 +55,14 @@ namespace Tests
             AssetBundleManifest manifest = bundle.LoadAsset<AssetBundleManifest>(bundle.GetAllAssetNames()[0]);
             Assert.True(manifest.GetAllDependencies(BUNDLE_NAME_DEPENDENT).Contains(BUNDLE_NAME_TEST_VARIANT));
         }
+        const string PATH_AUTOUI = "Assets/Plugins/BJSYGameCore/Tests/Editor/AutoUI.RectTransform,Animator.prefab";
+        [Test]
+        public void getPrefabByIdTest()
+        {
+            Object obj = AssetDatabase.LoadAssetAtPath<GameObject>(PATH_AUTOUI);
+            int id = obj.GetInstanceID();
+            Debug.Log(id);
+            Assert.AreEqual(obj, EditorUtility.InstanceIDToObject(id));
+        }
     }
 }
