@@ -19,41 +19,8 @@ namespace BJSYGameCore
             set { _resourcesInfo = value; }
         }
         #endregion
+
         #region 公开接口
-        /// <summary>
-        /// 同步的加载一个资源。
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="path"></param>
-        /// <returns></returns>
-        public T load<T>(string path)
-        {
-            T res;
-            if (string.IsNullOrEmpty(path))
-                throw new ArgumentException("路径不能为空", nameof(path));
-            else if (loadFromCache<T>(path, out var cachedRes))//尝试从缓存中加载
-            {
-                return cachedRes;
-            }
-            else if (path.StartsWith("res:"))//尝试从资源中加载
-            {
-                var uRes = Resources.Load(path.Substring(4, path.Length - 4));
-                if (uRes == null)
-                    res = default;
-                else if (uRes is T t)
-                    res = t;
-                else
-                    throw new InvalidCastException("资源\"" + path + "\"" + uRes + "不是" + typeof(T).Name);
-            }
-            else if (path.StartsWith("ab:") && resourcesInfo != null)
-            {
-                res = loadFromBundle<T>(resourcesInfo, path.Substring(3, path.Length - 3));
-            }
-            else
-                throw new InvalidOperationException("无法加载类型为" + typeof(T).Name + "的资源" + path);
-            saveToCache(path, res);
-            return res;
-        }
         /// <summary>
         /// 同步的加载一个资源
         /// </summary>
@@ -100,9 +67,46 @@ namespace BJSYGameCore
         /// <typeparam name="T"></typeparam>
         /// <param name="path"></param>
         /// <returns></returns>
-        public Task<T> loadAsync<T>(string path)
+        public async Task<T> loadAsync<T>(string path)
         {
             throw new NotImplementedException();
+        }
+        #endregion
+
+
+#region 废弃方法，不知道还用不用得着，先留着
+        /// <summary>
+        /// 同步的加载一个资源。
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="path"></param>
+        /// <returns></returns>
+        [Obsolete]
+        public T load<T>(string path) {
+            T res;
+            if (string.IsNullOrEmpty(path))
+                throw new ArgumentException("路径不能为空", nameof(path));
+            else if (loadFromCache<T>(path, out var cachedRes))//尝试从缓存中加载
+            {
+                return cachedRes;
+            }
+            else if (path.StartsWith("res:"))//尝试从资源中加载
+            {
+                var uRes = Resources.Load(path.Substring(4, path.Length - 4));
+                if (uRes == null)
+                    res = default;
+                else if (uRes is T t)
+                    res = t;
+                else
+                    throw new InvalidCastException("资源\"" + path + "\"" + uRes + "不是" + typeof(T).Name);
+            }
+            else if (path.StartsWith("ab:") && resourcesInfo != null) {
+                res = loadFromBundle<T>(resourcesInfo, path.Substring(3, path.Length - 3));
+            }
+            else
+                throw new InvalidOperationException("无法加载类型为" + typeof(T).Name + "的资源" + path);
+            saveToCache(path, res);
+            return res;
         }
         [Obsolete]
         public T loadFromBundle<T>(ResourcesInfo abInfo, string path)
@@ -112,6 +116,8 @@ namespace BJSYGameCore
             else
                 return default;
         }
+#endregion
+
         public void Dispose()
         {
             cacheDic.Clear();
@@ -124,6 +130,6 @@ namespace BJSYGameCore
             Destroy(gameObject);
 #endif
         }
-#endregion
+
     }
 }

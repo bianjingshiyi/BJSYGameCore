@@ -277,9 +277,7 @@ namespace Tests
         IEnumerator loadAllKindResAsyncAssert(ResourceManager manager)
         {
             //Resources
-            var loadOp = Resources.LoadAsync(PATH_RESOURCE_TO_LOAD);
-            yield return loadOp;
-            Object asset = loadOp.asset;
+            Object asset = Resources.Load(PATH_RESOURCE_TO_LOAD);
             var objTask = manager.loadFromResourcesAsync<Object>("res:" + PATH_RESOURCE_TO_LOAD);
             yield return objTask.wait();
             Object resource = objTask.Result;
@@ -360,7 +358,7 @@ namespace Tests
         /// </summary>
         /// <returns></returns>
         [UnityTest]
-        public IEnumerator loadDenpendentBundleTest()
+        public IEnumerator loadDenpendentBundleTest() 
         {
             yield return createManagerBuildAndAssertAsync(loadDenpendentBundleAssert, false);
         }

@@ -26,6 +26,7 @@ namespace BJSYGameCore
             }
         }
 
+        //处理Resources和StreamingAssets(File)的info生成
         static void BuildInfoOfResourcesAndFile(ResourcesInfo info,params ResourceInfo[] assetsInfo)
         {
             if (assetsInfo == null || assetsInfo.Length <= 0)
@@ -45,13 +46,15 @@ namespace BJSYGameCore
                                 path = Regex.Match(path, @"/Resources/{1}\w+").ToString().removeHead("/Resources/"),
                                 version = info.version
                             });
-                            //Debug.Log($"{Regex.Match(path, @"/Resources/{1}\w+").ToString().removeHead("/Resources/")}");
                         }
                         //取得StreamingAssets下面的文件，注意:过滤xxx.mainfest
                         else if (strs.Any(s => s == "StreamingAssets") && !strs.Last().EndsWith(".manifest"))
                         {
+                            //如果path包含了AB包的输出路径，需要记录下AB包名
                             if (path.Contains(info.bundleOutputPath)) {
+                                //resourceList里面应该是找得到AB包名
                                 var tempInfo = info.resourceList.Find(r => Path.GetFileName(path) == r.bundleName);
+                                //记录下AB包名
                                 if (tempInfo != null)
                                     info.resourceList.Add(new ResourceInfo {
                                         type = ResourceType.File,
@@ -60,6 +63,7 @@ namespace BJSYGameCore
                                         version = info.version
                                     });
                             }
+                            //否则path就是个普通的文件
                             else{
                                 info.resourceList.Add(new ResourceInfo {
                                     type = ResourceType.File,
@@ -133,29 +137,25 @@ namespace BJSYGameCore
                 AssetBundleManifest manifest = BuildPipeline.BuildAssetBundles(outputDir,
                 BuildAssetBundleOptions.StrictMode | BuildAssetBundleOptions.ChunkBasedCompression,
                 EditorUserBuildSettings.activeBuildTarget);
-                //打包完毕，处理AssetBundleInfo，首先处理生成的Manifest
-                if (manifest != null)
-                {
+                //打包完毕，处理AssetBundleInfo
+                if (manifest != null) {
+                    //首先处理生成的Manifest
                     info.resourceList.Add(new ResourceInfo {
                         path = "assetbundlemanifest",
                         type = ResourceType.Assetbundle,
                         bundleName = dirInfo.Name,
                         version = info.version
                     });
-                    //处理所有的AB包
-                    foreach (var bundleName in manifest.GetAllAssetBundles())
-                    {
+                    //然后处理所有的AB包
+                    foreach (var bundleName in manifest.GetAllAssetBundles()) {
                         string bundlePath = Path.Combine(outputDir, bundleName);
                         AssetBundle bundle = AssetBundle.LoadFromFile(bundlePath);
-                        foreach (var path in bundle.GetAllAssetNames())
-                        {
+                        foreach (var path in bundle.GetAllAssetNames()) {
                             ResourceInfo assetInfo = info.resourceList.Find(a => a.path == path);
-                            if (assetInfo == null)
-                            {
+                            if (assetInfo == null) {
                                 if (assetsInfo.Length > 0)
                                     assetInfo = assetsInfo.FirstOrDefault(a => a.path == path);
-                                if (assetInfo == null)
-                                {
+                                if (assetInfo == null) {
                                     assetInfo = new ResourceInfo
                                     {
                                         path = path,

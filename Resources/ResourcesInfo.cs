@@ -37,14 +37,15 @@ namespace BJSYGameCore
                         res =  resourceList.Find(r => r.type == ResourceType.Assetbundle && r.path == realPath.ToLower());
                         break;
                     default:
-                        throw new ArgumentException("ResourcesInfo::getInfoByPath 资源path的前缀不合法！！！");
+                        Debug.LogError($"\"{path}\" 路径的前缀不合法！！！");
+                        return res;
                 }
             }
             else {
                 res = resourceList.Find(r => r.type == ResourceType.File && r.path == path);
             }
             if (res == null)
-                throw new ArgumentException("ResourcesInfo::getInfoByPath 找不到资源，请检查路径是否错误");
+                Debug.LogError($"找不到ResoucesInfo，请检查路径\"{path}\"是否错误");
             return res;
         }
         public ResourceInfo getAssetBundleInfoByName(string bundleName)
