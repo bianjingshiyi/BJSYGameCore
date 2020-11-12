@@ -22,7 +22,7 @@ namespace Tests
             gameObject.AddComponent<Image>();
             gameObject = gameObject.transform.root.gameObject;
 
-            var unit = AutoCompoGenerator.genScript4GO(gameObject, new AutoCompoGenSetting()
+            var unit = new AutoCompoGenerator().genScript4GO(gameObject, new AutoCompoGenSetting()
             {
                 usings = new string[]
                 {
