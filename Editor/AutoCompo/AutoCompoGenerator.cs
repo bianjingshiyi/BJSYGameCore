@@ -55,10 +55,7 @@ namespace BJSYGameCore.AutoCompo
                     Component component = gameObject.GetComponent(compoTypeName);
                     if (component == null)
                         continue;
-                    string fieldName = genFieldName4RootCompo(component);
-                    genFieldWithInit4Compo(component, fieldName, new string[0]);
-                    string propName = genPropName4RootCompo(component);
-                    genProp4Compo(component, propName, fieldName);
+                    genRootCompo(component);
                 }
             }
             //处理子物体
@@ -69,6 +66,21 @@ namespace BJSYGameCore.AutoCompo
             }
             return unit;
         }
+
+        void genRootCompo(Component component)
+        {
+            string fieldName = genFieldName4RootCompo(component);
+            string[] path = new string[0];
+            string propName = genPropName4RootCompo(component);
+            genFieldPropInit4Compo(component, fieldName, propName, path);
+        }
+
+        void genFieldPropInit4Compo(Component component, string fieldName, string propName, string[] path)
+        {
+            genFieldWithInit4Compo(component, fieldName, path);
+            genProp4Compo(component, propName, fieldName);
+        }
+
         void genProp4Compo(Component component, string propName, string fieldName)
         {
             CodeMemberProperty prop = new CodeMemberProperty();
@@ -122,8 +134,8 @@ namespace BJSYGameCore.AutoCompo
                     Component component = gameObject.GetComponent(compoTypeName);
                     if (component == null)
                         continue;
-                    genFieldWithInit4Compo(component, genFieldName4Compo(component),
-                        getPath(_rootGameObject, gameObject));
+                    genFieldPropInit4Compo(component, genFieldName4Compo(component),
+                        genPropName4Compo(component), getPath(_rootGameObject, gameObject));
                 }
             }
             //处理子物体
@@ -171,6 +183,14 @@ namespace BJSYGameCore.AutoCompo
             {
                 return "_" + fieldName + component.GetType().Name;
             }
+            else
+                throw new FormatException();
+        }
+        string genPropName4Compo(Component component)
+        {
+            string propName;
+            if (tryParseGOName(component.gameObject.name, out propName, out _))
+                return propName + component.GetType().Name;
             else
                 throw new FormatException();
         }
