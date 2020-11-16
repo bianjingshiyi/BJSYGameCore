@@ -6,6 +6,7 @@ namespace BJSYGameCore
     public class Timer
     {
         public float startTime = -1;
+        public float updateTime = -1;
         public float duration = 0;
         public bool isStarted
         {
@@ -14,6 +15,7 @@ namespace BJSYGameCore
         public void reset()
         {
             startTime = -1;
+            updateTime = -1;
         }
         public void start()
         {
@@ -22,6 +24,13 @@ namespace BJSYGameCore
         public void start(float now)
         {
             startTime = now;
+        }
+        public bool update(float time)
+        {
+            if (updateTime < 0)
+                updateTime = 0;
+            updateTime += time;
+            return updateTime >= duration;
         }
         public bool isExpired()
         {
@@ -37,15 +46,27 @@ namespace BJSYGameCore
                 return false;
             if (duration < 0)
                 return false;
-            return now - startTime >= duration;
+            if (updateTime < 0)
+                return now - startTime >= duration;
+            else
+                return updateTime >= duration;
         }
         public float getRemainedTime()
         {
-            return startTime + duration <= Time.time ? duration - (Time.time - startTime) : 0;
+            if (updateTime < 0)
+                return startTime + duration <= Time.time ? duration - (Time.time - startTime) : 0;
+            else
+                return duration - updateTime;
         }
         public float time
         {
-            get { return startTime < 0 ? 0 : Time.time - startTime; }
+            get
+            {
+                if (updateTime < 0)
+                    return startTime < 0 ? 0 : Time.time - startTime;
+                else
+                    return updateTime;
+            }
         }
         public float progress
         {
@@ -53,10 +74,20 @@ namespace BJSYGameCore
             {
                 if (startTime < 0)
                     return 0;
-                else if (startTime + duration >= Time.time)
-                    return (Time.time - startTime) / duration;
+                else if (updateTime < 0)
+                {
+                    if (startTime + duration >= Time.time)
+                        return (Time.time - startTime) / duration;
+                    else
+                        return 1;
+                }
                 else
-                    return 1;
+                {
+                    if (updateTime < duration)
+                        return updateTime / duration;
+                    else
+                        return 1;
+                }
             }
         }
         /// <summary>
@@ -67,12 +98,24 @@ namespace BJSYGameCore
         /// <returns></returns>
         public float getProgress(float start, float end)
         {
-            if (Time.time - startTime > end)
-                return 1;
-            else if (Time.time - startTime > start)
-                return (Time.time - startTime - start) / (start - end);
+            if (updateTime < 0)
+            {
+                if (Time.time - startTime > end)
+                    return 1;
+                else if (Time.time - startTime > start)
+                    return (Time.time - startTime - start) / (start - end);
+                else
+                    return 0;
+            }
             else
-                return 0;
+            {
+                if (updateTime > end)
+                    return 1;
+                else if (updateTime > start)
+                    return (updateTime - start) / (start - end);
+                else
+                    return 0;
+            }
         }
     }
 }
