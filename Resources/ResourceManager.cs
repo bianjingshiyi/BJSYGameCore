@@ -1,14 +1,88 @@
 ﻿using UnityEngine;
 using System;
-using System.Collections.Generic;
-using UObject = UnityEngine.Object;
+using System.Threading.Tasks;
+using BJSYGameCore.UI;
+using System.CodeDom;
+using System.IO;
+using UnityEngine.Networking;
+
 namespace BJSYGameCore
 {
-    public class ResourceManager : Manager, IDisposable
+    public partial class ResourceManager : Manager, IDisposable
     {
-        #region 公开接口
-        public T load<T>(string path)
+        #region 字段
+        [SerializeField]
+        ResourcesInfo _resourcesInfo;
+        public ResourcesInfo resourcesInfo
         {
+            get { return _resourcesInfo; }
+            set { _resourcesInfo = value; }
+        }
+        #endregion
+
+        #region 公开接口
+        /// <summary>
+        /// 同步的加载一个资源
+        /// </summary>
+        /// <typeparam name="T">资源类型</typeparam>
+        /// <param name="info">资源信息</param>
+        /// <returns>加载的资源</returns>
+        public T load<T>(ResourceInfo info)where T:UnityEngine.Object
+        {
+            switch (typeof(T).Name) {
+                case nameof(ResourcesInfo):
+                    if (resourcesInfo.resourceList.Contains(info))
+                        return resourcesInfo as T;
+                    else {
+                        Debug.LogError($"ResourceManager::resoucesInfo里面没有{info.path}");
+                        return null;
+                    }
+                case nameof(AssetBundleManifest):
+                    return loadAssetBundleManifest(info) as T;
+                default:
+                    switch (info.type) {
+                        case ResourceType.Assetbundle:
+                            if (typeof(T).Name == nameof(AssetBundle)) {
+                                return loadAssetBundle(info) as T;
+                            }
+                            else return loadFromAssetBundle(info.path) as T;
+                        case ResourceType.Resources:
+                            return loadFromResources(info.path) as T;
+                        case ResourceType.File:
+                            //using (UnityWebRequest req = UnityWebRequest.Get(Application.streamingAssetsPath + info.path)) {
+                            //    req.SendWebRequest();
+                            //    while (!req.isDone) {Debug.Log("loading"); }
+                            //    req.downloadHandler.data;
+                            //}
+                            //todo  : 不知道该如何处理，先放着.....
+                            return null;
+                    }
+                    return null;
+            }
+
+        }
+        /// <summary>
+        /// 异步的加载一个资源。
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="path"></param>
+        /// <returns></returns>
+        public async Task<T> loadAsync<T>(string path)
+        {
+            throw new NotImplementedException();
+        }
+        #endregion
+
+
+#region 废弃方法，不知道还用不用得着，先留着
+        /// <summary>
+        /// 同步的加载一个资源。
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="path"></param>
+        /// <returns></returns>
+        [Obsolete]
+        public T load<T>(string path) {
             T res;
             if (string.IsNullOrEmpty(path))
                 throw new ArgumentException("路径不能为空", nameof(path));
@@ -26,104 +100,36 @@ namespace BJSYGameCore
                 else
                     throw new InvalidCastException("资源\"" + path + "\"" + uRes + "不是" + typeof(T).Name);
             }
-            else if (path.StartsWith("ab:"))
-            {
-                res = loadFromBundle<T>(path.Substring(3, path.Length - 3));
+            else if (path.StartsWith("ab:") && resourcesInfo != null) {
+                res = loadFromBundle<T>(resourcesInfo, path.Substring(3, path.Length - 3));
             }
             else
                 throw new InvalidOperationException("无法加载类型为" + typeof(T).Name + "的资源" + path);
             saveToCache(path, res);
             return res;
         }
-        public T loadFromBundle<T>(string path)
+        [Obsolete]
+        public T loadFromBundle<T>(ResourcesInfo abInfo, string path)
         {
-            //如果有，需要做一些关于热更新的处理，但是现在没有。
-            AssetBundle bundle;
-            if (!loadBundleFromCache(path, out bundle))
-            {
-
-            }
+            if (loadFromAssetBundle(abInfo, path) is T t)
+                return t;
             else
-            {
+                return default;
+        }
+#endregion
 
-            }
-            return default;
-        }
-        public UObject loadFromBundle(string path)
-        {
-            return null;
-        }
         public void Dispose()
         {
             cacheDic.Clear();
-            Destroy(gameObject);
-        }
-        #endregion
-        #region AssetBundle
-        bool loadBundleFromCache(string path, out AssetBundle bundle)
-        {
-            if (bundleCacheDic.TryGetValue(path, out var item))
-            {
-                bundle = item.bundle;
-                return true;
-            }
-            bundle = null;
-            return false;
-        }
-        Dictionary<string, BundleCacheItem> bundleCacheDic { get; } = new Dictionary<string, BundleCacheItem>();
-        class BundleCacheItem
-        {
-            public AssetBundle bundle;
-        }
-        #endregion
-        #region 缓存
-        public bool loadFromCache<T>(string path, out T res)
-        {
-            if (cacheDic.TryGetValue(path, out var item))
-            {
-                if (item.wref.IsAlive)
-                {
-                    if (item.wref.Target is T t)
-                    {
-                        res = t;
-                        return true;
-                    }
-                    else
-                        throw new InvalidCastException("资源\"" + path + "\"" + item.wref.Target + "不是" + typeof(T).Name);
-                }
-                else
-                {
-                    cacheDic.Remove(path);
-                    res = default;
-                    return false;
-                }
-            }
+#if UNITY_EDITOR
+            if (!Application.isPlaying)
+                DestroyImmediate(gameObject);
             else
-            {
-                res = default;
-                return false;
-            }
+                Destroy(gameObject);
+#else
+            Destroy(gameObject);
+#endif
         }
-        void saveToCache(string path, object res)
-        {
-            if (cacheDic.TryGetValue(path, out var item) && ReferenceEquals(item.wref.Target, res))
-            {
-                //Debug.LogWarning("路径" + path + "已经缓存了同一个资源" + item.wref.Target + "，取消缓存" + res);
-                return;
-            }
-            cacheDic[path] = new CacheItem() { wref = new WeakReference(res) };
-        }
-        Dictionary<string, CacheItem> cacheDic { get; } = new Dictionary<string, CacheItem>();
-        class CacheItem
-        {
-            /// <summary>
-            /// 对资源的弱引用。
-            /// </summary>
-            /// <remarks>
-            /// 这么做是为了不影响GC和Unity自动卸载没有被引用的资源。
-            /// </remarks>
-            public WeakReference wref;
-        }
-        #endregion
+
     }
 }

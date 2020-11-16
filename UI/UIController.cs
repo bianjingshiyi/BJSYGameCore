@@ -1,6 +1,5 @@
 ﻿using System.Linq;
 using UnityEngine;
-
 namespace BJSYGameCore.UI
 {
     public class UIController : MonoBehaviour
