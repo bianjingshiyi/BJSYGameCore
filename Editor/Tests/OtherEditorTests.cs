@@ -3,7 +3,10 @@ using UnityEngine;
 using System.IO;
 using UnityEditor;
 using System.Linq;
-
+using System.Reflection;
+using BJSYGameCore.AutoCompo;
+using System;
+using Object = UnityEngine.Object;
 namespace Tests
 {
     public class OtherEditorTests
@@ -63,6 +66,35 @@ namespace Tests
             int id = obj.GetInstanceID();
             Debug.Log(id);
             Assert.AreEqual(obj, EditorUtility.InstanceIDToObject(id));
+        }
+        [Test]
+        public void getMonoScriptTest()
+        {
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                foreach (var type in assembly.GetTypes())
+                {
+                    if (type.GetCustomAttribute<AutoCompoAttribute>() is AutoCompoAttribute att
+                        && att.instanceID == 13812)
+                    {
+                        Debug.Log("找到了AutoUI");
+                        break;
+                    }
+                }
+            }
+            //foreach (var guid in AssetDatabase.FindAssets("t:MonoScript"))
+            //{
+            //    string path = AssetDatabase.GUIDToAssetPath(guid);
+            //    var script = AssetDatabase.LoadAssetAtPath<MonoScript>(path);
+            //    var type = script.GetClass();
+            //    if (type != null 
+            //        && type.GetCustomAttribute<AutoCompoAttribute>() is AutoCompoAttribute att
+            //        && att.instanceID == 13812)
+            //    {
+            //        Debug.Log("找到了AutoUI");
+            //        break;
+            //    }
+            //}
         }
     }
 }
