@@ -5,83 +5,11 @@ using System.Text.RegularExpressions;
 using NUnit.Framework.Interfaces;
 using System.Runtime.CompilerServices;
 using System.Collections.Generic;
-using UnityEditor;
 using System.Linq;
 using UnityEngine.SceneManagement;
-using System.IO;
 
 namespace BJSYGameCore.AutoCompo
 {
-    public class AutoCompoWindow : EditorWindow
-    {
-        #region 公共成员
-        [MenuItem("Assets/Create/AutoCompo/Generate", true, 81)]
-        [MenuItem("GameObject/AutoCompo/Generate", true, 15)]
-        public static bool onValidateMenuItemGenerate()
-        {
-            if (Selection.gameObjects.Length != 1)
-                return false;
-            return true;
-        }
-        [MenuItem("Assets/Create/AutoCompo/Generate", false, 81)]
-        [MenuItem("GameObject/AutoCompo/Generate", false, 15)]
-        public static void onMenuItemGenerate()
-        {
-            GameObject gameObject = Selection.gameObjects[0];
-            string path = gameObject.scene.path;
-            if (string.IsNullOrEmpty(path))
-                path = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(gameObject);
-            AutoCompoWindow window = GetWindow<AutoCompoWindow>(nameof(AutoCompo), true);
-            window._gameObject = gameObject;
-            window._saveDir = Path.GetDirectoryName(path);
-        }
-        #endregion
-        #region 私有成员
-        protected void OnEnable()
-        {
-            _serializedObject = new SerializedObject(this);
-        }
-        protected void OnGUI()
-        {
-            if (_serializedObject == null)
-                _serializedObject = new SerializedObject(this);
-            GUI.enabled = false;
-            EditorGUILayout.ObjectField("要生成脚本的游戏物体", _gameObject, typeof(GameObject), true);
-            GUI.enabled = true;
-            EditorGUILayout.LabelField("保存路径", _saveDir);
-            EditorGUILayout.PropertyField(_serializedObject.FindProperty(nameof(_setting)), new GUIContent("设置"), true);
-            AutoCompoGenerator generator = null;
-            if (GUILayout.Button("保存脚本"))
-                generator = new AutoCompoGenerator();
-            if (GUILayout.Button("另存为脚本"))
-            {
-                _saveDir = EditorUtility.SaveFolderPanel("另存为脚本", _saveDir, string.Empty);
-                if (Directory.Exists(_saveDir))
-                    generator = new AutoCompoGenerator();
-            }
-            _serializedObject.ApplyModifiedProperties();
-            if (generator != null)
-            {
-                var unit = generator.genScript4GO(_gameObject, _setting);
-                CodeDOMHelper.writeUnitToFile(new FileInfo(_saveDir + "/" + unit.Namespaces[0].Types[0].Name + ".cs"), unit);
-                AssetDatabase.SaveAssets();
-                AssetDatabase.Refresh();
-            }
-        }
-        protected void OnDisable()
-        {
-            _serializedObject.Dispose();
-            _serializedObject = null;
-        }
-        #endregion
-        [SerializeField]
-        GameObject _gameObject;
-        [SerializeField]
-        string _saveDir;
-        [SerializeField]
-        AutoCompoGenSetting _setting;
-        SerializedObject _serializedObject;
-    }
     public partial class AutoCompoGenerator
     {
         /// <summary>
