@@ -10,7 +10,7 @@ using UnityEngine.SceneManagement;
 
 namespace BJSYGameCore.AutoCompo
 {
-    public partial class AutoCompoGenerator
+    public class AutoCompoGenerator
     {
         /// <summary>
         /// 为游戏物体生成编译单元。
