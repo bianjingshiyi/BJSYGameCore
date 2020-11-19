@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine.SceneManagement;
+using UnityEditor;
 
 namespace BJSYGameCore.AutoCompo
 {
@@ -32,57 +33,94 @@ namespace BJSYGameCore.AutoCompo
             //类
             _type = new CodeTypeDeclaration();
             nameSpace.Types.Add(_type);
-            _type.CustomAttributes.Add(new CodeAttributeDeclaration(nameof(AutoCompoAttribute),
-                new CodeAttributeArgument(new CodePrimitiveExpression(gameObject.GetInstanceID()))));
+            genType();
+            return unit;
+        }
+        /// <summary>
+        /// 默认生成一个自动绑定方法。
+        /// </summary>
+        protected virtual void genType()
+        {
+            _type.CustomAttributes.Add(new CodeAttributeDeclaration(typeof(AutoCompoAttribute).Name,
+                new CodeAttributeArgument(new CodePrimitiveExpression(_rootGameObject.GetInstanceID()))));
             _type.Attributes = MemberAttributes.Public | MemberAttributes.Final;
             _type.IsPartial = true;
             _type.IsClass = true;
-            _type.Name = genTypeName4GO(gameObject);
-            foreach (var baseType in setting.baseTypes)
+            _type.Name = genTypeName4GO(_rootGameObject);
+            foreach (var baseType in _setting.baseTypes)
             {
                 _type.BaseTypes.Add(baseType);
             }
-            //自动绑定方法
+            genMethods();
+            genRootGameObject();
+        }
+        /// <summary>
+        /// 默认生成autoBind方法。
+        /// </summary>
+        protected virtual void genMethods()
+        {
             _autoBindMethod = new CodeMemberMethod();
             _type.Members.Add(_autoBindMethod);
             _autoBindMethod.Attributes = MemberAttributes.Public | MemberAttributes.Final;
             _autoBindMethod.ReturnType = new CodeTypeReference(typeof(void));
             _autoBindMethod.Name = "autoBind";
+        }
+        /// <summary>
+        /// 默认对根物体和子物体进行递归处理生成。
+        /// </summary>
+        protected virtual void genRootGameObject()
+        {
+            genGameObject(_rootGameObject);
+        }
+        /// <summary>
+        /// 默认生成该物体及组件和子物体及组件的字段，属性，初始化。
+        /// </summary>
+        /// <param name="gameObject"></param>
+        protected virtual void genGameObject(GameObject gameObject)
+        {
             //根物体组件引用
+            string typeName;
             string[] compoTypes;
-            if (tryParseGOName(gameObject.name, out _, out compoTypes))
+            if (tryParseGOName(gameObject.name, out typeName, out compoTypes))
             {
                 foreach (var compoTypeName in compoTypes)
                 {
+                    if (compoTypeName == typeof(GameObject).Name)
+                    {
+                        genField(typeof(GameObject).Name, genFieldName4GO(gameObject));
+                        continue;
+                    }
                     Component component = gameObject.GetComponent(compoTypeName);
                     if (component == null)
                         continue;
-                    genRootCompo(component);
+                    genCompo(component);
                 }
             }
             //处理子物体
             for (int i = 0; i < gameObject.transform.childCount; i++)
             {
                 GameObject childGO = gameObject.transform.GetChild(i).gameObject;
-                genChildGO(childGO);
+                genGameObject(childGO);
             }
-            return unit;
         }
-
-        void genRootCompo(Component component)
+        /// <summary>
+        /// 默认生成字段，属性，以及初始化语句。
+        /// </summary>
+        /// <param name="component"></param>
+        protected virtual void genCompo(Component component)
         {
-            string fieldName = genFieldName4RootCompo(component);
-            string[] path = new string[0];
-            string propName = genPropName4RootCompo(component);
-            genFieldPropInit4Compo(component, fieldName, propName, path);
+            if (component.gameObject == _rootGameObject)
+                genFieldPropInit4Compo(component, genFieldName4Compo(component),
+                    genPropName4Compo(component), new string[0]);
+            else
+                genFieldPropInit4Compo(component, genFieldName4Compo(component),
+                    genPropName4Compo(component), getPath(_rootGameObject, component.gameObject));
         }
-
         void genFieldPropInit4Compo(Component component, string fieldName, string propName, string[] path)
         {
             genFieldWithInit4Compo(component, fieldName, path);
             genProp4Compo(component, propName, fieldName);
         }
-
         void genProp4Compo(Component component, string propName, string fieldName)
         {
             CodeMemberProperty prop = new CodeMemberProperty();
@@ -106,15 +144,19 @@ namespace BJSYGameCore.AutoCompo
             for (int i = 0; i < path.Length; i++)
             {
                 if (i == 0)
-                    target = new CodePropertyReferenceExpression(target, nameof(GameObject.transform));
-                target = new CodeMethodInvokeExpression(target, nameof(Transform.Find),
+                    target = new CodePropertyReferenceExpression(target, NAME_OF_TRANSFORM);
+                target = new CodeMethodInvokeExpression(target, NAME_OF_FIND,
                     new CodePrimitiveExpression(path[i]));
             }
             assign.Right = new CodeMethodInvokeExpression(
-                new CodeMethodReferenceExpression(target, nameof(Component.GetComponent),
+                new CodeMethodReferenceExpression(target, NAME_OF_GETCOMPO,
                 new CodeTypeReference(component.GetType().Name)));
         }
-        void genField4Compo(Component component, string fieldName)
+        protected CodeMemberField genField4Compo(Component component, string fieldName)
+        {
+            return genField(component.GetType().Name, fieldName);
+        }
+        protected CodeMemberField genField(string typeName, string fieldName)
         {
             CodeMemberField field = new CodeMemberField();
             _type.Members.Add(field);
@@ -123,33 +165,16 @@ namespace BJSYGameCore.AutoCompo
                 field.CustomAttributes.Add(new CodeAttributeDeclaration(fieldAttName));
             }
             field.Attributes = MemberAttributes.Private | MemberAttributes.Final;
-            field.Type = new CodeTypeReference(component.GetType().Name);
+            field.Type = new CodeTypeReference(typeName);
             field.Name = fieldName;
+            return field;
         }
-        void genChildGO(GameObject gameObject)
+
+        protected virtual string genTypeName4GO(GameObject gameObject)
         {
+            string typeName;
             string[] compoTypes;
-            if (tryParseGOName(gameObject.name, out _, out compoTypes))
-            {
-                foreach (var compoTypeName in compoTypes)
-                {
-                    Component component = gameObject.GetComponent(compoTypeName);
-                    if (component == null)
-                        continue;
-                    genFieldPropInit4Compo(component, genFieldName4Compo(component),
-                        genPropName4Compo(component), getPath(_rootGameObject, gameObject));
-                }
-            }
-            //处理子物体
-            for (int i = 0; i < gameObject.transform.childCount; i++)
-            {
-                GameObject childGO = gameObject.transform.GetChild(i).gameObject;
-                genChildGO(childGO);
-            }
-        }
-        string genTypeName4GO(GameObject gameObject)
-        {
-            if (tryParseGOName(gameObject.name, out var typeName, out _))
+            if (tryParseGOName(gameObject.name, out typeName, out compoTypes))
                 return typeName;
             else
                 throw new FormatException(gameObject.name + "不符合格式\\w.\\w*");
@@ -170,18 +195,30 @@ namespace BJSYGameCore.AutoCompo
                 return false;
             }
         }
-        string genFieldName4RootCompo(Component component)
+        /// <summary>
+        /// 默认自己就叫_gameObject，子物体叫_子物体名。
+        /// </summary>
+        /// <param name="gameObject"></param>
+        /// <returns></returns>
+        protected virtual string genFieldName4GO(GameObject gameObject)
         {
-            return "_as" + component.GetType().Name;
+            if (gameObject == _rootGameObject)
+                return "_gameObject";
+            else
+                return "_" + gameObject.name;
         }
-        string genPropName4RootCompo(Component component)
+        /// <summary>
+        /// 默认如果是根组件，那么叫做_as类型名，如果是子组件，那么叫_子物体名类型名。
+        /// </summary>
+        /// <param name="component"></param>
+        /// <returns></returns>
+        protected virtual string genFieldName4Compo(Component component)
         {
-            return "as" + component.GetType().Name;
-        }
-        string genFieldName4Compo(Component component)
-        {
+            if (component.gameObject == _rootGameObject)
+                return "_as" + component.GetType().Name;
             string fieldName;
-            if (tryParseGOName(component.gameObject.name, out fieldName, out _))
+            string[] compoTypes;
+            if (tryParseGOName(component.gameObject.name, out fieldName, out compoTypes))
             {
                 return "_" + fieldName + component.GetType().Name;
             }
@@ -190,8 +227,11 @@ namespace BJSYGameCore.AutoCompo
         }
         string genPropName4Compo(Component component)
         {
+            if (component.gameObject == _rootGameObject)
+                return "as" + component.GetType().Name;
             string propName;
-            if (tryParseGOName(component.gameObject.name, out propName, out _))
+            string[] compoTypes;
+            if (tryParseGOName(component.gameObject.name, out propName, out compoTypes))
                 return propName + component.GetType().Name;
             else
                 throw new FormatException();
@@ -209,17 +249,67 @@ namespace BJSYGameCore.AutoCompo
             }
             return pathList.ToArray();
         }
-        AutoCompoGenSetting _setting;
-        GameObject _rootGameObject;
-        CodeTypeDeclaration _type;
-        CodeMemberMethod _autoBindMethod;
+        protected AutoCompoGenSetting _setting;
+        protected GameObject _rootGameObject;
+        protected CodeTypeDeclaration _type;
+        protected CodeMemberMethod _autoBindMethod;
+        const string NAME_OF_TRANSFORM = "transform";
+        const string NAME_OF_FIND = "Find";
+        const string NAME_OF_GETCOMPO = "GetComponent";
     }
     [Serializable]
     public class AutoCompoGenSetting
     {
+        public void loadFromPrefs(string name)
+        {
+            if (!EditorPrefs.HasKey(name + ":" + USINGS_LENGTH))
+                return;
+            usings = new string[EditorPrefs.GetInt(name + ":" + USINGS_LENGTH)];
+            for (int i = 0; i < usings.Length; i++)
+            {
+                usings[i] = EditorPrefs.GetString(name + ":" + USINGS + i);
+            }
+            Namespace = EditorPrefs.GetString(name + ":" + NAMESPACE);
+            baseTypes = new string[EditorPrefs.GetInt(name + ":" + BASETYPES_LENGTH)];
+            for (int i = 0; i < baseTypes.Length; i++)
+            {
+                baseTypes[i] = EditorPrefs.GetString(name + ":" + BASETYPES + i);
+            }
+            fieldAttributes = new string[EditorPrefs.GetInt(name + ":" + FIELDATTRIBUTES_LENGTH)];
+            for (int i = 0; i < fieldAttributes.Length; i++)
+            {
+                fieldAttributes[i] = EditorPrefs.GetString(name + ":" + FIELDATTRIBUTES + i);
+            }
+        }
+        public void saveToPrefs(string name)
+        {
+            EditorPrefs.SetInt(name + ":" + USINGS_LENGTH, usings.Length);
+            for (int i = 0; i < usings.Length; i++)
+            {
+                EditorPrefs.SetString(name + ":" + USINGS + i, usings[i]);
+            }
+            EditorPrefs.SetString(name + ":" + NAMESPACE, Namespace);
+            EditorPrefs.SetInt(name + ":" + BASETYPES_LENGTH, baseTypes.Length);
+            for (int i = 0; i < baseTypes.Length; i++)
+            {
+                EditorPrefs.SetString(name + ":" + BASETYPES + i, baseTypes[i]);
+            }
+            EditorPrefs.SetInt(name + ":" + FIELDATTRIBUTES_LENGTH, fieldAttributes.Length);
+            for (int i = 0; i < fieldAttributes.Length; i++)
+            {
+                EditorPrefs.SetString(name + ":" + FIELDATTRIBUTES + i, fieldAttributes[i]);
+            }
+        }
         public string[] usings;
         public string Namespace;
         public string[] baseTypes;
         public string[] fieldAttributes;
+        const string USINGS = "AutoCompoGenSetting.usings";
+        const string USINGS_LENGTH = "AutoCompoGenSetting.usings.Length";
+        const string NAMESPACE = "AutoCompoGenSetting.Namespace";
+        const string BASETYPES = "AutoCompoGenSetting.baseTypes";
+        const string BASETYPES_LENGTH = "AutoCompoGenSetting.baseTypes.Length";
+        const string FIELDATTRIBUTES = "AutoCompoGenSetting.fieldAttributes";
+        const string FIELDATTRIBUTES_LENGTH = "AutoCompoGenSetting.fieldAttributes.Length";
     }
 }
