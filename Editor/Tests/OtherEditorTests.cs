@@ -3,7 +3,10 @@ using UnityEngine;
 using System.IO;
 using UnityEditor;
 using System.Linq;
-
+using System.Reflection;
+using BJSYGameCore.AutoCompo;
+using System;
+using Object = UnityEngine.Object;
 namespace Tests
 {
     public class OtherEditorTests

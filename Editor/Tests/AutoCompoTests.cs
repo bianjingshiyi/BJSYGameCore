@@ -22,7 +22,7 @@ namespace Tests
             gameObject.AddComponent<Image>();
             gameObject = gameObject.transform.root.gameObject;
 
-            var unit = AutoCompoGenerator.genScript4GO(gameObject, new AutoCompoGenSetting()
+            var unit = new AutoCompoGenerator().genScript4GO(gameObject, new AutoCompoGenSetting()
             {
                 usings = new string[]
                 {
@@ -47,49 +47,53 @@ namespace Tests
             Assert.AreEqual("BJSYGameCore.AutoCompo", Namespace.Imports[2].Namespace);
             Assert.AreEqual("UI", Namespace.Name);
             CodeTypeDeclaration Class = Namespace.Types[0];
-            Assert.AreEqual("AutoCompo", Class.CustomAttributes[0].Name);
+            Assert.AreEqual(nameof(AutoCompoAttribute), Class.CustomAttributes[0].Name);
             Assert.AreEqual(gameObject.GetInstanceID(), (Class.CustomAttributes[0].Arguments[0].Value as CodePrimitiveExpression).Value);
             Assert.AreEqual(TypeAttributes.Public | TypeAttributes.Class, Class.TypeAttributes);
             Assert.AreEqual("Panel", Class.Name);
 
-            CodeMemberField field = Class.Members[0] as CodeMemberField;
+            int index = 0;
+            CodeMemberMethod autoBindMethod = Class.Members[index] as CodeMemberMethod;
+            Assert.AreEqual(MemberAttributes.Public | MemberAttributes.Final, autoBindMethod.Attributes);
+            Assert.AreEqual("autoBind", autoBindMethod.Name);
+            index++;
+            CodeMemberField field = Class.Members[index] as CodeMemberField;
             Assert.AreEqual("SerializeField", field.CustomAttributes[0].Name);
             Assert.AreEqual(MemberAttributes.Private | MemberAttributes.Final, field.Attributes);
             Assert.AreEqual("RectTransform", field.Type.BaseType);
             Assert.AreEqual("_asRectTransform", field.Name);
-            CodeMemberProperty prop = Class.Members[1] as CodeMemberProperty;
+            index++;
+            CodeMemberProperty prop = Class.Members[index] as CodeMemberProperty;
             Assert.AreEqual(MemberAttributes.Public | MemberAttributes.Final, prop.Attributes);
             Assert.AreEqual("RectTransform", prop.Type.BaseType);
             Assert.AreEqual("asRectTransform", prop.Name);
             Assert.True(prop.HasGet);
+            index++;
             //...剩下的我懒得写了，自己对着下面注释掉的代码补完测试代码吧。
             //注意不要把不包括在内的background生成进去了哦。
-            CodeMemberField imageField = Class.Members[2] as CodeMemberField;
+            CodeMemberField imageField = Class.Members[index] as CodeMemberField;
             Assert.AreEqual("SerializeField", imageField.CustomAttributes[0].Name);
             Assert.AreEqual(MemberAttributes.Private | MemberAttributes.Final, imageField.Attributes);
             Assert.AreEqual("Image", imageField.Type.BaseType);
             Assert.AreEqual("_returnImage", imageField.Name);
-            CodeMemberProperty imageProp = Class.Members[3] as CodeMemberProperty;
+            index++;
+            CodeMemberProperty imageProp = Class.Members[index] as CodeMemberProperty;
             Assert.AreEqual(MemberAttributes.Public | MemberAttributes.Final, imageProp.Attributes);
             Assert.AreEqual("Image", imageProp.Type.BaseType);
             Assert.AreEqual("returnImage", imageProp.Name);
             Assert.True(imageProp.HasGet);
-
-            CodeMemberField buttonField = Class.Members[4] as CodeMemberField;
+            index++;
+            CodeMemberField buttonField = Class.Members[index] as CodeMemberField;
             Assert.AreEqual("SerializeField", buttonField.CustomAttributes[0].Name);
             Assert.AreEqual(MemberAttributes.Private | MemberAttributes.Final, buttonField.Attributes);
             Assert.AreEqual("Button", buttonField.Type.BaseType);
             Assert.AreEqual("_returnButton", buttonField.Name);
-            CodeMemberProperty buttonProp = Class.Members[5] as CodeMemberProperty;
+            index++;
+            CodeMemberProperty buttonProp = Class.Members[index] as CodeMemberProperty;
             Assert.AreEqual(MemberAttributes.Public | MemberAttributes.Final, buttonProp.Attributes);
             Assert.AreEqual("Button", buttonProp.Type.BaseType);
             Assert.AreEqual("returnButton", buttonProp.Name);
             Assert.True(buttonProp.HasGet);
-
-            CodeMemberMethod autoBindMethod = Class.Members[6] as CodeMemberMethod;
-            Assert.AreEqual(MemberAttributes.Public | MemberAttributes.Final, autoBindMethod.Attributes);
-            Assert.AreEqual("autoBind", autoBindMethod.Name);
-
         }
     }
 }
