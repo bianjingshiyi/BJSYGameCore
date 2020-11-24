@@ -20,28 +20,26 @@ namespace BJSYGameCore.AutoCompo
         [MenuItem("GameObject/AutoCompo/Generate", false, PRIOR_SCENE_GENERATE)]
         public static void onMenuItemGenerate()
         {
-            GetWindow<AutoCompoWindow>(typeof(AutoCompoWindow).Name, true);
+            GetWindow<AutoCompoWindow>(typeof(AutoCompoWindow).Name, true).checkGameObject(Selection.gameObjects.Length > 0 ? Selection.gameObjects[0] : null, true);
         }
         #endregion
         #region 私有成员
-        protected void OnEnable()
+        protected void Awake()
         {
-            if (Selection.gameObjects.Length > 0)
-            {
-                GameObject gameObject = Selection.gameObjects[0];
-                _gameObject = gameObject;
-                if (string.IsNullOrEmpty(_savePath))
-                {
-                    _savePath = getSavePath4GO(gameObject);
-                    if (string.IsNullOrEmpty(_savePath))
-                    {
-                        Close();
-                        throw new DirectoryNotFoundException();
-                    }
-                }
-            }
             if (_setting == null)
                 _setting = loadSetting();
+        }
+        public void checkGameObject(GameObject gameObject, bool forceReselect = false)
+        {
+            if (gameObject == null || (!forceReselect && _gameObject == gameObject))
+                return;
+            _gameObject = gameObject;
+            _savePath = getSavePath4GO(gameObject);
+            if (string.IsNullOrEmpty(_savePath))
+            {
+                Close();
+                throw new DirectoryNotFoundException();
+            }
         }
         protected void OnGUI()
         {

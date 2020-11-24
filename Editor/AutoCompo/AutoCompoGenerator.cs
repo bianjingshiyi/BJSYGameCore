@@ -59,11 +59,30 @@ namespace BJSYGameCore.AutoCompo
         /// </summary>
         protected virtual void genMethods()
         {
-            _autoBindMethod = new CodeMemberMethod();
-            _type.Members.Add(_autoBindMethod);
-            _autoBindMethod.Attributes = MemberAttributes.Public | MemberAttributes.Final;
-            _autoBindMethod.ReturnType = new CodeTypeReference(typeof(void));
-            _autoBindMethod.Name = "autoBind";
+            _autoBindMethod = genMethod(MemberAttributes.Public | MemberAttributes.Final, typeof(void), "autoBind");
+        }
+
+        protected CodeMemberMethod genMethod(MemberAttributes attributes, Type returnType, string methodName)
+        {
+            CodeMemberMethod method = new CodeMemberMethod
+            {
+                Attributes = attributes,
+                ReturnType = new CodeTypeReference(returnType),
+                Name = methodName
+            };
+            _type.Members.Add(method);
+            return method;
+        }
+        protected CodeMemberMethod genMethod(MemberAttributes attributes, string returnTypeName, string methodName)
+        {
+            CodeMemberMethod method = new CodeMemberMethod
+            {
+                Attributes = attributes,
+                ReturnType = new CodeTypeReference(returnTypeName),
+                Name = methodName
+            };
+            _type.Members.Add(method);
+            return method;
         }
         /// <summary>
         /// 默认对根物体和子物体进行递归处理生成。
