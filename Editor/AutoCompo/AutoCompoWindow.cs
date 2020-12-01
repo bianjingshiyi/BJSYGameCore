@@ -2,7 +2,7 @@
 using UnityEditor;
 using System.IO;
 using System.Linq;
-
+using System.Collections.Generic;
 namespace BJSYGameCore.AutoCompo
 {
     public class AutoCompoWindow : EditorWindow
@@ -140,16 +140,17 @@ namespace BJSYGameCore.AutoCompo
         }
         bool tryFindAutoCompo(int instanceID, out string path)
         {
-            foreach (var guid in AssetDatabase.FindAssets("t:MonoScript"))
+            foreach (var script in AssetDatabaseHelper.getAssetsOfType<MonoScript>())
             {
-                path = AssetDatabase.GUIDToAssetPath(guid);
-                var script = AssetDatabase.LoadAssetAtPath<MonoScript>(path);
                 var type = script.GetClass();
                 if (type != null)
                 {
                     AutoCompoAttribute att = type.GetCustomAttributes(typeof(AutoCompoAttribute), true).OfType<AutoCompoAttribute>().FirstOrDefault();
                     if (att != null && att.instanceID == instanceID)
+                    {
+                        path = AssetDatabase.GetAssetPath(script);
                         return true;
+                    }
                 }
             }
             path = string.Empty;
@@ -166,5 +167,13 @@ namespace BJSYGameCore.AutoCompo
         protected const int PRIOR_PREFAB_GENERATE = 81;
         const string NAME_OF_SETTING = "_setting";
         #endregion
+    }
+    public class AssetDatabaseHelper
+    {
+        public static IEnumerable<T> getAssetsOfType<T>() where T : Object
+        {
+            return AssetDatabase.FindAssets("t:" + typeof(T).Name).Select(guid =>
+                  AssetDatabase.LoadAssetAtPath<T>(AssetDatabase.GUIDToAssetPath(guid)));
+        }
     }
 }
