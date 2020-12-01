@@ -29,7 +29,7 @@ namespace BJSYGameCore
             _itemList.Insert(index, component);
             component.transform.parent = _root;
         }
-        public T create()
+        public virtual T create()
         {
             T component;
             while (_poolList.Count > 0)
@@ -39,14 +39,19 @@ namespace BJSYGameCore
                 if (component == null)
                     continue;
                 _itemList.Add(component);
+                if (onCreate != null)
+                    onCreate(component);
                 component.gameObject.SetActive(true);
                 return component;
             }
             component = Object.Instantiate(_origin, _root);
+            if (onCreate != null)
+                onCreate(component);
+            component.gameObject.SetActive(true);
             _itemList.Add(component);
             return component;
         }
-        public bool remove(T component)
+        public virtual bool remove(T component)
         {
             for (int i = 0; i < _itemList.Count; i++)
             {
@@ -64,12 +69,14 @@ namespace BJSYGameCore
             }
             return false;
         }
-        public void removeAt(int index)
+        public virtual void removeAt(int index)
         {
             T component = _itemList[index];
             _itemList.RemoveAt(index);
             if (component == null)
                 return;
+            if (onRemove != null)
+                onRemove(component);
             _poolList.Add(component);
             component.gameObject.SetActive(false);
         }
@@ -80,6 +87,10 @@ namespace BJSYGameCore
                 cleanNull();
                 return _itemList[index];
             }
+        }
+        public int indexOf(T component)
+        {
+            return _itemList.IndexOf(component);
         }
         public int count
         {
@@ -104,6 +115,8 @@ namespace BJSYGameCore
                 removeAt(_itemList.Count - 1);
             }
         }
+        public event Action<T> onCreate;
+        public event Action<T> onRemove;
         #endregion
         #region 私有成员
         private void cleanNull()

@@ -1,1 +1,5 @@
 /Editor/AutoCompo/*.ffs_db
+/Editor/*.ffs_db
+/*.ffs_db
+/*.ffs_db.meta
+*.ffs_db.meta
