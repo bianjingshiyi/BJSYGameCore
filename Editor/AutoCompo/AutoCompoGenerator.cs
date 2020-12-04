@@ -1,13 +1,10 @@
 ﻿using System;
-using UnityEngine;
 using System.CodeDom;
-using System.Text.RegularExpressions;
-using NUnit.Framework.Interfaces;
-using System.Runtime.CompilerServices;
 using System.Collections.Generic;
 using System.Linq;
-using UnityEngine.SceneManagement;
+using System.Text.RegularExpressions;
 using UnityEditor;
+using UnityEngine;
 
 namespace BJSYGameCore.AutoCompo
 {
@@ -41,6 +38,7 @@ namespace BJSYGameCore.AutoCompo
         /// </summary>
         protected virtual void genType4RootGO()
         {
+            addTypeUsing(typeof(AutoCompoAttribute));
             _type.CustomAttributes.Add(new CodeAttributeDeclaration(typeof(AutoCompoAttribute).Name,
                 new CodeAttributeArgument(new CodePrimitiveExpression(_rootGameObject.GetInstanceID()))));
             _type.Attributes = MemberAttributes.Public | MemberAttributes.Final;
@@ -64,20 +62,12 @@ namespace BJSYGameCore.AutoCompo
 
         protected CodeMemberMethod genMethod(MemberAttributes attributes, Type returnType, string methodName)
         {
-            CodeMemberMethod method = new CodeMemberMethod
-            {
-                Attributes = attributes,
-                ReturnType = new CodeTypeReference(returnType),
-                Name = methodName
-            };
-            _type.Members.Add(method);
-            return method;
+            return genMethod(_type, attributes, returnType, methodName);
         }
         protected CodeMemberMethod genMethod(MemberAttributes attributes, string returnTypeName, string methodName)
         {
             return genMethod(_type, attributes, returnTypeName, methodName);
         }
-
         protected CodeMemberMethod genMethod(CodeTypeDeclaration type, MemberAttributes attributes, string returnTypeName, string methodName)
         {
             CodeMemberMethod method = new CodeMemberMethod
@@ -91,6 +81,7 @@ namespace BJSYGameCore.AutoCompo
         }
         protected CodeMemberMethod genMethod(CodeTypeDeclaration type, MemberAttributes attributes, Type returnType, string methodName)
         {
+            addTypeUsing(returnType);
             CodeMemberMethod method = new CodeMemberMethod
             {
                 Attributes = attributes,
@@ -122,7 +113,7 @@ namespace BJSYGameCore.AutoCompo
                 {
                     if (compoTypeName == typeof(GameObject).Name)
                     {
-                        genField(typeof(GameObject).Name, genFieldName4GO(gameObject));
+                        genField(typeof(GameObject), genFieldName4GO(gameObject));
                         continue;
                     }
                     Component component = gameObject.GetComponent(compoTypeName);
@@ -158,8 +149,7 @@ namespace BJSYGameCore.AutoCompo
         }
         void genProp4Compo(Component component, string propName, string fieldName)
         {
-            string typeName = component.GetType().Name;
-            CodeMemberProperty prop = genProp(MemberAttributes.Public | MemberAttributes.Final, propName, typeName);
+            CodeMemberProperty prop = genProp(MemberAttributes.Public | MemberAttributes.Final, propName, component.GetType());
             prop.HasGet = true;
             prop.GetStatements.Add(new CodeMethodReturnStatement(
                 new CodeFieldReferenceExpression(new CodeThisReferenceExpression(),
@@ -169,7 +159,10 @@ namespace BJSYGameCore.AutoCompo
         {
             return genProp(_type, attributes, typeName, propName);
         }
-
+        protected CodeMemberProperty genProp(MemberAttributes attributes, string propName, Type propType)
+        {
+            return genProp(_type, attributes, propType, propName);
+        }
         protected CodeMemberProperty genProp(CodeTypeDeclaration type, MemberAttributes attributes, string typeName, string propName)
         {
             CodeMemberProperty prop = new CodeMemberProperty();
@@ -179,7 +172,16 @@ namespace BJSYGameCore.AutoCompo
             prop.Name = propName;
             return prop;
         }
-
+        protected CodeMemberProperty genProp(CodeTypeDeclaration type, MemberAttributes attributes, Type propType, string propName)
+        {
+            addTypeUsing(propType);
+            CodeMemberProperty prop = new CodeMemberProperty();
+            type.Members.Add(prop);
+            prop.Attributes = attributes;
+            prop.Type = new CodeTypeReference(propType.Name);
+            prop.Name = propName;
+            return prop;
+        }
         void genFieldWithInit4Compo(Component component, string fieldName, string[] path)
         {
             genField4Compo(component, fieldName);
@@ -201,13 +203,16 @@ namespace BJSYGameCore.AutoCompo
         }
         protected CodeMemberField genField4Compo(Component component, string fieldName)
         {
-            return genField(component.GetType().Name, fieldName);
+            return genField(component.GetType(), fieldName);
         }
         protected CodeMemberField genField(string typeName, string fieldName, bool applyAttributes = true)
         {
             return genField(_type, typeName, fieldName, applyAttributes);
         }
-
+        protected CodeMemberField genField(Type fieldType, string fieldName, bool applyAttributes = true)
+        {
+            return genField(_type, fieldType, fieldName, applyAttributes);
+        }
         protected CodeMemberField genField(CodeTypeDeclaration type, string typeName, string fieldName, bool applyAttributes = true)
         {
             CodeMemberField field = new CodeMemberField();
@@ -224,7 +229,23 @@ namespace BJSYGameCore.AutoCompo
             field.Name = fieldName;
             return field;
         }
-
+        protected CodeMemberField genField(CodeTypeDeclaration type, Type fieldType, string fieldName, bool applyAttributes = true)
+        {
+            addTypeUsing(fieldType);
+            CodeMemberField field = new CodeMemberField();
+            type.Members.Add(field);
+            if (applyAttributes)
+            {
+                foreach (var fieldAttName in _setting.fieldAttributes)
+                {
+                    field.CustomAttributes.Add(new CodeAttributeDeclaration(fieldAttName));
+                }
+            }
+            field.Attributes = MemberAttributes.Private | MemberAttributes.Final;
+            field.Type = new CodeTypeReference(fieldType.Name);
+            field.Name = fieldName;
+            return field;
+        }
         protected virtual string genTypeName4GO(GameObject gameObject)
         {
             string typeName;
@@ -338,7 +359,11 @@ namespace BJSYGameCore.AutoCompo
             method.Name = methodName + "(" + string.Join(",", parameters.Select(p => p.Type.BaseType + " " + p.Name).ToArray()) + ")";
             return method;
         }
-
+        private void addTypeUsing(Type type)
+        {
+            if (!_nameSpace.Imports.OfType<CodeNamespaceImport>().Any(n => n.Namespace == type.Namespace))
+                _nameSpace.Imports.Add(new CodeNamespaceImport(type.Namespace));
+        }
         protected AutoCompoGenSetting _setting;
         protected GameObject _rootGameObject;
         protected CodeNamespace _nameSpace;
@@ -391,10 +416,10 @@ namespace BJSYGameCore.AutoCompo
                 EditorPrefs.SetString(name + ":" + FIELDATTRIBUTES + i, fieldAttributes[i]);
             }
         }
-        public string[] usings;
-        public string Namespace;
-        public string[] baseTypes;
-        public string[] fieldAttributes;
+        public string[] usings = new string[0];
+        public string Namespace = "UI";
+        public string[] baseTypes = new string[0];
+        public string[] fieldAttributes = new string[0];
         const string USINGS = "AutoCompoGenSetting.usings";
         const string USINGS_LENGTH = "AutoCompoGenSetting.usings.Length";
         const string NAMESPACE = "AutoCompoGenSetting.Namespace";

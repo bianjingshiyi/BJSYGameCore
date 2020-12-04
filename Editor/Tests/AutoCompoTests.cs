@@ -4,6 +4,7 @@ using BJSYGameCore.AutoCompo;
 using UnityEngine.UI;
 using System.CodeDom;
 using System.Reflection;
+using System.Linq;
 namespace Tests
 {
     public class AutoCompoTests
@@ -27,7 +28,6 @@ namespace Tests
                 usings = new string[]
                 {
                     "UnityEngine",
-                    "UnityEngine.UI",
                     "BJSYGameCore.AutoCompo"
                 },
                 Namespace = "UI",
@@ -42,9 +42,12 @@ namespace Tests
             });
 
             CodeNamespace Namespace = unit.Namespaces[0];
-            Assert.AreEqual("UnityEngine", Namespace.Imports[0].Namespace);
-            Assert.AreEqual("UnityEngine.UI", Namespace.Imports[1].Namespace);
-            Assert.AreEqual("BJSYGameCore.AutoCompo", Namespace.Imports[2].Namespace);
+            Assert.True(Namespace.Imports.OfType<CodeNamespaceImport>()
+                                         .Any(u => u.Namespace == "UnityEngine"));
+            Assert.True(Namespace.Imports.OfType<CodeNamespaceImport>()
+                                         .Any(u => u.Namespace == "UnityEngine.UI"));
+            Assert.True(Namespace.Imports.OfType<CodeNamespaceImport>()
+                                         .Any(u => u.Namespace == "BJSYGameCore.AutoCompo"));
             Assert.AreEqual("UI", Namespace.Name);
             CodeTypeDeclaration Class = Namespace.Types[0];
             Assert.AreEqual(nameof(AutoCompoAttribute), Class.CustomAttributes[0].Name);
