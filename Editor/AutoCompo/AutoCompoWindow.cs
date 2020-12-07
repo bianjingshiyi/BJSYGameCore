@@ -137,11 +137,10 @@ namespace BJSYGameCore.AutoCompo
         /// <returns></returns>
         protected virtual string getSavePath4GO(GameObject gameObject)
         {
-
-#if UNITY_2017
-                path = AssetDatabase.GetAssetPath(gameObject);
-#else
             string path;
+#if UNITY_2017
+            path = AssetDatabase.GetAssetPath(gameObject);
+#else
             if (PrefabUtility.IsPartOfNonAssetPrefabInstance(gameObject))
             {
                 GameObject prefabInstanceRoot = PrefabUtility.GetOutermostPrefabInstanceRoot(gameObject);
