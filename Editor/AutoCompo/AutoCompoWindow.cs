@@ -2,7 +2,11 @@
 using UnityEditor;
 using System.IO;
 using System.Linq;
+using System;
+using UnityEngine.UI;
 using System.Collections.Generic;
+using System.Reflection;
+using Object = UnityEngine.Object;
 namespace BJSYGameCore.AutoCompo
 {
     public class AutoCompoWindow : EditorWindow
@@ -46,12 +50,45 @@ namespace BJSYGameCore.AutoCompo
         }
         protected void OnGUI()
         {
+            if (this == null)
+                return;
+            if (_gameObject == null)
+            {
+                Close();
+                return;
+            }
+            if (_generator == null)
+                _generator = createGenerator();
+            if (_fieldList == null)
+            {
+                _fieldList = new List<AutoBindFieldInfo>();
+                if (_type == null)
+                    _type = tryGetExistsType();
+                if (_type != null)
+                {
+                    foreach (var field in _type.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic))
+                    {
+                        AutoBindFieldInfo info = getGenInfoFromFieldInfo(field);
+                        if (info != null)
+                            _fieldList.Add(info);
+                    }
+                }
+            }
+            if (_objGenDict == null)
+            {
+                _objGenDict = new Dictionary<Object, AutoBindFieldInfo>();
+                onInitByCtrlType();
+            }
             onGUISetting();
-            AutoCompoGenerator generator = null;
+            onGUICtrlSettting();
+            _onGUIGameObjectScrollPos = EditorGUILayout.BeginScrollView(_onGUIGameObjectScrollPos);
+            onGUIGameObject(_gameObject);
+            EditorGUILayout.EndScrollView();
+            bool confirmGen = false;
             if (GUILayout.Button("保存脚本"))
             {
                 if (checkGenInput())
-                    generator = createGenerator();
+                    confirmGen = true;
             }
             if (GUILayout.Button("另存为脚本"))
             {
@@ -59,18 +96,60 @@ namespace BJSYGameCore.AutoCompo
                 {
                     _savePath = EditorUtility.SaveFolderPanel("另存为脚本", _savePath, string.Empty);
                     if (Directory.Exists(_savePath))
-                        generator = createGenerator();
+                        confirmGen = true;
                 }
             }
-            if (generator != null)
+            if (confirmGen)
+                onGenerate();
+        }
+        protected void OnDisable()
+        {
+            if (_serializedObject != null)
             {
-                var unit = generator.genScript4GO(_gameObject, _setting);
-                FileInfo fileInfo = new FileInfo(getSaveFilePath(unit.Namespaces[0].Types[0].Name));
-                CodeDOMHelper.writeUnitToFile(fileInfo, unit);
-                AssetDatabase.SaveAssets();
-                AssetDatabase.Refresh();
+                _serializedObject.ApplyModifiedProperties();
+                _serializedObject.Dispose();
+                _serializedObject = null;
+            }
+            if (_setting != null)
+                _setting.saveToPrefs(getSettingName());
+        }
+        /// <summary>
+        /// 因为在打开的时候已经尝试过获取存在类型了，所以默认返回null
+        /// </summary>
+        /// <returns></returns>
+        protected virtual Type tryGetExistsType()
+        {
+            return null;
+        }
+        protected virtual void onInitByCtrlType()
+        {
+            if (_controllerType == AutoCompoGenerator.CTRL_TYPE_BUTTON)
+            {
+                if (_type != null)
+                {
+                    foreach (var fieldInfo in _type.GetFields(BindingFlags.NonPublic | BindingFlags.Instance))
+                    {
+                        var autoCompo = fieldInfo.getAttribute<AutoCompoAttribute>();
+                        if (autoCompo == null || !autoCompo.tags.Contains("mainButton"))
+                            continue;
+                        GameObject buttonGO = TransformHelper.findGameObjectByPath(_gameObject, autoCompo.path);
+                        if (buttonGO == null)
+                            continue;
+                        _buttonMain = buttonGO.GetComponent<Button>();
+                        break;
+                    }
+                }
             }
         }
+
+        protected virtual AutoBindFieldInfo getGenInfoFromFieldInfo(FieldInfo field)
+        {
+            AutoCompoAttribute autoCompo = field.GetCustomAttributes(typeof(AutoCompoAttribute), true).Cast<AutoCompoAttribute>().FirstOrDefault();
+            if (autoCompo != null)
+                return new AutoBindFieldInfo(autoCompo.instanceID, autoCompo.path, field.FieldType, null, field.Name);
+            return null;
+        }
+
         protected virtual bool checkGenInput()
         {
             if (string.IsNullOrEmpty(_setting.Namespace))
@@ -95,11 +174,6 @@ namespace BJSYGameCore.AutoCompo
         /// </summary>
         protected virtual void onGUISetting()
         {
-            if (_gameObject == null)
-            {
-                Close();
-                return;
-            }
             if (_serializedObject == null)
                 _serializedObject = new SerializedObject(this);
             GUI.enabled = false;
@@ -107,18 +181,209 @@ namespace BJSYGameCore.AutoCompo
             GUI.enabled = true;
             EditorGUILayout.LabelField("保存路径", _savePath);
             EditorGUILayout.PropertyField(_serializedObject.FindProperty(NAME_OF_SETTING), new GUIContent("设置"), true);
+            if (_ctrlTypes == null)
+                _ctrlTypes = new string[] { "none" }.Concat(_generator.ctrlTypes).ToArray();
+            SerializedProperty ctrlTypeProp = _serializedObject.FindProperty(NAME_OF_CTRL_TYPE);
+            int index = Array.IndexOf(_ctrlTypes, ctrlTypeProp.stringValue);
+            if (index < 0)
+                index = 0;
+            index = EditorGUILayout.Popup("类型", index, _ctrlTypes);
+            ctrlTypeProp.stringValue = _ctrlTypes[index];
             _serializedObject.ApplyModifiedProperties();
         }
-        protected void OnDisable()
+        void onGUIGameObject(GameObject gameObject)
         {
-            if (_serializedObject != null)
+            EditorGUILayout.BeginHorizontal();
+            AutoBindFieldInfo field = getInfoFromExists(gameObject);
+            if (field != null && !_objGenDict.ContainsKey(gameObject))
+                _objGenDict.Add(gameObject, field);
+            EditorGUI.BeginDisabledGroup(field != null && field.instanceId == 0);
+            EditorGUILayout.BeginHorizontal(GUILayout.Width(WIDTH_OF_FIELD));
+            if (canEditGameObjectName(gameObject))
             {
-                _serializedObject.ApplyModifiedProperties();
-                _serializedObject.Dispose();
-                _serializedObject = null;
+                _objFoldDict[gameObject] = EditorGUILayout.Foldout(_objFoldDict.ContainsKey(gameObject) ? _objFoldDict[gameObject] : isPartOfAnyPath(gameObject), string.Empty, true);
+                setSepecifiedFieldName(gameObject, EditorGUILayout.TextField(hasSpecifiedFieldName(gameObject) ? gameObject.name : getSpecifiedFieldName(gameObject)));
             }
-            if (_setting != null)
-                _setting.saveToPrefs(getSettingName());
+            else
+                _objFoldDict[gameObject] = EditorGUILayout.Foldout(_objFoldDict.ContainsKey(gameObject) ? _objFoldDict[gameObject] : isPartOfAnyPath(gameObject), gameObject.name, true);
+            EditorGUILayout.EndHorizontal();
+            if (gameObject != _gameObject)
+            {
+                if (EditorGUILayout.Toggle(_objGenDict.ContainsKey(gameObject) && _objGenDict[gameObject] != null))
+                    _objGenDict[gameObject] = getOrGenField(gameObject);
+                else
+                    _objGenDict[gameObject] = null;
+                onGUIGameObjectCtrl(gameObject);
+            }
+            EditorGUI.EndDisabledGroup();
+            EditorGUILayout.EndHorizontal();
+            if (_objFoldDict[gameObject])
+            {
+                EditorGUI.indentLevel++;
+                foreach (var component in gameObject.GetComponents<Component>())
+                {
+                    onGUIComponent(component);
+                }
+                for (int i = 0; i < gameObject.transform.childCount; i++)
+                {
+                    onGUIGameObject(gameObject.transform.GetChild(i).gameObject);
+                }
+                EditorGUI.indentLevel--;
+            }
+        }
+        protected virtual bool canEditGameObjectName(GameObject gameObject)
+        {
+            return isObjectGen(gameObject);
+        }
+        protected virtual void onGUIGameObjectCtrl(GameObject gameObject)
+        {
+            if (_controllerType == AutoCompoGenerator.CTRL_TYPE_LIST || _controllerType == AutoCompoGenerator.CTRL_TYPE_BUTTON_LIST)
+            {
+                if (_listOrigin == null)
+                {
+                    if (gameObject.transform.parent == _gameObject.transform)
+                    {
+                        if (EditorGUILayout.Toggle("选为列表项", false))
+                        {
+                            _listOrigin = gameObject;
+                            _objGenDict[gameObject] = getOrGenField(gameObject);
+                        }
+                    }
+                }
+                else
+                {
+                    if (_listOrigin == gameObject)
+                    {
+                        if (!EditorGUILayout.Toggle("取消列表项", true))
+                            _listOrigin = null;
+                    }
+                }
+            }
+        }
+
+        void onGUIComponent(Component component)
+        {
+            EditorGUILayout.BeginHorizontal();
+            AutoBindFieldInfo field = getInfoFromExists(component);
+            if (field != null && !_objGenDict.ContainsKey(component))
+                _objGenDict.Add(component, field);
+            EditorGUI.BeginDisabledGroup(field != null && field.instanceId == 0);
+            EditorGUILayout.BeginHorizontal(GUILayout.Width(WIDTH_OF_FIELD));
+            if (isObjectGen(component))
+            {
+                string fieldName = EditorGUILayout.TextField(string.IsNullOrEmpty(_objGenDict[component].fieldName) ? component.gameObject.name : _objGenDict[component].fieldName);
+                if (string.IsNullOrEmpty(fieldName) || fieldName == component.gameObject.name)
+                    _objGenDict[component].fieldName = null;
+                else
+                    _objGenDict[component].fieldName = fieldName;
+            }
+            else
+                EditorGUILayout.LabelField(component.GetType().Name, GUILayout.Width(WIDTH_OF_FIELD));
+            EditorGUILayout.EndHorizontal();
+            if (EditorGUILayout.Toggle(_objGenDict.ContainsKey(component) && _objGenDict[component] != null))
+                _objGenDict[component] = getOrGenField(component);
+            else
+                _objGenDict[component] = null;
+            if (_controllerType == AutoCompoGenerator.CTRL_TYPE_BUTTON)
+            {
+                if (_buttonMain == null)
+                {
+                    if (component is Button)
+                    {
+                        if (EditorGUILayout.Toggle("选为主按钮", false))
+                        {
+                            _buttonMain = component as Button;
+                            _objGenDict[component] = getOrGenField(component);
+                        }
+                    }
+                }
+                else
+                {
+                    if (_buttonMain == component)
+                    {
+                        if (!EditorGUILayout.Toggle("取消主按钮", true))
+                            _buttonMain = null;
+                    }
+                }
+            }
+            EditorGUI.EndDisabledGroup();
+            EditorGUILayout.EndHorizontal();
+        }
+        bool isObjectGen(Object obj)
+        {
+            return _objGenDict.ContainsKey(obj) && _objGenDict[obj] != null;
+        }
+        bool hasSpecifiedFieldName(Object obj)
+        {
+            return _objGenDict.ContainsKey(obj) &&
+                    _objGenDict[obj] != null &&
+                    !string.IsNullOrEmpty(_objGenDict[obj].fieldName);
+        }
+        string getSpecifiedFieldName(Object obj)
+        {
+            return _objGenDict[obj].fieldName;
+        }
+        void setSepecifiedFieldName(Object obj, string fieldName)
+        {
+            if (string.IsNullOrEmpty(fieldName))
+                return;
+            if (obj is GameObject && (obj as GameObject).name == fieldName)
+                return;
+            if (obj is Component && (obj as Component).gameObject.name == fieldName)
+                return;
+            _objGenDict[obj].fieldName = fieldName;
+        }
+        protected AutoBindFieldInfo getOrGenField(Object obj)
+        {
+            if (_objGenDict.ContainsKey(obj) && _objGenDict[obj] != null)
+                return _objGenDict[obj];
+            AutoBindFieldInfo fieldInfo = new AutoBindFieldInfo(
+                obj.GetInstanceID(),
+                getPath(obj is GameObject ? obj as GameObject : (obj as Component).gameObject),
+                obj.GetType(),
+                null,
+                null);
+            return fieldInfo;
+        }
+        string getPath(GameObject gameObject)
+        {
+            string path = string.Empty;
+            Transform transform = gameObject.transform;
+            while (transform.gameObject != _gameObject)
+            {
+                if (transform == null)
+                    return null;
+                path = "/" + transform.gameObject.name + path;
+                transform = transform.parent;
+            }
+            if (string.IsNullOrEmpty(path))
+                path = "/";
+            path = "." + path;
+            return path;
+        }
+        AutoBindFieldInfo getInfoFromExists(Object obj)
+        {
+            if (_fieldList == null)
+                return null;
+            foreach (var field in _fieldList.Where(f => f.targetType == obj.GetType()))
+            {
+                GameObject gameObject = obj is GameObject ? obj as GameObject : (obj as Component).gameObject;
+                if (TransformHelper.isPathMatch(field.path, gameObject, _gameObject))
+                    return field;
+            }
+            return null;
+        }
+        protected virtual bool isPartOfAnyPath(GameObject gameObject)
+        {
+            if (_fieldList != null)
+            {
+                foreach (var field in _fieldList)
+                {
+                    if (TransformHelper.isPartOfPath(gameObject, _gameObject, field.path))
+                        return true;
+                }
+            }
+            return false;
         }
         AutoCompoGenSetting loadSetting()
         {
@@ -157,10 +422,14 @@ namespace BJSYGameCore.AutoCompo
             }
 #endif
             string autoScriptPath;
-            if (tryFindAutoScript(gameObject, out autoScriptPath))
+            Type existsType;
+            if (tryFindAutoScript(gameObject, out autoScriptPath, out existsType))
             {
                 if (EditorUtility.DisplayDialog("已存在脚本", "AutoCompo发现" + gameObject.name + "上已经有一个同名的脚本，是否覆盖该脚本？", "是", "否"))
+                {
+                    _type = existsType;
                     return Path.GetDirectoryName(autoScriptPath);
+                }
             }
             string existPath;
             if (tryFindAutoCompo(gameObject.GetInstanceID(), out existPath))
@@ -168,9 +437,34 @@ namespace BJSYGameCore.AutoCompo
             else
                 return Path.GetDirectoryName(path);
         }
-        bool tryFindAutoScript(GameObject gameObject, out string path)
+        protected virtual void onGUICtrlSettting()
+        {
+            if (_controllerType == AutoCompoGenerator.CTRL_TYPE_LIST || _controllerType == AutoCompoGenerator.CTRL_TYPE_BUTTON_LIST)
+            {
+                _listItemTypeScript = EditorGUILayout.ObjectField("列表项类型", _listItemTypeScript, typeof(MonoScript), false) as MonoScript;
+            }
+        }
+        protected virtual AutoCompoGenerator createGenerator()
+        {
+            return new AutoCompoGenerator();
+        }
+        protected virtual void onGenerate()
+        {
+            _generator.controllerType = _controllerType;
+            _generator.buttonMain = _buttonMain;
+            _generator.listOrigin = _listOrigin;
+            if (_listItemTypeScript != null)
+                _generator.listItemTypeName = _listItemTypeScript.GetClass().Name;
+            var unit = _generator.genScript4GO(_gameObject, _setting);
+            FileInfo fileInfo = new FileInfo(getSaveFilePath(unit.Namespaces[0].Types[0].Name));
+            CodeDOMHelper.writeUnitToFile(fileInfo, unit);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+        }
+        bool tryFindAutoScript(GameObject gameObject, out string path, out Type type)
         {
             path = null;
+            type = null;
             MonoBehaviour autoScript = gameObject.GetComponent(gameObject.name) as MonoBehaviour;
             if (autoScript != null)
             {
@@ -183,15 +477,12 @@ namespace BJSYGameCore.AutoCompo
                     if (script.text.Contains("// <auto-generated>"))
                     {
                         path = AssetDatabase.GetAssetPath(script);
+                        type = script.GetClass();
                         return true;
                     }
                 }
             }
             return false;
-        }
-        protected virtual AutoCompoGenerator createGenerator()
-        {
-            return new AutoCompoGenerator();
         }
         bool tryFindAutoCompo(int instanceID, out string path)
         {
@@ -211,26 +502,38 @@ namespace BJSYGameCore.AutoCompo
             path = string.Empty;
             return false;
         }
+        protected Type _type = null;
+        List<AutoBindFieldInfo> _fieldList = null;
+        protected AutoCompoGenerator _generator = null;
+        string[] _ctrlTypes = null;
+        Vector2 _onGUIGameObjectScrollPos;
+        Dictionary<Object, bool> _objFoldDict = new Dictionary<Object, bool>();
+        protected Dictionary<Object, AutoBindFieldInfo> _objGenDict;
         [SerializeField]
         protected GameObject _gameObject;
         [SerializeField]
         protected string _savePath;
         [SerializeField]
         protected AutoCompoGenSetting _setting = null;
+        [SerializeField]
+        protected string _controllerType;
+        //按钮
+        [SerializeField]
+        protected Button _buttonMain;
+        //列表
+        [SerializeField]
+        protected GameObject _listOrigin;
+        [SerializeField]
+        protected MonoScript _listItemTypeScript;
         SerializedObject _serializedObject;
         protected const int PRIOR_SCENE_GENERATE = 15;
         protected const int PRIOR_PREFAB_GENERATE = 81;
         const string NAME_OF_GAMEOBJECT = "_gameObject";
         const string NAME_OF_SAVEPATH = "_savePath";
         const string NAME_OF_SETTING = "_setting";
+        const string NAME_OF_CTRL_TYPE = "_controllerType";
+        const int WIDTH_OF_FIELD = 200;
+        const int WIDTH_OF_TOGGLE = 25;
         #endregion
-    }
-    public class AssetDatabaseHelper
-    {
-        public static IEnumerable<T> getAssetsOfType<T>() where T : Object
-        {
-            return AssetDatabase.FindAssets("t:" + typeof(T).Name).Select(guid =>
-                  AssetDatabase.LoadAssetAtPath<T>(AssetDatabase.GUIDToAssetPath(guid)));
-        }
     }
 }

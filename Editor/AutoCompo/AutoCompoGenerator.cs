@@ -3,12 +3,15 @@ using System.CodeDom;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using UnityEditor;
 using UnityEngine;
+using Object = UnityEngine.Object;
+using Codo = BJSYGameCore.CodeDOMHelper;
+using UnityEngine.UI;
+using System.Reflection;
 
 namespace BJSYGameCore.AutoCompo
 {
-    public class AutoCompoGenerator
+    public partial class AutoCompoGenerator
     {
         /// <summary>
         /// 为游戏物体生成编译单元。
@@ -57,46 +60,112 @@ namespace BJSYGameCore.AutoCompo
         /// </summary>
         protected virtual void genMembers()
         {
-            _autoBindMethod = genMethod(MemberAttributes.Public | MemberAttributes.Final, typeof(void), "autoBind");
-        }
-
-        protected CodeMemberMethod genMethod(MemberAttributes attributes, Type returnType, string methodName)
-        {
-            return genMethod(_type, attributes, returnType, methodName);
-        }
-        protected CodeMemberMethod genMethod(MemberAttributes attributes, string returnTypeName, string methodName)
-        {
-            return genMethod(_type, attributes, returnTypeName, methodName);
-        }
-        protected CodeMemberMethod genMethod(CodeTypeDeclaration type, MemberAttributes attributes, string returnTypeName, string methodName)
-        {
-            CodeMemberMethod method = new CodeMemberMethod
+            _initMethod = genMethod(MemberAttributes.Public | MemberAttributes.Final, typeof(void), "init");
+            _clearMethod = genMethod(MemberAttributes.Public | MemberAttributes.Final, typeof(void), "clear");
+            if (controllerType == CTRL_TYPE_LIST || controllerType == CTRL_TYPE_BUTTON_LIST)
             {
-                Attributes = attributes,
-                ReturnType = new CodeTypeReference(returnTypeName),
-                Name = methodName
-            };
-            type.Members.Add(method);
-            return method;
-        }
-        protected CodeMemberMethod genMethod(CodeTypeDeclaration type, MemberAttributes attributes, Type returnType, string methodName)
-        {
-            addTypeUsing(returnType);
-            CodeMemberMethod method = new CodeMemberMethod
-            {
-                Attributes = attributes,
-                ReturnType = new CodeTypeReference(returnType),
-                Name = methodName
-            };
-            type.Members.Add(method);
-            return method;
+                //ItemPool类型
+                CodeTypeDeclaration itemPoolType = new CodeTypeDeclaration();
+                _type.Members.Add(itemPoolType);
+                itemPoolType.CustomAttributes.Add(new CodeAttributeDeclaration(typeof(SerializableAttribute).Name));
+                itemPoolType.Attributes = MemberAttributes.Public | MemberAttributes.Final;
+                itemPoolType.IsClass = true;
+                itemPoolType.Name = "ItemPool";
+                itemPoolType.BaseTypes.Add(new CodeTypeReference(typeof(ComponentPool<>).Name, new CodeTypeReference(listItemTypeName)));
+                //构造器
+                CodeConstructor itemPoolTypeConstructor = new CodeConstructor();
+                itemPoolType.Members.Add(itemPoolTypeConstructor);
+                itemPoolTypeConstructor.Attributes = MemberAttributes.Public | MemberAttributes.Final;
+                itemPoolTypeConstructor.Parameters
+                    .append(typeof(Transform).Name, "root")
+                    .append(listItemTypeName, "origin");
+                itemPoolTypeConstructor.BaseConstructorArgs
+                    .appendArg("root")
+                    .appendArg("origin");
+                //ItemPool字段
+                CodeMemberField itemPool = genField(itemPoolType.Name, FIELD_NAME_ITEM_POOL, false);
+                itemPool.CustomAttributes.Add(new CodeAttributeDeclaration(typeof(SerializeField).Name));
+                //onItemClick事件
+                CodeMemberEvent onItemClick = null;
+                if (controllerType == CTRL_TYPE_BUTTON_LIST)
+                    onItemClick = genEvent(typeof(Action).Name, "onItemClick", Codo.type(listItemTypeName));
+                //itemClickCallback方法
+                CodeMemberMethod itemClickCallback = null;
+                if (controllerType == CTRL_TYPE_BUTTON_LIST)
+                {
+                    itemClickCallback = genMethod(MemberAttributes.Private | MemberAttributes.Final, typeof(void), "itemClickCallback");
+                    itemClickCallback.Parameters.append(listItemTypeName, "item");
+                    itemClickCallback.Statements.append(new CodeConditionStatement(
+                        Codo.op(Codo.This.getEvent(onItemClick.Name), CodeBinaryOperatorType.IdentityInequality, Codo.Null),
+                            Codo.This.getEvent(onItemClick.Name).invoke(Codo.arg("item")).statement()));
+                }
+                //onItemCreate方法
+                if (controllerType == CTRL_TYPE_BUTTON_LIST)
+                {
+                    genMethod(MemberAttributes.Private | MemberAttributes.Final, typeof(void), "onItemCreate")
+                        .appendParam(listItemTypeName, "item")
+                        .appendStatement(Codo.arg("item").getMethod("autoReg").invoke())
+                        .appendStatement(Codo.arg("item").getEvent("onClick").attach(Codo.This.getMethod(itemClickCallback.Name)));
+                }
+                else
+                    genPartialMethod("void", "onItemCreate", Codo.parameter(listItemTypeName, "item"));
+                //onItemRemove方法
+                if (controllerType == CTRL_TYPE_BUTTON_LIST)
+                {
+                    genMethod(MemberAttributes.Private | MemberAttributes.Final, typeof(void), "onItemRemove")
+                       .appendParam(listItemTypeName, "item")
+                       .appendStatement(Codo.arg("item").getMethod("autoUnreg").invoke())
+                       .appendStatement(Codo.arg("item").getEvent("onClick").remove(Codo.This.getMethod(itemClickCallback.Name)));
+                }
+                else
+                    genPartialMethod("void", "onItemRemove", Codo.parameter(listItemTypeName, "item"));
+                //initPool方法
+                var initPool = genMethod(MemberAttributes.Private | MemberAttributes.Final, typeof(void), METHOD_NAME_LIST_INIT_POOL);
+                _initMethod.Statements.Add(Codo.This.getMethod(initPool.Name).invoke().statement());
+                const string VAR_NAME_ITEM = "item";
+                initPool.Statements.append(Codo.decVar(listItemTypeName, VAR_NAME_ITEM,
+                    string.IsNullOrEmpty(listItemTypeName) ?//有无指定脚本类型？
+                    Codo.This.getField(FIELD_NAME_ORIGIN) as CodeExpression :
+                    Codo.This.getField(FIELD_NAME_ORIGIN).getMethod(NAME_OF_ADDCOMPO, Codo.type(listItemTypeName)).invoke()));
+                initPool.Statements.Add(Codo.This.getField(FIELD_NAME_ORIGIN).getProp(NAME_OF_GAMEOBJECT).getMethod(NAME_OF_SET_ACTIVE).invoke(Codo.False));
+                initPool.Statements.Add(Codo.assign(Codo.This.getField(itemPool.Name),
+                    Codo.New(itemPoolType.Name, Codo.This.getProp("transform"), Codo.Var(VAR_NAME_ITEM))));
+                initPool.Statements.Add(Codo.This.getField(itemPool.Name).getEvent("onCreate").attach(Codo.This.getMethod("onItemCreate")));
+                initPool.Statements.Add(Codo.This.getField(itemPool.Name).getEvent("onRemove").attach(Codo.This.getMethod("onItemRemove")));
+                //setCount方法
+                CodeMemberMethod setCount = genMethod(MemberAttributes.Public | MemberAttributes.Final, typeof(void), "setCount");
+                setCount.Parameters.append(typeof(int), "count");
+                setCount.Statements.Add(Codo.This.getField(itemPool.Name).getMethod("setCount").invoke(Codo.arg("count")));
+                //indexer
+                CodeMemberProperty indexer = genIndexer(Codo.type(listItemTypeName));
+                indexer.Parameters.append(typeof(int), "index");
+                indexer.HasGet = true;
+                indexer.GetStatements.Add(Codo.Return(Codo.This.getField(itemPool.Name).index(Codo.arg("index"))));
+                //indexOf方法
+                CodeMemberMethod indexOf = genMethod(MemberAttributes.Public | MemberAttributes.Final, typeof(int), "indexOf");
+                indexOf.Parameters.append(listItemTypeName, "item");
+                indexOf.Statements.append(Codo.Return(Codo.This.getField(itemPool.Name).getMethod("indexOf").invoke(Codo.arg("item"))));
+            }
         }
         /// <summary>
-        /// 默认对根物体和子物体进行递归处理生成。
+        /// 根据提供的字段字典进行生成。
         /// </summary>
         protected virtual void genRootGameObject()
         {
-            genGameObject(_rootGameObject);
+            if (controllerType == CTRL_TYPE_BUTTON && buttonMain == null)
+                throw new InvalidOperationException("控件类型为按钮却没有主按钮");
+            foreach (var fieldInfo in objFieldDict.Values.Where(f => f != null && f.instanceId != 0))
+            {
+                if (fieldInfo.targetType == typeof(GameObject))
+                    genGameObject(TransformHelper.findGameObjectByPath(_rootGameObject, fieldInfo.path));
+                else
+                    genCompo(findComponentByPath(fieldInfo.path, fieldInfo.targetType));
+            }
+            //如果方法里面没有任何绑定内容，那么就不需要。
+            if (_initMethod.Statements.Count < 1)
+                _type.Members.Remove(_initMethod);
+            if (_clearMethod.Statements.Count < 1)
+                _type.Members.Remove(_clearMethod);
         }
         /// <summary>
         /// 默认生成该物体及组件和子物体及组件的字段，属性，初始化。
@@ -104,30 +173,14 @@ namespace BJSYGameCore.AutoCompo
         /// <param name="gameObject"></param>
         protected virtual void genGameObject(GameObject gameObject)
         {
-            //根物体组件引用
-            string typeName;
-            string[] compoTypes;
-            if (tryParseGOName(gameObject.name, out typeName, out compoTypes))
-            {
-                foreach (var compoTypeName in compoTypes)
-                {
-                    if (compoTypeName == typeof(GameObject).Name)
-                    {
-                        genField(typeof(GameObject), genFieldName4GO(gameObject));
-                        continue;
-                    }
-                    Component component = gameObject.GetComponent(compoTypeName);
-                    if (component == null)
-                        continue;
-                    genCompo(component);
-                }
-            }
-            //处理子物体
-            for (int i = 0; i < gameObject.transform.childCount; i++)
-            {
-                GameObject childGO = gameObject.transform.GetChild(i).gameObject;
-                genGameObject(childGO);
-            }
+            string fieldName;
+            if (gameObject == listOrigin)
+                fieldName = FIELD_NAME_ORIGIN;
+            else
+                fieldName = genFieldName4GO(gameObject);
+            addTypeUsing(typeof(GameObject));
+            var field = genField(typeof(GameObject).Name, fieldName);
+            addAttribute2Field(field, gameObject);
         }
         /// <summary>
         /// 默认生成字段，属性，以及初始化语句。
@@ -135,141 +188,101 @@ namespace BJSYGameCore.AutoCompo
         /// <param name="component"></param>
         protected virtual void genCompo(Component component)
         {
-            if (component.gameObject == _rootGameObject)
-                genFieldPropInit4Compo(component, genFieldName4Compo(component),
-                    genPropName4Compo(component), new string[0]);
-            else
-                genFieldPropInit4Compo(component, genFieldName4Compo(component),
-                    genPropName4Compo(component), getPath(_rootGameObject, component.gameObject));
+            addTypeUsing(component.GetType());
+            //字段
+            var field = genField4Compo(component, genFieldName4Compo(component));
+            var autoCompo = addAttribute2Field(field, component);
+            //属性
+            string propName = field.Name;
+            while (propName.StartsWith("_"))
+                propName = propName.Substring(1, propName.Length - 1);
+            propName = propName.headToLower();
+            var prop = genProp4Compo(component, propName, field.Name);
+            //初始化
+            addTypeUsing(typeof(TransformHelper));
+            _initMethod.Statements.append(Codo.assign(Codo.This.getField(field.Name),
+                Codo.This.getProp(NAME_OF_TRANSFORM).getMethod(NAME_OF_FIND_BY_PATH).getMethod(NAME_OF_GETCOMPO, Codo.type(component.GetType().Name)).index()));
+            if (component.GetType() == typeof(Button) || component.GetType().IsSubclassOf(typeof(Button)))
+            {
+                //是按钮
+                if (controllerType == CTRL_TYPE_BUTTON && component == buttonMain)
+                    autoCompo.Arguments.Add(new CodeAttributeArgument(new CodePrimitiveExpression("mainButton")));
+                string name = prop.Name;
+                name = name.headToUpper();
+                //事件
+                CodeMemberEvent Event;
+                if (controllerType == CTRL_TYPE_BUTTON && component == buttonMain)
+                    Event = genEvent(typeof(Action).Name, "onClick", Codo.type(typeName));
+                else
+                    Event = genEvent(typeof(Action).Name, "on" + name + "Click");
+                //回调函数
+                CodeMemberMethod callbackMethod;
+                if (controllerType == CTRL_TYPE_BUTTON && component == buttonMain)
+                {
+                    callbackMethod = genMethod(MemberAttributes.Private | MemberAttributes.Final, typeof(void), "clickCallback");
+                    callbackMethod.Statements.Add(new CodeConditionStatement(
+                    new CodeBinaryOperatorExpression(Codo.This.getEvent(Event.Name), CodeBinaryOperatorType.IdentityInequality, Codo.Null),
+                        Codo.This.getEvent(Event.Name).invoke(Codo.This).statement()));
+                }
+                else
+                {
+                    callbackMethod = genMethod(MemberAttributes.Private | MemberAttributes.Final, typeof(void), name + "ClickCallback");
+                    callbackMethod.Statements.Add(new CodeConditionStatement(
+                        new CodeBinaryOperatorExpression(Codo.This.getEvent(Event.Name), CodeBinaryOperatorType.IdentityInequality, Codo.Null),
+                            Codo.This.getEvent(Event.Name).invoke().statement()));
+                }
+                //注册
+                _initMethod.Statements.Add(Codo.This.getField(field.Name).getProp(NAME_OF_ONCLICK)
+                    .getMethod(NAME_OF_ADDLISTENER).invoke(Codo.This.getMethod(callbackMethod.Name)).statement());
+                //注销
+                _clearMethod.Statements.Add(Codo.This.getField(field.Name).getProp(NAME_OF_ONCLICK)
+                    .getMethod(NAME_OF_REMOVELISTENER).invoke(Codo.This.getMethod(callbackMethod.Name)).statement());
+            }
         }
-        void genFieldPropInit4Compo(Component component, string fieldName, string propName, string[] path)
+        private CodeAttributeDeclaration addAttribute2Field(CodeMemberField field, Object obj, params string[] tags)
         {
-            genFieldWithInit4Compo(component, fieldName, path);
-            genProp4Compo(component, propName, fieldName);
+            CodeAttributeDeclaration autoCompo = new CodeAttributeDeclaration(typeof(AutoCompoAttribute).Name,
+                            new CodeAttributeArgument(new CodePrimitiveExpression(objFieldDict[obj].instanceId)),
+                            new CodeAttributeArgument(new CodePrimitiveExpression(objFieldDict[obj].path)));
+            foreach (var tag in tags)
+            {
+                autoCompo.Arguments.Add(new CodeAttributeArgument(new CodePrimitiveExpression(tag)));
+            }
+            field.CustomAttributes.Add(autoCompo);
+            return autoCompo;
         }
-        void genProp4Compo(Component component, string propName, string fieldName)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="component"></param>
+        /// <param name="propName"></param>
+        /// <param name="fieldName">要封装的字段名，供属性引用</param>
+        protected CodeMemberProperty genProp4Compo(Component component, string propName, string fieldName)
         {
             CodeMemberProperty prop = genProp(MemberAttributes.Public | MemberAttributes.Final, propName, component.GetType());
             prop.HasGet = true;
             prop.GetStatements.Add(new CodeMethodReturnStatement(
                 new CodeFieldReferenceExpression(new CodeThisReferenceExpression(),
                 fieldName)));
-        }
-        protected CodeMemberProperty genProp(MemberAttributes attributes, string propName, string typeName)
-        {
-            return genProp(_type, attributes, typeName, propName);
-        }
-        protected CodeMemberProperty genProp(MemberAttributes attributes, string propName, Type propType)
-        {
-            return genProp(_type, attributes, propType, propName);
-        }
-        protected CodeMemberProperty genProp(CodeTypeDeclaration type, MemberAttributes attributes, string typeName, string propName)
-        {
-            CodeMemberProperty prop = new CodeMemberProperty();
-            type.Members.Add(prop);
-            prop.Attributes = attributes;
-            prop.Type = new CodeTypeReference(typeName);
-            prop.Name = propName;
             return prop;
-        }
-        protected CodeMemberProperty genProp(CodeTypeDeclaration type, MemberAttributes attributes, Type propType, string propName)
-        {
-            addTypeUsing(propType);
-            CodeMemberProperty prop = new CodeMemberProperty();
-            type.Members.Add(prop);
-            prop.Attributes = attributes;
-            prop.Type = new CodeTypeReference(propType.Name);
-            prop.Name = propName;
-            return prop;
-        }
-        void genFieldWithInit4Compo(Component component, string fieldName, string[] path)
-        {
-            genField4Compo(component, fieldName);
-            CodeAssignStatement assign = new CodeAssignStatement();
-            _autoBindMethod.Statements.Add(assign);
-            assign.Left = new CodeFieldReferenceExpression(
-                new CodeThisReferenceExpression(), fieldName);
-            CodeExpression target = new CodeThisReferenceExpression();
-            for (int i = 0; i < path.Length; i++)
-            {
-                if (i == 0)
-                    target = new CodePropertyReferenceExpression(target, NAME_OF_TRANSFORM);
-                target = new CodeMethodInvokeExpression(target, NAME_OF_FIND,
-                    new CodePrimitiveExpression(path[i]));
-            }
-            assign.Right = new CodeMethodInvokeExpression(
-                new CodeMethodReferenceExpression(target, NAME_OF_GETCOMPO,
-                new CodeTypeReference(component.GetType().Name)));
         }
         protected CodeMemberField genField4Compo(Component component, string fieldName)
         {
             return genField(component.GetType(), fieldName);
         }
-        protected CodeMemberField genField(string typeName, string fieldName, bool applyAttributes = true)
-        {
-            return genField(_type, typeName, fieldName, applyAttributes);
-        }
-        protected CodeMemberField genField(Type fieldType, string fieldName, bool applyAttributes = true)
-        {
-            return genField(_type, fieldType, fieldName, applyAttributes);
-        }
-        protected CodeMemberField genField(CodeTypeDeclaration type, string typeName, string fieldName, bool applyAttributes = true)
-        {
-            CodeMemberField field = new CodeMemberField();
-            type.Members.Add(field);
-            if (applyAttributes)
-            {
-                foreach (var fieldAttName in _setting.fieldAttributes)
-                {
-                    field.CustomAttributes.Add(new CodeAttributeDeclaration(fieldAttName));
-                }
-            }
-            field.Attributes = MemberAttributes.Private | MemberAttributes.Final;
-            field.Type = new CodeTypeReference(typeName);
-            field.Name = fieldName;
-            return field;
-        }
-        protected CodeMemberField genField(CodeTypeDeclaration type, Type fieldType, string fieldName, bool applyAttributes = true)
-        {
-            addTypeUsing(fieldType);
-            CodeMemberField field = new CodeMemberField();
-            type.Members.Add(field);
-            if (applyAttributes)
-            {
-                foreach (var fieldAttName in _setting.fieldAttributes)
-                {
-                    field.CustomAttributes.Add(new CodeAttributeDeclaration(fieldAttName));
-                }
-            }
-            field.Attributes = MemberAttributes.Private | MemberAttributes.Final;
-            field.Type = new CodeTypeReference(fieldType.Name);
-            field.Name = fieldName;
-            return field;
-        }
         protected virtual string genTypeName4GO(GameObject gameObject)
         {
-            string typeName;
-            string[] compoTypes;
-            if (tryParseGOName(gameObject.name, out typeName, out compoTypes))
-                return typeName;
-            else
-                throw new FormatException(gameObject.name + "不符合格式\\w.\\w*");
-        }
-        bool tryParseGOName(string name, out string typeName, out string[] compoTypes)
-        {
-            var match = Regex.Match(name, @"(?<name>.+)\.(?<args>\w+(,\w+)*)");
-            if (match.Success)
-            {
-                typeName = match.Groups["name"].Value;
-                compoTypes = match.Groups["args"].Value.Split(',');
-                return true;
-            }
-            else
-            {
-                typeName = string.Empty;
-                compoTypes = new string[0];
-                return false;
-            }
+            if (string.IsNullOrEmpty(typeName))
+                throw new InvalidOperationException("类名不能为空");
+            if (char.IsDigit(typeName[0]) || !typeName.All(c => char.IsLetterOrDigit(c) || c == '_'))
+                throw new InvalidOperationException("类名" + typeName + "非法");
+            return typeName;
+            //string typeName;
+            //string[] compoTypes;
+            //if (tryParseGOName(gameObject.name, out typeName, out compoTypes))
+            //    return typeName;
+            //else
+            //    throw new FormatException(gameObject.name + "不符合格式\\w.\\w*");
         }
         /// <summary>
         /// 默认自己就叫_gameObject，子物体叫_子物体名。
@@ -278,6 +291,8 @@ namespace BJSYGameCore.AutoCompo
         /// <returns></returns>
         protected virtual string genFieldName4GO(GameObject gameObject)
         {
+            if (!string.IsNullOrEmpty(objFieldDict[gameObject].fieldName))
+                return objFieldDict[gameObject].fieldName;
             if (gameObject == _rootGameObject)
                 return "_gameObject";
             else
@@ -290,142 +305,68 @@ namespace BJSYGameCore.AutoCompo
         /// <returns></returns>
         protected virtual string genFieldName4Compo(Component component)
         {
+            if (!string.IsNullOrEmpty(objFieldDict[component].fieldName))
+                return objFieldDict[component].fieldName;
             if (component.gameObject == _rootGameObject)
                 return "_as" + component.GetType().Name;
-            string fieldName;
-            string[] compoTypes;
-            if (tryParseGOName(component.gameObject.name, out fieldName, out compoTypes))
+            GameObject gameObject = component.gameObject;
+            string name = "_" + gameObject.name;
+            string fullname;
+            string typeName = component.GetType().Name;
+            if (name.Contains(typeName))
+                fullname = name;
+            else if (!name.tryMerge(typeName, out fullname))
+                fullname = name + typeName;
+            while (_type.Members.OfType<CodeMemberField>().Any(f => f.Name == fullname))
             {
-                return "_" + fieldName + component.GetType().Name;
+                gameObject = gameObject.transform.parent.gameObject;
+                fullname = "_" + gameObject.name + "_" + fullname.Substring(1, fullname.Length - 1);
             }
-            else
-                throw new FormatException();
+            return fullname;
         }
-        string genPropName4Compo(Component component)
+        Component findComponentByPath(string path, Type type)
         {
-            if (component.gameObject == _rootGameObject)
-                return "as" + component.GetType().Name;
-            string propName;
-            string[] compoTypes;
-            if (tryParseGOName(component.gameObject.name, out propName, out compoTypes))
-                return propName + component.GetType().Name;
-            else
-                throw new FormatException();
+            return TransformHelper.findGameObjectByPath(_rootGameObject, path).GetComponent(type);
         }
-        string[] getPath(GameObject parent, GameObject child)
+        public virtual IEnumerable<string> ctrlTypes
         {
-            if (parent.transform == child.transform)
-                return new string[0];
-            List<string> pathList = new List<string>();
-            for (Transform transform = child.transform; transform != null; transform = transform.parent)
-            {
-                if (transform.gameObject == parent)
-                    break;
-                pathList.Add(transform.gameObject.name);
-            }
-            return pathList.ToArray();
+            get { return _ctrlTypes; }
         }
-
-        protected CodeMemberEvent genEvent(string eventTypeName, string eventName, params CodeTypeReference[] typeParameters)
-        {
-            CodeMemberEvent Event = new CodeMemberEvent();
-            _type.Members.Add(Event);
-            Event.Attributes = MemberAttributes.Public | MemberAttributes.Final;
-            Event.Type = new CodeTypeReference(eventTypeName, typeParameters);
-            Event.Name = eventName;
-            return Event;
-        }
-
-        protected CodeMemberProperty genIndexer(CodeTypeReference indexerType)
-        {
-            CodeMemberProperty indexer = new CodeMemberProperty();
-            _type.Members.Add(indexer);
-            indexer.Attributes = MemberAttributes.Public | MemberAttributes.Final;
-            indexer.Type = indexerType;
-            indexer.Name = "item";
-            return indexer;
-        }
-        protected CodeMemberField genPartialMethod(string typeName, string methodName, params CodeParameterDeclarationExpression[] parameters)
-        {
-            return genPartialMethod(_type, typeName, methodName, parameters);
-        }
-
-        protected CodeMemberField genPartialMethod(CodeTypeDeclaration type, string typeName, string methodName, params CodeParameterDeclarationExpression[] parameters)
-        {
-            CodeMemberField method = new CodeMemberField();
-            type.Members.Add(method);
-            method.Attributes = MemberAttributes.ScopeMask;
-            method.Type = new CodeTypeReference("partial " + typeName);
-            method.Name = methodName + "(" + string.Join(",", parameters.Select(p => p.Type.BaseType + " " + p.Name).ToArray()) + ")";
-            return method;
-        }
-        private void addTypeUsing(Type type)
-        {
-            if (!_nameSpace.Imports.OfType<CodeNamespaceImport>().Any(n => n.Namespace == type.Namespace))
-                _nameSpace.Imports.Add(new CodeNamespaceImport(type.Namespace));
-        }
+        public string typeName { get; set; }
+        public Dictionary<Object, AutoBindFieldInfo> objFieldDict { get; set; }
+        public string controllerType { get; set; }
+        //按钮
+        public Button buttonMain { get; set; }
+        //列表
+        public GameObject listOrigin { get; set; }
+        public string listItemTypeName { get; set; }
         protected AutoCompoGenSetting _setting;
         protected GameObject _rootGameObject;
         protected CodeNamespace _nameSpace;
         protected CodeTypeDeclaration _type;
-        protected CodeMemberMethod _autoBindMethod;
-        const string NAME_OF_TRANSFORM = "transform";
-        const string NAME_OF_FIND = "Find";
-        const string NAME_OF_GETCOMPO = "GetComponent";
-    }
-    [Serializable]
-    public class AutoCompoGenSetting
-    {
-        public void loadFromPrefs(string name)
+        protected CodeMemberMethod _initMethod;
+        protected CodeMemberMethod _clearMethod;
+        public const string CTRL_TYPE_BUTTON = "button";
+        public const string CTRL_TYPE_LIST = "list";
+        public const string CTRL_TYPE_BUTTON_LIST = "buttonList";
+        protected const string FIELD_NAME_ORIGIN = "_origin";
+        protected const string FIELD_NAME_ITEM_POOL = "_itemPool";
+        protected const string METHOD_NAME_LIST_INIT_POOL = "initPool";
+        protected const string NAME_OF_GAMEOBJECT = "gameObject";
+        protected const string NAME_OF_SET_ACTIVE = "SetActive";
+        protected const string NAME_OF_TRANSFORM = "transform";
+        protected const string NAME_OF_FIND = "Find";
+        protected const string NAME_OF_FIND_BY_PATH = "findByPath";
+        protected const string NAME_OF_ADDCOMPO = "AddComponent";
+        protected const string NAME_OF_GETCOMPO = "GetComponent";
+        protected const string NAME_OF_ONCLICK = "onClick";
+        protected const string NAME_OF_ADDLISTENER = "AddListener";
+        protected const string NAME_OF_REMOVELISTENER = "RemoveListener";
+        readonly string[] _ctrlTypes = new string[]
         {
-            if (!EditorPrefs.HasKey(name + ":" + USINGS_LENGTH))
-                return;
-            usings = new string[EditorPrefs.GetInt(name + ":" + USINGS_LENGTH)];
-            for (int i = 0; i < usings.Length; i++)
-            {
-                usings[i] = EditorPrefs.GetString(name + ":" + USINGS + i);
-            }
-            Namespace = EditorPrefs.GetString(name + ":" + NAMESPACE);
-            baseTypes = new string[EditorPrefs.GetInt(name + ":" + BASETYPES_LENGTH)];
-            for (int i = 0; i < baseTypes.Length; i++)
-            {
-                baseTypes[i] = EditorPrefs.GetString(name + ":" + BASETYPES + i);
-            }
-            fieldAttributes = new string[EditorPrefs.GetInt(name + ":" + FIELDATTRIBUTES_LENGTH)];
-            for (int i = 0; i < fieldAttributes.Length; i++)
-            {
-                fieldAttributes[i] = EditorPrefs.GetString(name + ":" + FIELDATTRIBUTES + i);
-            }
-        }
-        public void saveToPrefs(string name)
-        {
-            EditorPrefs.SetInt(name + ":" + USINGS_LENGTH, usings.Length);
-            for (int i = 0; i < usings.Length; i++)
-            {
-                EditorPrefs.SetString(name + ":" + USINGS + i, usings[i]);
-            }
-            EditorPrefs.SetString(name + ":" + NAMESPACE, Namespace);
-            EditorPrefs.SetInt(name + ":" + BASETYPES_LENGTH, baseTypes.Length);
-            for (int i = 0; i < baseTypes.Length; i++)
-            {
-                EditorPrefs.SetString(name + ":" + BASETYPES + i, baseTypes[i]);
-            }
-            EditorPrefs.SetInt(name + ":" + FIELDATTRIBUTES_LENGTH, fieldAttributes.Length);
-            for (int i = 0; i < fieldAttributes.Length; i++)
-            {
-                EditorPrefs.SetString(name + ":" + FIELDATTRIBUTES + i, fieldAttributes[i]);
-            }
-        }
-        public string[] usings = new string[0];
-        public string Namespace = "UI";
-        public string[] baseTypes = new string[0];
-        public string[] fieldAttributes = new string[0];
-        const string USINGS = "AutoCompoGenSetting.usings";
-        const string USINGS_LENGTH = "AutoCompoGenSetting.usings.Length";
-        const string NAMESPACE = "AutoCompoGenSetting.Namespace";
-        const string BASETYPES = "AutoCompoGenSetting.baseTypes";
-        const string BASETYPES_LENGTH = "AutoCompoGenSetting.baseTypes.Length";
-        const string FIELDATTRIBUTES = "AutoCompoGenSetting.fieldAttributes";
-        const string FIELDATTRIBUTES_LENGTH = "AutoCompoGenSetting.fieldAttributes.Length";
+            CTRL_TYPE_BUTTON,
+            CTRL_TYPE_LIST,
+            CTRL_TYPE_BUTTON_LIST
+        };
     }
 }

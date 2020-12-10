@@ -9,51 +9,6 @@ using UnityEditor.Animations;
 
 namespace BJSYGameCore
 {
-    public static class ReflectionHelper
-    {
-        public static Assembly[] assemblies { get; } = loadAssemblies();
-        public static Assembly[] loadAssemblies()
-        {
-            return AppDomain.CurrentDomain.GetAssemblies();
-        }
-        public static Type[] types { get; } = loadTypes();
-        public static Type[] loadTypes()
-        {
-            return getTypes(assemblies);
-        }
-
-        private static Type[] getTypes(Assembly[] assemblies)
-        {
-            List<Type> list = new List<Type>();
-            foreach (var assembly in assemblies)
-            {
-                list.AddRange(assembly.GetTypes());
-            }
-            return list.ToArray();
-        }
-
-        public static Type getType(string typeName)
-        {
-            if (string.IsNullOrEmpty(typeName))
-                return null;
-            Type type = Type.GetType(typeName);
-            if (type != null)
-                return type;
-            foreach (Assembly assembly in assemblies)
-            {
-                type = assembly.GetType(typeName);
-                if (type != null)
-                    return type;
-            }
-            return type;
-        }
-        public static Type[] getSubclass(Assembly[] assemblies, Type baseType)
-        {
-            if (assemblies == null || assemblies.Length < 1)
-                assemblies = ReflectionHelper.assemblies;
-            return getTypes(assemblies).Where(t => t.BaseType == baseType || t.IsSubclassOf(baseType)).ToArray();
-        }
-    }
     [CustomPropertyDrawer(typeof(TypeStringAttribute))]
     class TypeStringPropDrawer : PropertyDrawer
     {
