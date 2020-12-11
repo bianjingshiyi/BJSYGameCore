@@ -39,14 +39,13 @@ namespace BJSYGameCore.AutoCompo
         }
         public static Transform findByPath(this Transform transform, string path)
         {
-            if (path == "./")
-                return transform;
-            string[] names = path.Split('/');
-            for (int i = 1; i < names.Length; i++)
+            if (path.StartsWith("./"))
             {
-                transform = transform.Find(names[i]);
+                if (path == "./")
+                    return transform;
+                path = path.Substring(2, path.Length - 2);
             }
-            return transform;
+            return transform.Find(path);
         }
     }
 }

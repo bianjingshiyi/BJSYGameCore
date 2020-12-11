@@ -131,7 +131,7 @@ GameObject:
   m_Component:
   - component: {fileID: 706773588}
   m_Layer: 5
-  m_Name: SceneObject.Transform
+  m_Name: SceneObject
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -166,7 +166,7 @@ PrefabInstance:
     - target: {fileID: 4330940854998316275, guid: c7a200932df3f3749b3956e737d02e43,
         type: 3}
       propertyPath: m_Name
-      value: AutoUI.RectTransform,Animator
+      value: AutoUI
       objectReference: {fileID: 0}
     - target: {fileID: 4330940854998316276, guid: c7a200932df3f3749b3956e737d02e43,
         type: 3}

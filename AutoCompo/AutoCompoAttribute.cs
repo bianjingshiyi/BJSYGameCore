@@ -21,10 +21,13 @@ namespace BJSYGameCore.AutoCompo
             : this(instanceID, null, tags)
         {
         }
+        public AutoCompoAttribute(int instanceID, string path)
+            : this(instanceID, path, new string[0])
+        {
+        }
         public AutoCompoAttribute()
             : this(0, null, new string[0])
         {
-
         }
     }
 }

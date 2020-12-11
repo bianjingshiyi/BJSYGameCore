@@ -10,30 +10,39 @@
 
 namespace UI
 {
+    using BJSYGameCore.UI;
+    using BJSYGameCore.AutoCompo;
+    using System;
     using UnityEngine;
     using UnityEngine.UI;
-    using BJSYGameCore.AutoCompo;
     
-    [AutoCompoAttribute(13812)]
-    public partial class AutoUI : MonoBehaviour
+    [AutoCompoAttribute(19190)]
+    public partial class AutoUI : UIObject
     {
-        public void autoBind()
+        public void init()
         {
-            this._asRectTransform = this.GetComponent<RectTransform>();
-            this._asAnimator = this.GetComponent<Animator>();
-            this._returnButton = this.transform.Find("return.Button").GetComponent<Button>();
-            this._nameText = this.transform.Find("name.Text").GetComponent<Text>();
+            this._asRect = this.transform.findByPath("./").GetComponent<RectTransform>();
+            this._asAnimator = this.transform.findByPath("./").GetComponent<Animator>();
+            this._returnButton = this.transform.findByPath("./ReturnButton").GetComponent<Button>();
+            this._returnButton.onClick.AddListener(this.ReturnButtonClickCallback);
+            this._nameText = this.transform.findByPath("./Name").GetComponent<Text>();
+        }
+        public void clear()
+        {
+            this._returnButton.onClick.RemoveListener(this.ReturnButtonClickCallback);
         }
         [SerializeField()]
-        private RectTransform _asRectTransform;
-        public RectTransform asRectTransform
+        [AutoCompoAttribute(24390, "./")]
+        private RectTransform _asRect;
+        public RectTransform asRect
         {
             get
             {
-                return this._asRectTransform;
+                return this._asRect;
             }
         }
         [SerializeField()]
+        [AutoCompoAttribute(24404, "./")]
         private Animator _asAnimator;
         public Animator asAnimator
         {
@@ -43,6 +52,7 @@ namespace UI
             }
         }
         [SerializeField()]
+        [AutoCompoAttribute(24420, "./ReturnButton")]
         private Button _returnButton;
         public Button returnButton
         {
@@ -51,7 +61,16 @@ namespace UI
                 return this._returnButton;
             }
         }
+        public event Action onReturnButtonClick;
+        private void ReturnButtonClickCallback()
+        {
+            if ((this.onReturnButtonClick != null))
+            {
+                this.onReturnButtonClick();
+            }
+        }
         [SerializeField()]
+        [AutoCompoAttribute(24412, "./Name")]
         private Text _nameText;
         public Text nameText
         {

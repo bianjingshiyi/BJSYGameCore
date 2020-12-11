@@ -15,19 +15,21 @@ namespace UI
     using System;
     using UnityEngine;
     
-    [AutoCompoAttribute(-3836)]
+    [AutoCompoAttribute(24514)]
     public partial class SceneObject : UIObject
     {
-        public void autoBind()
+        public void init()
         {
-            this._asRectTransform = this.GetComponent<RectTransform>();
+            this._asRect = this.transform.findByPath("./").GetComponent<RectTransform>();
         }
-        private RectTransform _asRectTransform;
-        public RectTransform asRectTransform
+        [SerializeField()]
+        [AutoCompoAttribute(24516, "./")]
+        private RectTransform _asRect;
+        public RectTransform asRect
         {
             get
             {
-                return this._asRectTransform;
+                return this._asRect;
             }
         }
     }

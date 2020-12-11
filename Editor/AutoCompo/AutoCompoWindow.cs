@@ -7,6 +7,8 @@ using UnityEngine.UI;
 using System.Collections.Generic;
 using System.Reflection;
 using Object = UnityEngine.Object;
+using UnityEditor.Experimental.SceneManagement;
+
 namespace BJSYGameCore.AutoCompo
 {
     public class AutoCompoWindow : EditorWindow
@@ -26,21 +28,15 @@ namespace BJSYGameCore.AutoCompo
         {
             GetWindow<AutoCompoWindow>(typeof(AutoCompoWindow).Name, true).checkGameObject(Selection.gameObjects.Length > 0 ? Selection.gameObjects[0] : null, true);
         }
-        #endregion
-        #region 私有成员
-        protected void Awake()
-        {
-            if (_setting == null)
-                _setting = loadSetting();
-        }
         public void checkGameObject(GameObject gameObject, bool forceReselect = false)
         {
             if (gameObject == null || (!forceReselect && _gameObject == gameObject))
                 return;
             if (_serializedObject == null)
                 _serializedObject = new SerializedObject(this);
-            _serializedObject.FindProperty(NAME_OF_GAMEOBJECT).objectReferenceValue = gameObject;
-            _serializedObject.FindProperty(NAME_OF_SAVEPATH).stringValue = getSavePath4GO(gameObject);
+            GameObject sourceObject = getSourceGameObject(gameObject);
+            _serializedObject.FindProperty(NAME_OF_GAMEOBJECT).objectReferenceValue = sourceObject;
+            _serializedObject.FindProperty(NAME_OF_SAVEPATH).stringValue = getSavePath4GO(sourceObject);
             _serializedObject.ApplyModifiedProperties();
             if (string.IsNullOrEmpty(_savePath))
             {
@@ -48,13 +44,31 @@ namespace BJSYGameCore.AutoCompo
                 throw new DirectoryNotFoundException();
             }
         }
+        #endregion
+        #region 私有成员
+        protected void Awake()
+        {
+            if (_setting == null)
+                _setting = loadSetting();
+        }
         protected void OnGUI()
         {
             if (this == null)
                 return;
+            if (onCompilingWarning())
+                return;
+            //自动添加组件
+            if (!EditorApplication.isCompiling)
+            {
+                if(onAutoAddComponent())
+                {
+                    Close();
+                    return;
+                }
+            }
             if (_gameObject == null)
             {
-                Close();
+                EditorGUILayout.LabelField("目标GameObject可能未被加载或者已被销毁");
                 return;
             }
             if (_generator == null)
@@ -119,6 +133,10 @@ namespace BJSYGameCore.AutoCompo
         /// <returns></returns>
         protected virtual Type tryGetExistsType()
         {
+            string path;
+            Type existsType = null;
+            if (tryFindAutoScript(_gameObject, out path, out existsType))
+                return existsType;
             return null;
         }
         protected virtual void onInitByCtrlType()
@@ -260,7 +278,6 @@ namespace BJSYGameCore.AutoCompo
                 }
             }
         }
-
         void onGUIComponent(Component component)
         {
             EditorGUILayout.BeginHorizontal();
@@ -308,6 +325,50 @@ namespace BJSYGameCore.AutoCompo
             }
             EditorGUI.EndDisabledGroup();
             EditorGUILayout.EndHorizontal();
+        }
+        protected virtual bool onCompilingWarning()
+        {
+            if (EditorApplication.isCompiling && _autoAddList.Count > 0)
+            {
+                Color color = GUI.color;
+                GUI.color = Color.red;
+                EditorGUILayout.LabelField("脚本将会在编译完成后自动添加，请不要关闭窗口或销毁GameObject");
+                GUI.color = color;
+                return true;
+            }
+            else
+                return false;
+        }
+        protected virtual bool onAutoAddComponent()
+        {
+            bool isAdded = false;
+            if (_autoAddList.Count > 0)
+            {
+                foreach (var info in _autoAddList)
+                {
+                    if (info.rootGameObject == null)
+                    {
+                        Debug.LogWarning(info.typeFullName + "要自动添加的物体已经被销毁，自动添加失败");
+                        continue;
+                    }
+                    Type type;
+                    if (tryFindAutoScript(info.typeFullName, out type))
+                    {
+                        if (info.rootGameObject.GetComponent(type) == null)
+                        {
+                            info.rootGameObject.AddComponent(type);
+                            isAdded = true;
+                        }
+                    }
+                    else
+                    {
+                        Debug.LogError("未找到要为" + info.rootGameObject + "添加的脚本" + info.typeFullName, info.rootGameObject);
+                        continue;
+                    }
+                }
+                _autoAddList.Clear();
+            }
+            return isAdded;
         }
         bool isObjectGen(Object obj)
         {
@@ -367,6 +428,8 @@ namespace BJSYGameCore.AutoCompo
                 return null;
             foreach (var field in _fieldList.Where(f => f.targetType == obj.GetType()))
             {
+                if (string.IsNullOrEmpty(field.path))
+                    continue;
                 GameObject gameObject = obj is GameObject ? obj as GameObject : (obj as Component).gameObject;
                 if (TransformHelper.isPathMatch(field.path, gameObject, _gameObject))
                     return field;
@@ -379,6 +442,8 @@ namespace BJSYGameCore.AutoCompo
             {
                 foreach (var field in _fieldList)
                 {
+                    if (string.IsNullOrEmpty(field.path))
+                        continue;
                     if (TransformHelper.isPartOfPath(gameObject, _gameObject, field.path))
                         return true;
                 }
@@ -450,6 +515,9 @@ namespace BJSYGameCore.AutoCompo
         }
         protected virtual void onGenerate()
         {
+            //如果已经存在类型，那么重新生成该类型，如果不存在则生成和GameObject同名的脚本。
+            _generator.typeName = _type != null ? _type.Name : _gameObject.name;
+            _generator.objFieldDict = _objGenDict;
             _generator.controllerType = _controllerType;
             _generator.buttonMain = _buttonMain;
             _generator.listOrigin = _listOrigin;
@@ -460,6 +528,7 @@ namespace BJSYGameCore.AutoCompo
             CodeDOMHelper.writeUnitToFile(fileInfo, unit);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
+            _autoAddList.Add(new AutoAddCompoInfo(_gameObject, _setting.Namespace + "." + _generator.typeName));
         }
         bool tryFindAutoScript(GameObject gameObject, out string path, out Type type)
         {
@@ -484,6 +553,27 @@ namespace BJSYGameCore.AutoCompo
             }
             return false;
         }
+        bool tryFindAutoScript(string typeFullName, out Type type)
+        {
+            int index = typeFullName.LastIndexOf('.');
+            string typeName;
+            if (index < 0)
+                typeName = typeFullName;
+            else
+                typeName = typeFullName.Substring(index + 1, typeFullName.Length - index - 1);
+            var scripts = AssetDatabase.FindAssets(typeName + " t:" + typeof(MonoScript).Name)
+                .Select(g => AssetDatabase.GUIDToAssetPath(g))
+                .Select(p => AssetDatabase.LoadAssetAtPath<MonoScript>(p))
+                .Where(s => s != null);
+            foreach (var script in scripts)
+            {
+                type = script.GetClass();
+                if (type != null && type.FullName == typeFullName)
+                    return true;
+            }
+            type = null;
+            return false;
+        }
         bool tryFindAutoCompo(int instanceID, out string path)
         {
             foreach (var script in AssetDatabaseHelper.getAssetsOfType<MonoScript>())
@@ -501,6 +591,64 @@ namespace BJSYGameCore.AutoCompo
             }
             path = string.Empty;
             return false;
+        }
+        protected virtual GameObject getSourceGameObject(GameObject gameObject)
+        {
+            GameObject source;
+            var assetType = PrefabUtility.GetPrefabAssetType(gameObject);
+            var status = PrefabUtility.GetPrefabInstanceStatus(gameObject);
+            if (string.IsNullOrEmpty(gameObject.scene.path))
+            {
+                //Prefab，Assets或者编辑场景
+                Debug.Log(gameObject + "目标资源类型：" + assetType + "，目标状态：" + status, gameObject);
+                if (assetType == PrefabAssetType.NotAPrefab && status == PrefabInstanceStatus.NotAPrefab)
+                {
+                    //PrefabStage
+                    PrefabStage stage = PrefabStageUtility.GetCurrentPrefabStage();
+                    string path = stage.prefabContentsRoot.transform.getChildPath(gameObject.transform);
+                    GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(stage.prefabAssetPath);
+                    source = prefab.transform.getChildAt(path).gameObject;
+                }
+                else if (assetType == PrefabAssetType.Regular)
+                    source = gameObject;
+                else
+                    source = PrefabUtility.GetCorrespondingObjectFromSource(gameObject);
+            }
+            else
+            {
+                //场景物体
+                if (assetType == PrefabAssetType.MissingAsset || assetType == PrefabAssetType.NotAPrefab)
+                    source = gameObject;
+                else
+                    source = PrefabUtility.GetCorrespondingObjectFromSource(gameObject);
+            }
+            if (source != null)
+            {
+                assetType = PrefabUtility.GetPrefabAssetType(gameObject);
+                status = PrefabUtility.GetPrefabInstanceStatus(gameObject);
+                Debug.Log(source + "来源资源类型：" + assetType + "，来源状态：" + status, source);
+            }
+            else
+                Debug.LogError("找不到源物体");
+            return source;
+            //#if UNITY_2017
+            //            path = AssetDatabase.GetAssetPath(gameObject);
+            //#else
+            //            if (PrefabUtility.IsPartOfNonAssetPrefabInstance(gameObject))
+            //            {
+            //                GameObject prefabInstanceRoot = PrefabUtility.GetOutermostPrefabInstanceRoot(gameObject);
+            //                GameObject prefabRoot = PrefabUtility.GetCorrespondingObjectFromSource(prefabInstanceRoot);
+            //                path = AssetDatabase.GetAssetPath(prefabRoot);
+            //            }
+            //            else
+            //            {
+            //                path = gameObject.scene.path;
+            //                if (string.IsNullOrEmpty(path))
+            //                {
+            //                    path = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(gameObject);
+            //                }
+            //            }
+            //#endif
         }
         protected Type _type = null;
         List<AutoBindFieldInfo> _fieldList = null;
@@ -526,6 +674,8 @@ namespace BJSYGameCore.AutoCompo
         [SerializeField]
         protected MonoScript _listItemTypeScript;
         SerializedObject _serializedObject;
+        [SerializeField]
+        List<AutoAddCompoInfo> _autoAddList = new List<AutoAddCompoInfo>();
         protected const int PRIOR_SCENE_GENERATE = 15;
         protected const int PRIOR_PREFAB_GENERATE = 81;
         const string NAME_OF_GAMEOBJECT = "_gameObject";
@@ -535,5 +685,16 @@ namespace BJSYGameCore.AutoCompo
         const int WIDTH_OF_FIELD = 200;
         const int WIDTH_OF_TOGGLE = 25;
         #endregion
+    }
+    [Serializable]
+    class AutoAddCompoInfo
+    {
+        public GameObject rootGameObject;
+        public string typeFullName;
+        public AutoAddCompoInfo(GameObject rootGameObject, string typeFullName)
+        {
+            this.rootGameObject = rootGameObject;
+            this.typeFullName = typeFullName;
+        }
     }
 }

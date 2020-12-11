@@ -201,7 +201,8 @@ namespace BJSYGameCore.AutoCompo
             //初始化
             addTypeUsing(typeof(TransformHelper));
             _initMethod.Statements.append(Codo.assign(Codo.This.getField(field.Name),
-                Codo.This.getProp(NAME_OF_TRANSFORM).getMethod(NAME_OF_FIND_BY_PATH).getMethod(NAME_OF_GETCOMPO, Codo.type(component.GetType().Name)).index()));
+                Codo.This.getProp(NAME_OF_TRANSFORM).getMethod(NAME_OF_FIND_BY_PATH).invoke(Codo.String(objFieldDict[component].path))
+                .getMethod(NAME_OF_GETCOMPO, Codo.type(component.GetType().Name)).invoke()));
             if (component.GetType() == typeof(Button) || component.GetType().IsSubclassOf(typeof(Button)))
             {
                 //是按钮

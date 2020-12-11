@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 4330940854232491322}
   - component: {fileID: 4330940854232491321}
   m_Layer: 5
-  m_Name: name.Text
+  m_Name: Name
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -90,8 +90,9 @@ GameObject:
   - component: {fileID: 4330940854998316278}
   - component: {fileID: 4330940854998316277}
   - component: {fileID: 5051283035901681594}
+  - component: {fileID: 8466965591016116177}
   m_Layer: 5
-  m_Name: AutoUI.RectTransform,Animator
+  m_Name: AutoUI
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -174,6 +175,25 @@ Animator:
   m_HasTransformHierarchy: 1
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorControllerStateOnDisable: 0
+--- !u!114 &8466965591016116177
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4330940854998316275}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4cc584e50724ac54dabbadb3605c1b7f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _ui: {fileID: 0}
+  _useController: 0
+  _initStates: []
+  _asRect: {fileID: 0}
+  _asAnimator: {fileID: 0}
+  _returnButton: {fileID: 0}
+  _nameText: {fileID: 0}
 --- !u!1 &4330940855213850942
 GameObject:
   m_ObjectHideFlags: 0
@@ -265,7 +285,7 @@ GameObject:
   - component: {fileID: 4330940855342110150}
   - component: {fileID: 4330940855342110149}
   m_Layer: 5
-  m_Name: return.Button
+  m_Name: ReturnButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
