@@ -28,7 +28,10 @@ namespace BJSYGameCore.AutoCompo
             unit.Namespaces.Add(_nameSpace);
             foreach (string import in setting.usings)
             {
-                _nameSpace.Imports.Add(new CodeNamespaceImport(import));
+                if (Regex.IsMatch(import, @"(\w\.)*\w"))
+                    _nameSpace.Imports.Add(new CodeNamespaceImport(import));
+                else
+                    Debug.LogError(import + "不是合法的命名空间");
             }
             //类
             _type = new CodeTypeDeclaration();

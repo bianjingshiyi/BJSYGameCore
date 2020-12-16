@@ -9,8 +9,11 @@ namespace BJSYGameCore.AutoCompo
     {
         protected void addTypeUsing(Type type)
         {
-            if (!_nameSpace.Imports.OfType<CodeNamespaceImport>().Any(n => n.Namespace == type.Namespace))
-                _nameSpace.Imports.Add(new CodeNamespaceImport(type.Namespace));
+            if (string.IsNullOrEmpty(type.Namespace))
+                return;
+            if (_nameSpace.Imports.OfType<CodeNamespaceImport>().Any(n => n.Namespace == type.Namespace))
+                return;
+            _nameSpace.Imports.Add(new CodeNamespaceImport(type.Namespace));
         }
         protected CodeMemberField genField(CodeTypeDeclaration type, string typeName, string fieldName, bool applyAttributes = true)
         {
