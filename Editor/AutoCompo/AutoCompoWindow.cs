@@ -60,7 +60,7 @@ namespace BJSYGameCore.AutoCompo
             //自动添加组件
             if (!EditorApplication.isCompiling)
             {
-                if(onAutoAddComponent())
+                if (onAutoAddComponent())
                 {
                     Close();
                     return;
@@ -134,7 +134,7 @@ namespace BJSYGameCore.AutoCompo
         protected virtual Type tryGetExistsType()
         {
             string path;
-            Type existsType = null;
+            Type existsType;
             if (tryFindAutoScript(_gameObject, out path, out existsType))
                 return existsType;
             return null;
@@ -220,7 +220,9 @@ namespace BJSYGameCore.AutoCompo
             if (canEditGameObjectName(gameObject))
             {
                 _objFoldDict[gameObject] = EditorGUILayout.Foldout(_objFoldDict.ContainsKey(gameObject) ? _objFoldDict[gameObject] : isPartOfAnyPath(gameObject), string.Empty, true);
-                setSepecifiedFieldName(gameObject, EditorGUILayout.TextField(hasSpecifiedFieldName(gameObject) ? gameObject.name : getSpecifiedFieldName(gameObject)));
+                setSepecifiedFieldName(gameObject, EditorGUILayout.TextField(hasSpecifiedFieldName(gameObject) ?
+                    getSpecifiedFieldName(gameObject) :
+                    _generator.genFieldName4GO(gameObject)));
             }
             else
                 _objFoldDict[gameObject] = EditorGUILayout.Foldout(_objFoldDict.ContainsKey(gameObject) ? _objFoldDict[gameObject] : isPartOfAnyPath(gameObject), gameObject.name, true);
@@ -288,19 +290,15 @@ namespace BJSYGameCore.AutoCompo
             EditorGUILayout.BeginHorizontal(GUILayout.Width(WIDTH_OF_FIELD));
             if (isObjectGen(component))
             {
-                string fieldName = EditorGUILayout.TextField(string.IsNullOrEmpty(_objGenDict[component].fieldName) ? component.gameObject.name : _objGenDict[component].fieldName);
-                if (string.IsNullOrEmpty(fieldName) || fieldName == component.gameObject.name)
-                    _objGenDict[component].fieldName = null;
-                else
-                    _objGenDict[component].fieldName = fieldName;
+                setSepecifiedFieldName(component, EditorGUILayout.TextField(hasSpecifiedFieldName(component) ?
+                    getSpecifiedFieldName(component) :
+                    _generator.genFieldName4Compo(component)));
             }
             else
                 EditorGUILayout.LabelField(component.GetType().Name, GUILayout.Width(WIDTH_OF_FIELD));
             EditorGUILayout.EndHorizontal();
-            if (EditorGUILayout.Toggle(_objGenDict.ContainsKey(component) && _objGenDict[component] != null))
-                _objGenDict[component] = getOrGenField(component);
-            else
-                _objGenDict[component] = null;
+            //勾选是否生成组件字段
+            onCheckGenObj(component);
             if (_controllerType == AutoCompoGenerator.CTRL_TYPE_BUTTON)
             {
                 if (_buttonMain == null)
@@ -325,6 +323,21 @@ namespace BJSYGameCore.AutoCompo
             }
             EditorGUI.EndDisabledGroup();
             EditorGUILayout.EndHorizontal();
+        }
+        private void onCheckGenObj(Object obj)
+        {
+            bool isGen = _objGenDict.ContainsKey(obj);
+            isGen = EditorGUILayout.Toggle(isGen);
+            if (isGen)
+            {
+                if (!_objGenDict.ContainsKey(obj))
+                    _objGenDict[obj] = getOrGenField(obj);
+            }
+            else
+            {
+                if (_objGenDict.ContainsKey(obj))
+                    _objGenDict.Remove(obj);
+            }
         }
         protected virtual bool onCompilingWarning()
         {
@@ -511,11 +524,15 @@ namespace BJSYGameCore.AutoCompo
         }
         protected virtual AutoCompoGenerator createGenerator()
         {
-            return new AutoCompoGenerator();
+            AutoCompoGenerator generator = new AutoCompoGenerator();
+            generator.rootGameObject = _gameObject;
+            return generator;
         }
+        /// <summary>
+        /// 如果已经存在类型，那么重新生成该类型，如果不存在则生成和GameObject同名的脚本。
+        /// </summary>
         protected virtual void onGenerate()
         {
-            //如果已经存在类型，那么重新生成该类型，如果不存在则生成和GameObject同名的脚本。
             _generator.typeName = _type != null ? _type.Name : _gameObject.name;
             _generator.objFieldDict = _objGenDict;
             _generator.controllerType = _controllerType;
@@ -534,16 +551,25 @@ namespace BJSYGameCore.AutoCompo
         {
             path = null;
             type = null;
-            MonoBehaviour autoScript = gameObject.GetComponent(gameObject.name) as MonoBehaviour;
+            MonoBehaviour autoScript = null;
+            foreach (var mono in gameObject.GetComponents<MonoBehaviour>())
+            {
+                if (mono.GetType().Name == gameObject.name)
+                {
+                    autoScript = mono;
+                    break;
+                }
+            }
             if (autoScript != null)
             {
-                var scripts = AssetDatabase.FindAssets(gameObject.name + " t:MonoScript")
+                var scripts = AssetDatabase.FindAssets(autoScript.GetType().Name + " t:MonoScript")
                                            .Select(g => AssetDatabase.GUIDToAssetPath(g))
                                            .Select(p => AssetDatabase.LoadAssetAtPath<MonoScript>(p))
                                            .Where(s => s != null);
                 foreach (var script in scripts)
                 {
-                    if (script.text.Contains("// <auto-generated>"))
+                    if (script.GetClass() == autoScript.GetType() &&
+                        script.text.Contains("// <auto-generated>"))
                     {
                         path = AssetDatabase.GetAssetPath(script);
                         type = script.GetClass();

@@ -21,7 +21,7 @@ namespace BJSYGameCore.AutoCompo
         public CodeCompileUnit genScript4GO(GameObject gameObject, AutoCompoGenSetting setting)
         {
             _setting = setting;
-            _rootGameObject = gameObject;
+            rootGameObject = gameObject;
             CodeCompileUnit unit = new CodeCompileUnit();
             //命名空间，引用
             _nameSpace = new CodeNamespace(setting.Namespace);
@@ -46,11 +46,11 @@ namespace BJSYGameCore.AutoCompo
         {
             addTypeUsing(typeof(AutoCompoAttribute));
             _type.CustomAttributes.Add(new CodeAttributeDeclaration(typeof(AutoCompoAttribute).Name,
-                new CodeAttributeArgument(new CodePrimitiveExpression(_rootGameObject.GetInstanceID()))));
+                new CodeAttributeArgument(new CodePrimitiveExpression(rootGameObject.GetInstanceID()))));
             _type.Attributes = MemberAttributes.Public | MemberAttributes.Final;
             _type.IsPartial = true;
             _type.IsClass = true;
-            _type.Name = genTypeName4GO(_rootGameObject);
+            _type.Name = genTypeName4GO(rootGameObject);
             foreach (var baseType in _setting.baseTypes)
             {
                 _type.BaseTypes.Add(baseType);
@@ -160,7 +160,7 @@ namespace BJSYGameCore.AutoCompo
             foreach (var fieldInfo in objFieldDict.Values.Where(f => f != null && f.instanceId != 0))
             {
                 if (fieldInfo.targetType == typeof(GameObject))
-                    genGameObject(TransformHelper.findGameObjectByPath(_rootGameObject, fieldInfo.path));
+                    genGameObject(TransformHelper.findGameObjectByPath(rootGameObject, fieldInfo.path));
                 else
                     genCompo(findComponentByPath(fieldInfo.path, fieldInfo.targetType));
             }
@@ -293,44 +293,51 @@ namespace BJSYGameCore.AutoCompo
         /// </summary>
         /// <param name="gameObject"></param>
         /// <returns></returns>
-        protected virtual string genFieldName4GO(GameObject gameObject)
+        public virtual string genFieldName4GO(GameObject gameObject)
         {
-            if (!string.IsNullOrEmpty(objFieldDict[gameObject].fieldName))
-                return objFieldDict[gameObject].fieldName;
-            if (gameObject == _rootGameObject)
+            if (objFieldDict != null)
+            {
+                if (!string.IsNullOrEmpty(objFieldDict[gameObject].fieldName))
+                    return objFieldDict[gameObject].fieldName;
+            }
+            if (gameObject == rootGameObject)
                 return "_gameObject";
             else
-                return "_" + gameObject.name;
+                return "_" + gameObject.name.headToLower();
         }
         /// <summary>
         /// 默认如果是根组件，那么叫做_as类型名，如果是子组件，那么叫_子物体名类型名。
         /// </summary>
         /// <param name="component"></param>
         /// <returns></returns>
-        protected virtual string genFieldName4Compo(Component component)
+        public virtual string genFieldName4Compo(Component component)
         {
-            if (!string.IsNullOrEmpty(objFieldDict[component].fieldName))
+            if (objFieldDict != null && !string.IsNullOrEmpty(objFieldDict[component].fieldName))
                 return objFieldDict[component].fieldName;
-            if (component.gameObject == _rootGameObject)
+            if (component.gameObject == rootGameObject)
                 return "_as" + component.GetType().Name;
             GameObject gameObject = component.gameObject;
-            string name = "_" + gameObject.name;
+            string name = "_" + gameObject.name.headToLower();
             string fullname;
             string typeName = component.GetType().Name;
-            if (name.Contains(typeName))
+            if (name.Contains(typeName) ||
+                gameObject.name == typeName)
                 fullname = name;
             else if (!name.tryMerge(typeName, out fullname))
                 fullname = name + typeName;
-            while (_type.Members.OfType<CodeMemberField>().Any(f => f.Name == fullname))
+            if (_type != null)
             {
-                gameObject = gameObject.transform.parent.gameObject;
-                fullname = "_" + gameObject.name + "_" + fullname.Substring(1, fullname.Length - 1);
+                while (_type.Members.OfType<CodeMemberField>().Any(f => f.Name == fullname))
+                {
+                    gameObject = gameObject.transform.parent.gameObject;
+                    fullname = "_" + gameObject.name.headToLower() + "_" + fullname.Substring(1, fullname.Length - 1).headToUpper();
+                }
             }
             return fullname;
         }
         Component findComponentByPath(string path, Type type)
         {
-            return TransformHelper.findGameObjectByPath(_rootGameObject, path).GetComponent(type);
+            return TransformHelper.findGameObjectByPath(rootGameObject, path).GetComponent(type);
         }
         public virtual IEnumerable<string> ctrlTypes
         {
@@ -344,8 +351,8 @@ namespace BJSYGameCore.AutoCompo
         //列表
         public GameObject listOrigin { get; set; }
         public string listItemTypeName { get; set; }
+        public GameObject rootGameObject { get; set; }
         protected AutoCompoGenSetting _setting;
-        protected GameObject _rootGameObject;
         protected CodeNamespace _nameSpace;
         protected CodeTypeDeclaration _type;
         protected CodeMemberMethod _initMethod;
