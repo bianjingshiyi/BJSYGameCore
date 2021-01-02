@@ -213,42 +213,50 @@ namespace BJSYGameCore.AutoCompo
             _initMethod.Statements.append(Codo.assign(Codo.This.getField(field.Name),
                 Codo.This.getProp(NAME_OF_TRANSFORM).getMethod(NAME_OF_FIND_BY_PATH).invoke(Codo.String(objFieldDict[component].path))
                 .getMethod(NAME_OF_GETCOMPO, Codo.type(component.GetType().Name)).invoke()));
-            if (component.GetType() == typeof(Button) || component.GetType().IsSubclassOf(typeof(Button)))
+            if (component is Button)
+                onGenButton(component as Button, field, autoCompo, prop);
+            else if (component is Animator)
+                onGenAnimator(component as Animator, field, prop);
+        }
+        private void onGenButton(Button button, CodeMemberField field, CodeAttributeDeclaration autoCompo, CodeMemberProperty prop)
+        {
+            //是按钮
+            if (controllerType == CTRL_TYPE_BUTTON && button == buttonMain)
+                autoCompo.Arguments.Add(new CodeAttributeArgument(new CodePrimitiveExpression("mainButton")));
+            string name = prop.Name;
+            name = name.headToUpper();
+            //事件
+            CodeMemberEvent Event;
+            if (controllerType == CTRL_TYPE_BUTTON && button == buttonMain)
+                Event = genEvent(typeof(Action).Name, "onClick", Codo.type(typeName));
+            else
+                Event = genEvent(typeof(Action).Name, "on" + name + "Click");
+            //回调函数
+            CodeMemberMethod callbackMethod;
+            if (controllerType == CTRL_TYPE_BUTTON && button == buttonMain)
             {
-                //是按钮
-                if (controllerType == CTRL_TYPE_BUTTON && component == buttonMain)
-                    autoCompo.Arguments.Add(new CodeAttributeArgument(new CodePrimitiveExpression("mainButton")));
-                string name = prop.Name;
-                name = name.headToUpper();
-                //事件
-                CodeMemberEvent Event;
-                if (controllerType == CTRL_TYPE_BUTTON && component == buttonMain)
-                    Event = genEvent(typeof(Action).Name, "onClick", Codo.type(typeName));
-                else
-                    Event = genEvent(typeof(Action).Name, "on" + name + "Click");
-                //回调函数
-                CodeMemberMethod callbackMethod;
-                if (controllerType == CTRL_TYPE_BUTTON && component == buttonMain)
-                {
-                    callbackMethod = genMethod(MemberAttributes.Private | MemberAttributes.Final, typeof(void), "clickCallback");
-                    callbackMethod.Statements.Add(new CodeConditionStatement(
-                    new CodeBinaryOperatorExpression(Codo.This.getEvent(Event.Name), CodeBinaryOperatorType.IdentityInequality, Codo.Null),
-                        Codo.This.getEvent(Event.Name).invoke(Codo.This).statement()));
-                }
-                else
-                {
-                    callbackMethod = genMethod(MemberAttributes.Private | MemberAttributes.Final, typeof(void), name + "ClickCallback");
-                    callbackMethod.Statements.Add(new CodeConditionStatement(
-                        new CodeBinaryOperatorExpression(Codo.This.getEvent(Event.Name), CodeBinaryOperatorType.IdentityInequality, Codo.Null),
-                            Codo.This.getEvent(Event.Name).invoke().statement()));
-                }
-                //注册
-                _initMethod.Statements.Add(Codo.This.getField(field.Name).getProp(NAME_OF_ONCLICK)
-                    .getMethod(NAME_OF_ADDLISTENER).invoke(Codo.This.getMethod(callbackMethod.Name)).statement());
-                //注销
-                _clearMethod.Statements.Add(Codo.This.getField(field.Name).getProp(NAME_OF_ONCLICK)
-                    .getMethod(NAME_OF_REMOVELISTENER).invoke(Codo.This.getMethod(callbackMethod.Name)).statement());
+                callbackMethod = genMethod(MemberAttributes.Private | MemberAttributes.Final, typeof(void), "clickCallback");
+                callbackMethod.Statements.Add(new CodeConditionStatement(
+                new CodeBinaryOperatorExpression(Codo.This.getEvent(Event.Name), CodeBinaryOperatorType.IdentityInequality, Codo.Null),
+                    Codo.This.getEvent(Event.Name).invoke(Codo.This).statement()));
             }
+            else
+            {
+                callbackMethod = genMethod(MemberAttributes.Private | MemberAttributes.Final, typeof(void), name + "ClickCallback");
+                callbackMethod.Statements.Add(new CodeConditionStatement(
+                    new CodeBinaryOperatorExpression(Codo.This.getEvent(Event.Name), CodeBinaryOperatorType.IdentityInequality, Codo.Null),
+                        Codo.This.getEvent(Event.Name).invoke().statement()));
+            }
+            //注册
+            _initMethod.Statements.Add(Codo.This.getField(field.Name).getProp(NAME_OF_ONCLICK)
+                .getMethod(NAME_OF_ADDLISTENER).invoke(Codo.This.getMethod(callbackMethod.Name)).statement());
+            //注销
+            _clearMethod.Statements.Add(Codo.This.getField(field.Name).getProp(NAME_OF_ONCLICK)
+                .getMethod(NAME_OF_REMOVELISTENER).invoke(Codo.This.getMethod(callbackMethod.Name)).statement());
+        }
+        private void onGenAnimator(Animator animator, CodeMemberField field, CodeMemberProperty prop)
+        {
+
         }
         private CodeAttributeDeclaration addAttribute2Field(CodeMemberField field, Object obj, params string[] tags)
         {
