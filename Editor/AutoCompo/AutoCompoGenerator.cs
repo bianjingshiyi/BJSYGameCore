@@ -8,7 +8,7 @@ using Object = UnityEngine.Object;
 using Codo = BJSYGameCore.CodeDOMHelper;
 using UnityEngine.UI;
 using System.Reflection;
-
+using UnityEditor.Animations;
 namespace BJSYGameCore.AutoCompo
 {
     public partial class AutoCompoGenerator
@@ -254,9 +254,24 @@ namespace BJSYGameCore.AutoCompo
             _clearMethod.Statements.Add(Codo.This.getField(field.Name).getProp(NAME_OF_ONCLICK)
                 .getMethod(NAME_OF_REMOVELISTENER).invoke(Codo.This.getMethod(callbackMethod.Name)).statement());
         }
+        /// <summary>
+        /// 生成动画参数对应的常量
+        /// </summary>
+        /// <param name="animator"></param>
+        /// <param name="field"></param>
+        /// <param name="prop"></param>
         private void onGenAnimator(Animator animator, CodeMemberField field, CodeMemberProperty prop)
         {
-
+            AnimatorController controller = animator.runtimeAnimatorController as AnimatorController;
+            foreach (var parameter in controller.parameters)
+            {
+                string fieldName = "ANIM_PARAM_";
+                if (!prop.Name.StartsWith("as"))
+                    fieldName += prop.Name.Substring(2, prop.Name.Length - 2).ToUpper() + "_";
+                fieldName += parameter.name.ToUpper();
+                CodeMemberField Const = genField("const string", fieldName, false);
+                Const.InitExpression = Codo.String(parameter.name);
+            }
         }
         private CodeAttributeDeclaration addAttribute2Field(CodeMemberField field, Object obj, params string[] tags)
         {
