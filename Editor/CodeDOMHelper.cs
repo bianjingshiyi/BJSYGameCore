@@ -3,6 +3,7 @@ using System.CodeDom;
 using System.CodeDom.Compiler;
 using System;
 using System.Linq;
+
 namespace BJSYGameCore
 {
     static class CodeDOMHelper
