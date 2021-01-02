@@ -289,6 +289,11 @@ namespace BJSYGameCore.AutoCompo
         {
             CodeMemberProperty prop = genProp(MemberAttributes.Public | MemberAttributes.Final, propName, component.GetType());
             prop.HasGet = true;
+            CodeConditionStatement If = Codo.If(Codo.This.getField(fieldName).op(CodeBinaryOperatorType.IdentityEquality, Codo.Null));
+            If.TrueStatements.append(Codo.assign(Codo.This.getField(fieldName),
+                Codo.This.getProp(NAME_OF_TRANSFORM).getMethod(NAME_OF_FIND_BY_PATH).invoke(Codo.String(objFieldDict[component].path))
+                .getMethod(NAME_OF_GETCOMPO, Codo.type(component.GetType().Name)).invoke()));
+            prop.GetStatements.Add(If);
             prop.GetStatements.Add(new CodeMethodReturnStatement(
                 new CodeFieldReferenceExpression(new CodeThisReferenceExpression(),
                 fieldName)));
