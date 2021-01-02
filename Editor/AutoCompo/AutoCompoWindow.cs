@@ -32,6 +32,7 @@ namespace BJSYGameCore.AutoCompo
         {
             if (gameObject == null || (!forceReselect && _gameObject == gameObject))
                 return;
+            reset();
             if (_serializedObject == null)
                 _serializedObject = new SerializedObject(this);
             GameObject sourceObject = getSourceGameObject(gameObject);
@@ -675,6 +676,14 @@ namespace BJSYGameCore.AutoCompo
             //                }
             //            }
             //#endif
+        }
+        void reset()
+        {
+            _objGenDict = null;
+            _objFoldDict.Clear();
+            if (_serializedObject != null)
+                _serializedObject.Dispose();
+            _serializedObject = null;
         }
         protected Type _type = null;
         List<AutoBindFieldInfo> _fieldList = null;

@@ -182,8 +182,15 @@ namespace BJSYGameCore.AutoCompo
             else
                 fieldName = genFieldName4GO(gameObject);
             addTypeUsing(typeof(GameObject));
+            //字段
             var field = genField(typeof(GameObject).Name, fieldName);
             addAttribute2Field(field, gameObject);
+            //属性
+            string propName = field.Name;
+            while (propName.StartsWith("_"))
+                propName = propName.Substring(1, propName.Length - 1);
+            propName = propName.headToLower();
+            genProp4GO(gameObject, propName, field.Name);
         }
         /// <summary>
         /// 默认生成字段，属性，以及初始化语句。
@@ -254,6 +261,15 @@ namespace BJSYGameCore.AutoCompo
             }
             field.CustomAttributes.Add(autoCompo);
             return autoCompo;
+        }
+        protected CodeMemberProperty genProp4GO(GameObject gameObject, string propName, string fieldName)
+        {
+            CodeMemberProperty prop = genProp(MemberAttributes.Public | MemberAttributes.Final, propName, typeof(GameObject));
+            prop.HasGet = true;
+            prop.GetStatements.Add(new CodeMethodReturnStatement(
+                new CodeFieldReferenceExpression(new CodeThisReferenceExpression(),
+                fieldName)));
+            return prop;
         }
         /// <summary>
         /// 
