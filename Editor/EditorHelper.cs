@@ -15,18 +15,17 @@ namespace BJSYGameCore
         /// <param name="extension">不需要带.</param>
         /// <param name="defaultDir">如果不填，那么是Application.streamingAssetsPath</param>
         /// <returns></returns>
-        public static bool trySelectFilePath(ref string pathField, string title, string defaultName, string extension, string defaultDir = null)
+        public static bool trySelectFilePath(ref string pathField, string title, string defaultName, string extension, string defaultDir = null, bool isOpenFile = false)
         {
-            pathField = EditorUtility.SaveFilePanel(title,
-                        File.Exists(pathField) ? Path.GetDirectoryName(pathField) : (Directory.Exists(defaultDir) ? defaultDir : Application.streamingAssetsPath), defaultName, extension);
-            if (Directory.Exists(Path.GetDirectoryName(pathField)))
-            {
-                return true;
-            }
+            string dir = File.Exists(pathField) ? Path.GetDirectoryName(pathField) : (Directory.Exists(defaultDir) ? defaultDir : Application.streamingAssetsPath);
+            if (isOpenFile)
+                pathField = EditorUtility.OpenFilePanel(title, dir, extension);
             else
-            {
+                pathField = EditorUtility.SaveFilePanel(title, dir, defaultName, extension);
+            if (Directory.Exists(Path.GetDirectoryName(pathField)))
+                return true;
+            else
                 return false;
-            }
         }
     }
 }
