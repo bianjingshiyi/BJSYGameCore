@@ -184,9 +184,19 @@ namespace BJSYGameCore
         }
         public static CodeAttributeDeclarationCollection append(this CodeAttributeDeclarationCollection collection, string name, params CodeExpression[] arguements)
         {
-            collection.Add(new CodeAttributeDeclaration(name, arguements.Select(e => new CodeAttributeArgument(e)).ToArray()));
+            collection.add(name, arguements);
             return collection;
         }
+
+        public static CodeAttributeDeclaration add(this CodeAttributeDeclarationCollection collection, string name, params CodeExpression[] arguements)
+        {
+            if (name.EndsWith("Attribute"))
+                name = name.Substring(0, name.Length - 9);
+            CodeAttributeDeclaration att = new CodeAttributeDeclaration(name, arguements.Select(e => new CodeAttributeArgument(e)).ToArray());
+            collection.Add(att);
+            return att;
+        }
+
         public static readonly CodeThisReferenceExpression This = new CodeThisReferenceExpression();
         public static readonly CodeBaseReferenceExpression Base = new CodeBaseReferenceExpression();
         public static readonly CodePrimitiveExpression Null = new CodePrimitiveExpression(null);

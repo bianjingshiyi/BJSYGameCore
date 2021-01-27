@@ -7,7 +7,9 @@ using UnityEngine.UI;
 using System.Collections.Generic;
 using System.Reflection;
 using Object = UnityEngine.Object;
+#if UNITY_2019
 using UnityEditor.Experimental.SceneManagement;
+#endif
 
 namespace BJSYGameCore.AutoCompo
 {
@@ -27,6 +29,26 @@ namespace BJSYGameCore.AutoCompo
         public static void onMenuItemGenerate()
         {
             GetWindow<AutoCompoWindow>(typeof(AutoCompoWindow).Name, true).checkGameObject(Selection.gameObjects.Length > 0 ? Selection.gameObjects[0] : null, true);
+        }
+        [MenuItem("Assets/Create/AutoCompo/GetPrefab")]
+        [MenuItem("GameObject/AutoCompo/GetPrefab")]
+        public static void onMenuItemGetPrefab()
+        {
+            if (Selection.gameObjects.Length != 1)
+                return;
+            GameObject gameObject = Selection.gameObjects[0];
+            PrefabType prefabType = PrefabUtility.GetPrefabType(gameObject);
+            switch (prefabType)
+            {
+                case PrefabType.PrefabInstance:
+                    Object source = PrefabUtility.FindPrefabRoot(PrefabUtility.GetPrefabParent(gameObject) as GameObject);
+                    Debug.Log("Prefab：" + source);
+                    Selection.activeObject = source;
+                    break;
+                default:
+                    Debug.Log(prefabType);
+                    break;
+            }
         }
         public void checkGameObject(GameObject gameObject, bool forceReselect = false)
         {
@@ -129,16 +151,29 @@ namespace BJSYGameCore.AutoCompo
                 _setting.saveToPrefs(getSettingName());
         }
         /// <summary>
-        /// 因为在打开的时候已经尝试过获取存在类型了，所以默认返回null
+        /// 已经存在的类型是通过实例ID唯一定位的。
         /// </summary>
         /// <returns></returns>
         protected virtual Type tryGetExistsType()
         {
-            string path;
-            Type existsType;
-            if (tryFindAutoScript(_gameObject, out path, out existsType))
-                return existsType;
-            return null;
+            Type type = null;
+            var scripts = AssetDatabase.FindAssets("t:MonoScript")
+                                       .Select(g => AssetDatabase.GUIDToAssetPath(g))
+                                       .Select(p => AssetDatabase.LoadAssetAtPath<MonoScript>(p))
+                                       .Where(s => s != null);
+            foreach (var script in scripts)
+            {
+                type = script.GetClass();
+                if (type == null)
+                    continue;
+                AutoCompoAttribute autoCompo = type.getAttribute<AutoCompoAttribute>();
+                if (autoCompo == null)
+                    continue;
+                int instanceID = _gameObject.GetInstanceID();
+                if (autoCompo.instanceID == instanceID)
+                    return type;
+            }
+            return type;
         }
         protected virtual void onInitByCtrlType()
         {
@@ -163,7 +198,7 @@ namespace BJSYGameCore.AutoCompo
 
         protected virtual AutoBindFieldInfo getGenInfoFromFieldInfo(FieldInfo field)
         {
-            AutoCompoAttribute autoCompo = field.GetCustomAttributes(typeof(AutoCompoAttribute), true).Cast<AutoCompoAttribute>().FirstOrDefault();
+            AutoCompoAttribute autoCompo = field.getAttribute<AutoCompoAttribute>();
             if (autoCompo != null)
                 return new AutoBindFieldInfo(autoCompo.instanceID, autoCompo.path, field.FieldType, null, field.Name);
             return null;
@@ -200,7 +235,7 @@ namespace BJSYGameCore.AutoCompo
             GUI.enabled = true;
             EditorGUILayout.LabelField("保存路径", _savePath);
             EditorGUILayout.PropertyField(_serializedObject.FindProperty(NAME_OF_SETTING), new GUIContent("设置"), true);
-            if (_ctrlTypes == null)
+            if (_ctrlTypes == null || _ctrlTypes.Length < 1)
                 _ctrlTypes = new string[] { "none" }.Concat(_generator.ctrlTypes).ToArray();
             SerializedProperty ctrlTypeProp = _serializedObject.FindProperty(NAME_OF_CTRL_TYPE);
             int index = Array.IndexOf(_ctrlTypes, ctrlTypeProp.stringValue);
@@ -438,6 +473,8 @@ namespace BJSYGameCore.AutoCompo
         }
         AutoBindFieldInfo getInfoFromExists(Object obj)
         {
+            if (obj == null)
+                return null;
             if (_fieldList == null)
                 return null;
             foreach (var field in _fieldList.Where(f => f.targetType == obj.GetType()))
@@ -502,17 +539,25 @@ namespace BJSYGameCore.AutoCompo
 #endif
             string autoScriptPath;
             Type existsType;
-            if (tryFindAutoScript(gameObject, out autoScriptPath, out existsType))
+            bool isOldScript;
+            if (tryFindAutoScript(gameObject, out autoScriptPath, out existsType, out isOldScript))
             {
-                if (EditorUtility.DisplayDialog("已存在脚本", "AutoCompo发现" + gameObject.name + "上已经有一个同名的脚本，是否覆盖该脚本？", "是", "否"))
+                if (isOldScript)
+                {
+                    if (EditorUtility.DisplayDialog("已存在脚本", "AutoCompo发现" + gameObject.name + "上已经有一个同名的脚本，是否覆盖该脚本？", "是", "否"))
+                    {
+                        _type = existsType;
+                        return Path.GetDirectoryName(autoScriptPath);
+                    }
+                    else
+                        return Path.GetDirectoryName(path);
+                }
+                else
                 {
                     _type = existsType;
                     return Path.GetDirectoryName(autoScriptPath);
                 }
             }
-            string existPath;
-            if (tryFindAutoCompo(gameObject.GetInstanceID(), out existPath))
-                return Path.GetDirectoryName(existPath);
             else
                 return Path.GetDirectoryName(path);
         }
@@ -548,36 +593,37 @@ namespace BJSYGameCore.AutoCompo
             AssetDatabase.Refresh();
             _autoAddList.Add(new AutoAddCompoInfo(_gameObject, _setting.Namespace + "." + _generator.typeName));
         }
-        bool tryFindAutoScript(GameObject gameObject, out string path, out Type type)
+        bool tryFindAutoScript(GameObject gameObject, out string path, out Type type, out bool isOldScript)
         {
-            path = null;
             type = null;
-            MonoBehaviour autoScript = null;
-            foreach (var mono in gameObject.GetComponents<MonoBehaviour>())
+            var scripts = AssetDatabase.FindAssets("t:MonoScript")
+                           .Select(g => AssetDatabase.GUIDToAssetPath(g))
+                           .Select(p => AssetDatabase.LoadAssetAtPath<MonoScript>(p))
+                           .Where(s => s != null);
+            foreach (var script in scripts)
             {
-                if (mono.GetType().Name == gameObject.name)
+                type = script.GetClass();
+                if (type == null)
+                    continue;
+                AutoCompoAttribute autoCompo = type.getAttribute<AutoCompoAttribute>();
+                int instanceID = gameObject.GetInstanceID();
+                if (autoCompo != null && autoCompo.instanceID == instanceID)
                 {
-                    autoScript = mono;
-                    break;
+                    path = AssetDatabase.GetAssetPath(script);
+                    isOldScript = false;
+                    return true;
+                }
+                if ((type.IsSubclassOf(typeof(MonoBehaviour)) || type.IsSubclassOf(typeof(Component))) &&
+                    gameObject.GetComponent(type) != null &&
+                    script.text.Contains("// <auto-generated>"))
+                {
+                    path = AssetDatabase.GetAssetPath(script);
+                    isOldScript = true;
+                    return true;
                 }
             }
-            if (autoScript != null)
-            {
-                var scripts = AssetDatabase.FindAssets(autoScript.GetType().Name + " t:MonoScript")
-                                           .Select(g => AssetDatabase.GUIDToAssetPath(g))
-                                           .Select(p => AssetDatabase.LoadAssetAtPath<MonoScript>(p))
-                                           .Where(s => s != null);
-                foreach (var script in scripts)
-                {
-                    if (script.GetClass() == autoScript.GetType() &&
-                        script.text.Contains("// <auto-generated>"))
-                    {
-                        path = AssetDatabase.GetAssetPath(script);
-                        type = script.GetClass();
-                        return true;
-                    }
-                }
-            }
+            path = null;
+            isOldScript = false;
             return false;
         }
         bool tryFindAutoScript(string typeFullName, out Type type)
@@ -621,6 +667,20 @@ namespace BJSYGameCore.AutoCompo
         }
         protected virtual GameObject getSourceGameObject(GameObject gameObject)
         {
+#if UNITY_2017
+            PrefabType prefabType = PrefabUtility.GetPrefabType(gameObject);
+            switch (prefabType)
+            {
+                case PrefabType.PrefabInstance:
+                case PrefabType.DisconnectedPrefabInstance:
+                    return PrefabUtility.GetPrefabParent(gameObject) as GameObject;
+                case PrefabType.Prefab:
+                    return gameObject;
+                default:
+                    Debug.Log("未处理的Prefab类型" + prefabType);
+                    throw new NotImplementedException();
+            }
+#else
             GameObject source;
             var assetType = PrefabUtility.GetPrefabAssetType(gameObject);
             var status = PrefabUtility.GetPrefabInstanceStatus(gameObject);
@@ -658,24 +718,7 @@ namespace BJSYGameCore.AutoCompo
             else
                 Debug.LogError("找不到源物体");
             return source;
-            //#if UNITY_2017
-            //            path = AssetDatabase.GetAssetPath(gameObject);
-            //#else
-            //            if (PrefabUtility.IsPartOfNonAssetPrefabInstance(gameObject))
-            //            {
-            //                GameObject prefabInstanceRoot = PrefabUtility.GetOutermostPrefabInstanceRoot(gameObject);
-            //                GameObject prefabRoot = PrefabUtility.GetCorrespondingObjectFromSource(prefabInstanceRoot);
-            //                path = AssetDatabase.GetAssetPath(prefabRoot);
-            //            }
-            //            else
-            //            {
-            //                path = gameObject.scene.path;
-            //                if (string.IsNullOrEmpty(path))
-            //                {
-            //                    path = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(gameObject);
-            //                }
-            //            }
-            //#endif
+#endif
         }
         void reset()
         {
@@ -710,7 +753,7 @@ namespace BJSYGameCore.AutoCompo
         protected MonoScript _listItemTypeScript;
         SerializedObject _serializedObject;
         [SerializeField]
-        List<AutoAddCompoInfo> _autoAddList = new List<AutoAddCompoInfo>();
+        protected List<AutoAddCompoInfo> _autoAddList = new List<AutoAddCompoInfo>();
         protected const int PRIOR_SCENE_GENERATE = 15;
         protected const int PRIOR_PREFAB_GENERATE = 81;
         const string NAME_OF_GAMEOBJECT = "_gameObject";
@@ -722,7 +765,7 @@ namespace BJSYGameCore.AutoCompo
         #endregion
     }
     [Serializable]
-    class AutoAddCompoInfo
+    public class AutoAddCompoInfo
     {
         public GameObject rootGameObject;
         public string typeFullName;

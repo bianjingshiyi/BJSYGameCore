@@ -59,7 +59,7 @@ namespace BJSYGameCore.AutoCompo
             genRootGameObject();
         }
         /// <summary>
-        /// 默认生成autoBind方法。
+        /// 默认生成init和clear方法。
         /// </summary>
         protected virtual void genMembers()
         {
@@ -273,18 +273,32 @@ namespace BJSYGameCore.AutoCompo
                 Const.InitExpression = Codo.String(parameter.name);
             }
         }
-        private CodeAttributeDeclaration addAttribute2Field(CodeMemberField field, Object obj, params string[] tags)
+        protected CodeAttributeDeclaration addAttribute2Field(CodeMemberField field, Object obj, params string[] tags)
         {
-            CodeAttributeDeclaration autoCompo = new CodeAttributeDeclaration(typeof(AutoCompoAttribute).Name,
-                            new CodeAttributeArgument(new CodePrimitiveExpression(objFieldDict[obj].instanceId)),
-                            new CodeAttributeArgument(new CodePrimitiveExpression(objFieldDict[obj].path)));
+            return addAttribute2Field(field, obj, true, tags);
+        }
+
+        protected CodeAttributeDeclaration addAttribute2Field(CodeMemberField field, Object obj, bool withPath, params string[] tags)
+        {
+            CodeAttributeDeclaration autoCompo;
+            if (withPath)
+            {
+                autoCompo = field.CustomAttributes.add(typeof(AutoCompoAttribute).Name,
+                    Codo.Int(objFieldDict[obj].instanceId),
+                    Codo.String(objFieldDict[obj].path));
+            }
+            else
+            {
+                autoCompo = field.CustomAttributes.add(typeof(AutoCompoAttribute).Name,
+                    Codo.Int(objFieldDict[obj].instanceId));
+            }
             foreach (var tag in tags)
             {
                 autoCompo.Arguments.Add(new CodeAttributeArgument(new CodePrimitiveExpression(tag)));
             }
-            field.CustomAttributes.Add(autoCompo);
             return autoCompo;
         }
+
         protected CodeMemberProperty genProp4GO(GameObject gameObject, string propName, string fieldName)
         {
             CodeMemberProperty prop = genProp(MemberAttributes.Public | MemberAttributes.Final, propName, typeof(GameObject));
