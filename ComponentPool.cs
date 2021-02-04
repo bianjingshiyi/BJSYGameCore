@@ -17,7 +17,8 @@ namespace BJSYGameCore
         {
             if (component == null)
                 throw new ArgumentNullException("component");
-            cleanNullAndRepeat(component);
+            if (keepDistinct)
+                cleanNullAndRepeat(component);
             _itemList.Add(component);
             component.transform.parent = _root;
         }
@@ -25,7 +26,8 @@ namespace BJSYGameCore
         {
             if (component == null)
                 throw new ArgumentNullException("component");
-            cleanNullAndRepeat(component);
+            if (keepDistinct)
+                cleanNullAndRepeat(component);
             _itemList.Insert(index, component);
             component.transform.parent = _root;
         }
@@ -84,7 +86,8 @@ namespace BJSYGameCore
         {
             get
             {
-                cleanNull();
+                if (autoCleanNull)
+                    cleanNull();
                 return _itemList[index];
             }
         }
@@ -96,7 +99,8 @@ namespace BJSYGameCore
         {
             get
             {
-                cleanNull();
+                if (autoCleanNull)
+                    cleanNull();
                 return _itemList.Count;
             }
         }
@@ -115,11 +119,19 @@ namespace BJSYGameCore
                 removeAt(_itemList.Count - 1);
             }
         }
+        public bool autoCleanNull
+        {
+            get { return _autoCleanNull; }
+        }
+        public bool keepDistinct
+        {
+            get { return _keepDistinct; }
+        }
         public event Action<T> onCreate;
         public event Action<T> onRemove;
         #endregion
         #region 私有成员
-        private void cleanNull()
+        public void cleanNull()
         {
             for (int i = 0; i < _itemList.Count; i++)
             {
@@ -153,6 +165,10 @@ namespace BJSYGameCore
         List<T> _itemList = new List<T>();
         [SerializeField]
         List<T> _poolList = new List<T>();
+        [SerializeField]
+        bool _autoCleanNull = false;
+        [SerializeField]
+        bool _keepDistinct = false;
         #endregion
     }
 }

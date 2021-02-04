@@ -57,9 +57,11 @@ namespace BJSYGameCore.AutoCompo
             reset();
             if (_serializedObject == null)
                 _serializedObject = new SerializedObject(this);
-            GameObject sourceObject = getSourceGameObject(gameObject);
+            GameObject sourceObject = getTargetGameObject(gameObject);
             _serializedObject.FindProperty(NAME_OF_GAMEOBJECT).objectReferenceValue = sourceObject;
-            _serializedObject.FindProperty(NAME_OF_SAVEPATH).stringValue = getSavePath4GO(sourceObject);
+            string path = getSavePath4GO(sourceObject);
+            _serializedObject.FindProperty(NAME_OF_SAVEPATH).stringValue = Path.GetDirectoryName(path);
+            _serializedObject.FindProperty(NAME_OF_SAVEFILENAME).stringValue = Path.GetFileNameWithoutExtension(path);
             _serializedObject.ApplyModifiedProperties();
             if (string.IsNullOrEmpty(_savePath))
             {
@@ -69,6 +71,7 @@ namespace BJSYGameCore.AutoCompo
         }
         #endregion
         #region 私有成员
+        #region 生命周期
         protected void Awake()
         {
             if (_setting == null)
@@ -99,17 +102,8 @@ namespace BJSYGameCore.AutoCompo
             if (_fieldList == null)
             {
                 _fieldList = new List<AutoBindFieldInfo>();
-                if (_type == null)
-                    _type = tryGetExistsType();
-                if (_type != null)
-                {
-                    foreach (var field in _type.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic))
-                    {
-                        AutoBindFieldInfo info = getGenInfoFromFieldInfo(field);
-                        if (info != null)
-                            _fieldList.Add(info);
-                    }
-                }
+                if (_type == null && tryGetExistsType(out _type, out _script))
+                    _fieldList.AddRange(getFieldInfosFromType(_type));
             }
             if (_objGenDict == null)
             {
@@ -131,9 +125,14 @@ namespace BJSYGameCore.AutoCompo
             {
                 if (checkGenInput())
                 {
-                    _savePath = EditorUtility.SaveFolderPanel("另存为脚本", _savePath, string.Empty);
-                    if (Directory.Exists(_savePath))
-                        confirmGen = true;
+                    string savePath = EditorUtility.SaveFilePanel("另存为脚本", _savePath, getDefaultTypeName(), "cs");
+                    if (!string.IsNullOrEmpty(savePath))
+                    {
+                        _savePath = Path.GetDirectoryName(savePath);
+                        _saveFileName = Path.GetFileNameWithoutExtension(savePath);
+                        if (Directory.Exists(_savePath))
+                            confirmGen = true;
+                    }
                 }
             }
             if (confirmGen)
@@ -150,20 +149,20 @@ namespace BJSYGameCore.AutoCompo
             if (_setting != null)
                 _setting.saveToPrefs(getSettingName());
         }
+        #endregion
         /// <summary>
         /// 已经存在的类型是通过实例ID唯一定位的。
         /// </summary>
         /// <returns></returns>
-        protected virtual Type tryGetExistsType()
+        protected virtual bool tryGetExistsType(out Type type, out MonoScript script)
         {
-            Type type = null;
             var scripts = AssetDatabase.FindAssets("t:MonoScript")
                                        .Select(g => AssetDatabase.GUIDToAssetPath(g))
                                        .Select(p => AssetDatabase.LoadAssetAtPath<MonoScript>(p))
                                        .Where(s => s != null);
-            foreach (var script in scripts)
+            foreach (var s in scripts)
             {
-                type = script.GetClass();
+                type = s.GetClass();
                 if (type == null)
                     continue;
                 AutoCompoAttribute autoCompo = type.getAttribute<AutoCompoAttribute>();
@@ -171,9 +170,14 @@ namespace BJSYGameCore.AutoCompo
                     continue;
                 int instanceID = _gameObject.GetInstanceID();
                 if (autoCompo.instanceID == instanceID)
-                    return type;
+                {
+                    script = s;
+                    return true;
+                }
             }
-            return type;
+            type = null;
+            script = null;
+            return false;
         }
         protected virtual void onInitByCtrlType()
         {
@@ -195,7 +199,26 @@ namespace BJSYGameCore.AutoCompo
                 }
             }
         }
-
+        private AutoBindFieldInfo[] getFieldInfosFromType(Type type)
+        {
+            if (type == null)
+                return new AutoBindFieldInfo[0];
+            List<AutoBindFieldInfo> infoList = new List<AutoBindFieldInfo>();
+            foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic))
+            {
+                AutoBindFieldInfo info = getGenInfoFromFieldInfo(field);
+                if (info != null)
+                {
+                    infoList.Add(info);
+                }
+            }
+            return infoList.ToArray();
+        }
+        /// <summary>
+        /// 如果字段有AutoCompo特性，则认为它是自动生成的，从特性中读取元数据生成字段信息。
+        /// </summary>
+        /// <param name="field"></param>
+        /// <returns></returns>
         protected virtual AutoBindFieldInfo getGenInfoFromFieldInfo(FieldInfo field)
         {
             AutoCompoAttribute autoCompo = field.getAttribute<AutoCompoAttribute>();
@@ -233,7 +256,23 @@ namespace BJSYGameCore.AutoCompo
             GUI.enabled = false;
             EditorGUILayout.ObjectField("要生成脚本的游戏物体", _gameObject, typeof(GameObject), true);
             GUI.enabled = true;
-            EditorGUILayout.LabelField("保存路径", _savePath);
+            MonoScript newScript = EditorGUILayout.ObjectField("脚本对象", _script, typeof(MonoScript), false) as MonoScript;
+            if (newScript != _script)
+            {
+                _script = newScript;
+                _fieldList.Clear();
+                if (_script != null)
+                {
+                    _type = _script.GetClass();
+                    _fieldList.AddRange(getFieldInfosFromType(_type));
+                    string path = AssetDatabase.GetAssetPath(_script);
+                    _savePath = Path.GetDirectoryName(path);
+                    _saveFileName = _type.Name;
+                }
+                else
+                    _type = null;
+            }
+            EditorGUILayout.LabelField("保存路径", string.IsNullOrEmpty(_saveFileName) ? _savePath : _savePath + "/" + _saveFileName);
             EditorGUILayout.PropertyField(_serializedObject.FindProperty(NAME_OF_SETTING), new GUIContent("设置"), true);
             if (_ctrlTypes == null || _ctrlTypes.Length < 1)
                 _ctrlTypes = new string[] { "none" }.Concat(_generator.ctrlTypes).ToArray();
@@ -251,27 +290,7 @@ namespace BJSYGameCore.AutoCompo
             AutoBindFieldInfo field = getInfoFromExists(gameObject);
             if (field != null && !_objGenDict.ContainsKey(gameObject))
                 _objGenDict.Add(gameObject, field);
-            EditorGUI.BeginDisabledGroup(field != null && field.instanceId == 0);
-            EditorGUILayout.BeginHorizontal(GUILayout.Width(WIDTH_OF_FIELD));
-            if (canEditGameObjectName(gameObject))
-            {
-                _objFoldDict[gameObject] = EditorGUILayout.Foldout(_objFoldDict.ContainsKey(gameObject) ? _objFoldDict[gameObject] : isPartOfAnyPath(gameObject), string.Empty, true);
-                setSepecifiedFieldName(gameObject, EditorGUILayout.TextField(hasSpecifiedFieldName(gameObject) ?
-                    getSpecifiedFieldName(gameObject) :
-                    _generator.genFieldName4GO(gameObject)));
-            }
-            else
-                _objFoldDict[gameObject] = EditorGUILayout.Foldout(_objFoldDict.ContainsKey(gameObject) ? _objFoldDict[gameObject] : isPartOfAnyPath(gameObject), gameObject.name, true);
-            EditorGUILayout.EndHorizontal();
-            if (gameObject != _gameObject)
-            {
-                if (EditorGUILayout.Toggle(_objGenDict.ContainsKey(gameObject) && _objGenDict[gameObject] != null))
-                    _objGenDict[gameObject] = getOrGenField(gameObject);
-                else
-                    _objGenDict[gameObject] = null;
-                onGUIGameObjectCtrl(gameObject);
-            }
-            EditorGUI.EndDisabledGroup();
+            onGUIGameObjectField(gameObject, field);
             EditorGUILayout.EndHorizontal();
             if (_objFoldDict[gameObject])
             {
@@ -287,6 +306,34 @@ namespace BJSYGameCore.AutoCompo
                 EditorGUI.indentLevel--;
             }
         }
+        protected virtual void onGUIGameObjectField(GameObject gameObject, AutoBindFieldInfo field)
+        {
+            EditorGUILayout.BeginHorizontal(GUILayout.Width(WIDTH_OF_FIELD));
+            if (canEditGameObjectName(gameObject))
+            {
+                _objFoldDict[gameObject] = EditorGUILayout.Foldout(_objFoldDict.ContainsKey(gameObject) ? _objFoldDict[gameObject] : isPartOfAnyPath(gameObject), string.Empty, true);
+                setSepecifiedFieldName(gameObject, EditorGUILayout.TextField(hasSpecifiedFieldName(gameObject) ?
+                    getSpecifiedFieldName(gameObject) :
+                    _generator.genFieldName4GO(gameObject)));
+            }
+            else
+                _objFoldDict[gameObject] = EditorGUILayout.Foldout(_objFoldDict.ContainsKey(gameObject) ? _objFoldDict[gameObject] : isPartOfAnyPath(gameObject), gameObject.name, true);
+            EditorGUILayout.EndHorizontal();
+            if (gameObject != _gameObject)
+            {
+                bool isOn = isObjectGen(gameObject);
+                if (EditorGUILayout.Toggle(isOn) != isOn)
+                {
+                    isOn = !isOn;
+                    if (isOn)
+                        _objGenDict[gameObject] = getOrGenField(gameObject);
+                    else
+                        _objGenDict[gameObject] = null;
+                }
+                onGUIGameObjectCtrl(gameObject);
+            }
+        }
+
         protected virtual bool canEditGameObjectName(GameObject gameObject)
         {
             return isObjectGen(gameObject);
@@ -400,9 +447,10 @@ namespace BJSYGameCore.AutoCompo
                         Debug.LogWarning(info.typeFullName + "要自动添加的物体已经被销毁，自动添加失败");
                         continue;
                     }
-                    Type type;
-                    if (tryFindAutoScript(info.typeFullName, out type))
+                    MonoScript script;
+                    if (tryFindScriptByFullName(info.typeFullName, out script))
                     {
+                        Type type = script.GetClass();
                         if (info.rootGameObject.GetComponent(type) == null)
                         {
                             info.rootGameObject.AddComponent(type);
@@ -475,6 +523,8 @@ namespace BJSYGameCore.AutoCompo
         {
             if (obj == null)
                 return null;
+            //if (_objGenDict.ContainsKey(obj) && _objGenDict[obj] != null)
+            //    return _objGenDict[obj];
             if (_fieldList == null)
                 return null;
             foreach (var field in _fieldList.Where(f => f.targetType == obj.GetType()))
@@ -537,29 +587,27 @@ namespace BJSYGameCore.AutoCompo
                 }
             }
 #endif
-            string autoScriptPath;
-            Type existsType;
-            bool isOldScript;
-            if (tryFindAutoScript(gameObject, out autoScriptPath, out existsType, out isOldScript))
+            bool willBeOverride;
+            if (tryFindExistScript(gameObject, out _script, out willBeOverride))
             {
-                if (isOldScript)
+                if (willBeOverride)
                 {
                     if (EditorUtility.DisplayDialog("已存在脚本", "AutoCompo发现" + gameObject.name + "上已经有一个同名的脚本，是否覆盖该脚本？", "是", "否"))
                     {
-                        _type = existsType;
-                        return Path.GetDirectoryName(autoScriptPath);
+                        _type = _script.GetClass();
+                        return AssetDatabase.GetAssetPath(_script);
                     }
                     else
-                        return Path.GetDirectoryName(path);
+                        return path;
                 }
                 else
                 {
-                    _type = existsType;
-                    return Path.GetDirectoryName(autoScriptPath);
+                    _type = _script.GetClass();
+                    return AssetDatabase.GetAssetPath(_script);
                 }
             }
             else
-                return Path.GetDirectoryName(path);
+                return path;
         }
         protected virtual void onGUICtrlSettting()
         {
@@ -579,7 +627,7 @@ namespace BJSYGameCore.AutoCompo
         /// </summary>
         protected virtual void onGenerate()
         {
-            _generator.typeName = _type != null ? _type.Name : _gameObject.name;
+            _generator.typeName = getDefaultTypeName();
             _generator.objFieldDict = _objGenDict;
             _generator.controllerType = _controllerType;
             _generator.buttonMain = _buttonMain;
@@ -593,79 +641,21 @@ namespace BJSYGameCore.AutoCompo
             AssetDatabase.Refresh();
             _autoAddList.Add(new AutoAddCompoInfo(_gameObject, _setting.Namespace + "." + _generator.typeName));
         }
-        bool tryFindAutoScript(GameObject gameObject, out string path, out Type type, out bool isOldScript)
+        private string getDefaultTypeName()
         {
-            type = null;
-            var scripts = AssetDatabase.FindAssets("t:MonoScript")
-                           .Select(g => AssetDatabase.GUIDToAssetPath(g))
-                           .Select(p => AssetDatabase.LoadAssetAtPath<MonoScript>(p))
-                           .Where(s => s != null);
-            foreach (var script in scripts)
-            {
-                type = script.GetClass();
-                if (type == null)
-                    continue;
-                AutoCompoAttribute autoCompo = type.getAttribute<AutoCompoAttribute>();
-                int instanceID = gameObject.GetInstanceID();
-                if (autoCompo != null && autoCompo.instanceID == instanceID)
-                {
-                    path = AssetDatabase.GetAssetPath(script);
-                    isOldScript = false;
-                    return true;
-                }
-                if ((type.IsSubclassOf(typeof(MonoBehaviour)) || type.IsSubclassOf(typeof(Component))) &&
-                    gameObject.GetComponent(type) != null &&
-                    script.text.Contains("// <auto-generated>"))
-                {
-                    path = AssetDatabase.GetAssetPath(script);
-                    isOldScript = true;
-                    return true;
-                }
-            }
-            path = null;
-            isOldScript = false;
-            return false;
+            if (!string.IsNullOrEmpty(_saveFileName))
+                return _saveFileName;
+            if (_type != null)
+                return _type.Name;
+            return _generator.genTypeName4GO(_gameObject);
         }
-        bool tryFindAutoScript(string typeFullName, out Type type)
-        {
-            int index = typeFullName.LastIndexOf('.');
-            string typeName;
-            if (index < 0)
-                typeName = typeFullName;
-            else
-                typeName = typeFullName.Substring(index + 1, typeFullName.Length - index - 1);
-            var scripts = AssetDatabase.FindAssets(typeName + " t:" + typeof(MonoScript).Name)
-                .Select(g => AssetDatabase.GUIDToAssetPath(g))
-                .Select(p => AssetDatabase.LoadAssetAtPath<MonoScript>(p))
-                .Where(s => s != null);
-            foreach (var script in scripts)
-            {
-                type = script.GetClass();
-                if (type != null && type.FullName == typeFullName)
-                    return true;
-            }
-            type = null;
-            return false;
-        }
-        bool tryFindAutoCompo(int instanceID, out string path)
-        {
-            foreach (var script in AssetDatabaseHelper.getAssetsOfType<MonoScript>())
-            {
-                var type = script.GetClass();
-                if (type != null)
-                {
-                    AutoCompoAttribute att = type.GetCustomAttributes(typeof(AutoCompoAttribute), true).OfType<AutoCompoAttribute>().FirstOrDefault();
-                    if (att != null && att.instanceID == instanceID)
-                    {
-                        path = AssetDatabase.GetAssetPath(script);
-                        return true;
-                    }
-                }
-            }
-            path = string.Empty;
-            return false;
-        }
-        protected virtual GameObject getSourceGameObject(GameObject gameObject)
+        #region 逻辑层
+        /// <summary>
+        /// 获取目标GameObject，如果目标是Prefab或者Prefab的实例，则返回PrefabAsset。
+        /// </summary>
+        /// <param name="gameObject"></param>
+        /// <returns></returns>
+        protected virtual GameObject getTargetGameObject(GameObject gameObject)
         {
 #if UNITY_2017
             PrefabType prefabType = PrefabUtility.GetPrefabType(gameObject);
@@ -720,6 +710,63 @@ namespace BJSYGameCore.AutoCompo
             return source;
 #endif
         }
+        protected virtual bool tryFindExistScript(GameObject gameObject, out MonoScript script, out bool willBeOverride)
+        {
+            var scripts = AssetDatabase.FindAssets("t:MonoScript")
+                           .Select(g => AssetDatabase.GUIDToAssetPath(g))
+                           .Select(p => AssetDatabase.LoadAssetAtPath<MonoScript>(p))
+                           .Where(s => s != null);
+            foreach (var s in scripts)
+            {
+                Type type = s.GetClass();
+                if (type == null)
+                    continue;
+                AutoCompoAttribute autoCompo = type.getAttribute<AutoCompoAttribute>();
+                int instanceID = gameObject.GetInstanceID();
+                if (autoCompo != null && autoCompo.instanceID == instanceID)
+                {
+                    script = s;
+                    willBeOverride = false;
+                    return true;
+                }
+                if ((type.IsSubclassOf(typeof(MonoBehaviour)) || type.IsSubclassOf(typeof(Component))) &&
+                    gameObject.GetComponent(type) != null &&
+                    s.text.Contains("// <auto-generated>"))
+                {
+                    script = s;
+                    willBeOverride = true;
+                    return true;
+                }
+            }
+            script = null;
+            willBeOverride = false;
+            return false;
+        }
+        protected bool tryFindScriptByFullName(string typeFullName, out MonoScript script)
+        {
+            int index = typeFullName.LastIndexOf('.');
+            string typeName;
+            if (index < 0)
+                typeName = typeFullName;
+            else
+                typeName = typeFullName.Substring(index + 1, typeFullName.Length - index - 1);
+            var scripts = AssetDatabase.FindAssets(typeName + " t:" + typeof(MonoScript).Name)
+                .Select(g => AssetDatabase.GUIDToAssetPath(g))
+                .Select(p => AssetDatabase.LoadAssetAtPath<MonoScript>(p))
+                .Where(s => s != null);
+            foreach (var s in scripts)
+            {
+                Type type = s.GetClass();
+                if (type != null && type.FullName == typeFullName)
+                {
+                    script = s;
+                    return true;
+                }
+            }
+            script = null;
+            return false;
+        }
+        #endregion
         void reset()
         {
             _objGenDict = null;
@@ -729,6 +776,8 @@ namespace BJSYGameCore.AutoCompo
             _serializedObject = null;
         }
         protected Type _type = null;
+        [SerializeField] protected MonoScript _script = null;
+        [Obsolete("应该只有一个生成字段信息")]
         List<AutoBindFieldInfo> _fieldList = null;
         protected AutoCompoGenerator _generator = null;
         string[] _ctrlTypes = null;
@@ -739,6 +788,11 @@ namespace BJSYGameCore.AutoCompo
         protected GameObject _gameObject;
         [SerializeField]
         protected string _savePath;
+        /// <summary>
+        /// 保存文件名，同时也被当做默认的类名来使用。
+        /// </summary>
+        [SerializeField]
+        protected string _saveFileName;
         [SerializeField]
         protected AutoCompoGenSetting _setting = null;
         [SerializeField]
@@ -758,6 +812,7 @@ namespace BJSYGameCore.AutoCompo
         protected const int PRIOR_PREFAB_GENERATE = 81;
         const string NAME_OF_GAMEOBJECT = "_gameObject";
         const string NAME_OF_SAVEPATH = "_savePath";
+        const string NAME_OF_SAVEFILENAME = "_saveFileName";
         const string NAME_OF_SETTING = "_setting";
         const string NAME_OF_CTRL_TYPE = "_controllerType";
         const int WIDTH_OF_FIELD = 200;

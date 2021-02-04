@@ -39,6 +39,20 @@ namespace BJSYGameCore.AutoCompo
             genType4RootGO();
             return unit;
         }
+        public virtual string genTypeName4GO(GameObject gameObject)
+        {
+            if (string.IsNullOrEmpty(typeName))
+                return gameObject.name.headToUpper();
+            if (char.IsDigit(typeName[0]) || !typeName.All(c => char.IsLetterOrDigit(c) || c == '_'))
+                throw new InvalidOperationException("类名" + typeName + "非法");
+            return typeName;
+            //string typeName;
+            //string[] compoTypes;
+            //if (tryParseGOName(gameObject.name, out typeName, out compoTypes))
+            //    return typeName;
+            //else
+            //    throw new FormatException(gameObject.name + "不符合格式\\w.\\w*");
+        }
         /// <summary>
         /// 默认生成一个自动绑定方法。
         /// </summary>
@@ -74,7 +88,7 @@ namespace BJSYGameCore.AutoCompo
                 itemPoolType.Attributes = MemberAttributes.Public | MemberAttributes.Final;
                 itemPoolType.IsClass = true;
                 itemPoolType.Name = "ItemPool";
-                itemPoolType.BaseTypes.Add(new CodeTypeReference(typeof(ComponentPool<>).Name, new CodeTypeReference(listItemTypeName)));
+                //itemPoolType.BaseTypes.Add(new CodeTypeReference(typeof(ComponentPool<>).Name, new CodeTypeReference(listItemTypeName)));
                 //构造器
                 CodeConstructor itemPoolTypeConstructor = new CodeConstructor();
                 itemPoolType.Members.Add(itemPoolTypeConstructor);
@@ -181,9 +195,8 @@ namespace BJSYGameCore.AutoCompo
                 fieldName = FIELD_NAME_ORIGIN;
             else
                 fieldName = genFieldName4GO(gameObject);
-            addTypeUsing(typeof(GameObject));
             //字段
-            var field = genField(typeof(GameObject).Name, fieldName);
+            var field = genField(typeof(GameObject), fieldName);
             addAttribute2Field(field, gameObject);
             //属性
             string propName = field.Name;
@@ -198,7 +211,6 @@ namespace BJSYGameCore.AutoCompo
         /// <param name="component"></param>
         protected virtual void genCompo(Component component)
         {
-            addTypeUsing(component.GetType());
             //字段
             var field = genField4Compo(component, genFieldName4Compo(component));
             var autoCompo = addAttribute2Field(field, component);
@@ -332,20 +344,6 @@ namespace BJSYGameCore.AutoCompo
         {
             return genField(component.GetType(), fieldName);
         }
-        protected virtual string genTypeName4GO(GameObject gameObject)
-        {
-            if (string.IsNullOrEmpty(typeName))
-                throw new InvalidOperationException("类名不能为空");
-            if (char.IsDigit(typeName[0]) || !typeName.All(c => char.IsLetterOrDigit(c) || c == '_'))
-                throw new InvalidOperationException("类名" + typeName + "非法");
-            return typeName;
-            //string typeName;
-            //string[] compoTypes;
-            //if (tryParseGOName(gameObject.name, out typeName, out compoTypes))
-            //    return typeName;
-            //else
-            //    throw new FormatException(gameObject.name + "不符合格式\\w.\\w*");
-        }
         /// <summary>
         /// 默认自己就叫_gameObject，子物体叫_子物体名。
         /// </summary>
@@ -383,15 +381,18 @@ namespace BJSYGameCore.AutoCompo
                 fullname = name;
             else if (!name.tryMerge(typeName, out fullname))
                 fullname = name + typeName;
-            if (_type != null)
+            if (_type == null)
+                return fullname;
+            while (_type.Members.OfType<CodeMemberField>().Any(f => f.Name == fullname))
             {
-                while (_type.Members.OfType<CodeMemberField>().Any(f => f.Name == fullname))
-                {
-                    gameObject = gameObject.transform.parent.gameObject;
-                    fullname = "_" + gameObject.name.headToLower() + "_" + fullname.Substring(1, fullname.Length - 1).headToUpper();
-                }
+                gameObject = gameObject.transform.parent.gameObject;
+                fullname = "_" + gameObject.name.headToLower() + "_" + fullname.Substring(1, fullname.Length - 1).headToUpper();
             }
             return fullname;
+        }
+        protected virtual string getSimpleTypeName(Type type)
+        {
+            return type.Name;
         }
         Component findComponentByPath(string path, Type type)
         {

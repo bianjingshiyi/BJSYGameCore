@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -26,6 +28,19 @@ namespace BJSYGameCore
                 return true;
             else
                 return false;
+        }
+        public static MonoScript FindMonoScriptByType(Type type)
+        {
+            var scripts = AssetDatabase.FindAssets(type.Name + " t:" + typeof(MonoScript).Name)
+                .Select(g => AssetDatabase.GUIDToAssetPath(g))
+                .Select(p => AssetDatabase.LoadAssetAtPath<MonoScript>(p))
+                .Where(s => s != null);
+            foreach (var script in scripts)
+            {
+                if (script.GetClass() == type)
+                    return script;
+            }
+            return null;
         }
     }
 }
