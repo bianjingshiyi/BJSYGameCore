@@ -1,4 +1,5 @@
 ﻿using System;
+
 namespace BJSYGameCore.AutoCompo
 {
     [AttributeUsage(AttributeTargets.Class |

@@ -42,5 +42,21 @@ namespace BJSYGameCore
             }
             return null;
         }
+        public static bool tryFindScript(Func<MonoScript, bool> filter, out MonoScript targetScript)
+        {
+            var scripts = AssetDatabase.FindAssets("t:" + typeof(MonoScript).Name)
+                .Select(g => AssetDatabase.GUIDToAssetPath(g))
+                .Select(p => AssetDatabase.LoadAssetAtPath<MonoScript>(p))
+                .Where(s => s != null);
+            foreach (MonoScript script in scripts)
+            {
+                if (!filter(script))
+                    continue;
+                targetScript = script;
+                return true;
+            }
+            targetScript = null;
+            return false;
+        }
     }
 }

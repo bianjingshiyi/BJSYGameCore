@@ -108,6 +108,8 @@ namespace BJSYGameCore.AutoCompo
             if (_objGenDict == null)
             {
                 _objGenDict = new Dictionary<Object, AutoBindFieldInfo>();
+                bool willBeOverride;
+                tryFindExistScript(_gameObject, out _script, out willBeOverride);
                 onInitByCtrlType();
             }
             onGUISetting();
@@ -811,6 +813,7 @@ namespace BJSYGameCore.AutoCompo
         protected const int PRIOR_SCENE_GENERATE = 15;
         protected const int PRIOR_PREFAB_GENERATE = 81;
         const string NAME_OF_GAMEOBJECT = "_gameObject";
+        const string NAME_OF_SCRIPT = "_script";
         const string NAME_OF_SAVEPATH = "_savePath";
         const string NAME_OF_SAVEFILENAME = "_saveFileName";
         const string NAME_OF_SETTING = "_setting";

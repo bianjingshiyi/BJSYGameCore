@@ -65,7 +65,7 @@ namespace BJSYGameCore.AutoCompo
             _type.IsPartial = true;
             _type.IsClass = true;
             _type.Name = genTypeName4GO(rootGameObject);
-            foreach (var baseType in _setting.baseTypes)
+            foreach (string baseType in _setting.baseTypes)
             {
                 _type.BaseTypes.Add(baseType);
             }
@@ -426,7 +426,7 @@ namespace BJSYGameCore.AutoCompo
         protected const string NAME_OF_SET_ACTIVE = "SetActive";
         protected const string NAME_OF_TRANSFORM = "transform";
         protected const string NAME_OF_FIND = "Find";
-        protected const string NAME_OF_FIND_BY_PATH = "findByPath";
+        protected const string NAME_OF_FIND_BY_PATH = "Find";
         protected const string NAME_OF_ADDCOMPO = "AddComponent";
         protected const string NAME_OF_GETCOMPO = "GetComponent";
         protected const string NAME_OF_ONCLICK = "onClick";

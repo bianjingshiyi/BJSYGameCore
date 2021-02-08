@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 namespace BJSYGameCore.AutoCompo
 {
     public static class TransformHelper
@@ -35,11 +36,26 @@ namespace BJSYGameCore.AutoCompo
         }
         public static GameObject findGameObjectByPath(GameObject rootGameObject, string path)
         {
-            return rootGameObject.transform.findByPath(path).gameObject;
+            return rootGameObject.transform.Find(path, true).gameObject;
         }
-        public static Transform findByPath(this Transform transform, string path)
+
+        public static GameObject find(this GameObject gameObject, string path)
         {
-            if (path.StartsWith("./"))
+            if (gameObject == null)
+                throw new ArgumentNullException("gameObject");
+            Transform transform = gameObject.transform.Find(path, true);
+            return transform != null ? transform.gameObject : null;
+        }
+        /// <summary>
+        /// 选择是否检查以./开头
+        /// </summary>
+        /// <param name="transform"></param>
+        /// <param name="path"></param>
+        /// <param name="checkHead"></param>
+        /// <returns></returns>
+        public static Transform Find(this Transform transform, string path, bool checkHead)
+        {
+            if (checkHead && path.StartsWith("./"))
             {
                 if (path == "./")
                     return transform;
@@ -47,6 +63,7 @@ namespace BJSYGameCore.AutoCompo
             }
             return transform.Find(path);
         }
+        [Obsolete("使用Find作为替代")]
         public static Transform getChildAt(this Transform transform, string path)
         {
             if (!string.IsNullOrEmpty(path))
