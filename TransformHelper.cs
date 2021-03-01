@@ -38,7 +38,11 @@ namespace BJSYGameCore.AutoCompo
         {
             return rootGameObject.transform.Find(path, true).gameObject;
         }
-
+        [Obsolete("使用Find作为代替。")]
+        public static Transform findByPath(this Transform transform, string path)
+        {
+            return Find(transform, path, true);
+        }
         public static GameObject find(this GameObject gameObject, string path)
         {
             if (gameObject == null)

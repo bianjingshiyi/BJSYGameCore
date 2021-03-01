@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
-
+using Object = UnityEngine.Object;
 namespace BJSYGameCore
 {
     public static class EditorHelper

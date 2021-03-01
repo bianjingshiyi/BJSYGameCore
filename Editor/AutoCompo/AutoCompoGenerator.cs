@@ -9,6 +9,7 @@ using Codo = BJSYGameCore.CodeDOMHelper;
 using UnityEngine.UI;
 using System.Reflection;
 using UnityEditor.Animations;
+// ReSharper disable SuggestVarOrType_SimpleTypes
 namespace BJSYGameCore.AutoCompo
 {
     public partial class AutoCompoGenerator
@@ -77,8 +78,8 @@ namespace BJSYGameCore.AutoCompo
         /// </summary>
         protected virtual void genMembers()
         {
-            _initMethod = genMethod(MemberAttributes.Public | MemberAttributes.Final, typeof(void), "init");
-            _clearMethod = genMethod(MemberAttributes.Public | MemberAttributes.Final, typeof(void), "clear");
+            _initMethod = genMethod(MemberAttributes.Public | MemberAttributes.Final, typeof(void), "autoInit");
+            _clearMethod = genMethod(MemberAttributes.Public | MemberAttributes.Final, typeof(void), "autoClear");
             if (controllerType == CTRL_TYPE_LIST || controllerType == CTRL_TYPE_BUTTON_LIST)
             {
                 //ItemPool类型
@@ -171,10 +172,10 @@ namespace BJSYGameCore.AutoCompo
         {
             if (controllerType == CTRL_TYPE_BUTTON && buttonMain == null)
                 throw new InvalidOperationException("控件类型为按钮却没有主按钮");
-            foreach (var fieldInfo in objFieldDict.Values.Where(f => f != null && f.instanceId != 0))
+            foreach (var fieldInfo in objFieldDict.Values.Where(f => f != null && f.isGenerated))
             {
                 if (fieldInfo.targetType == typeof(GameObject))
-                    genGameObject(TransformHelper.findGameObjectByPath(rootGameObject, fieldInfo.path));
+                    genGameObject(rootGameObject.find(fieldInfo.path));
                 else
                     genCompo(findComponentByPath(fieldInfo.path, fieldInfo.targetType));
             }
@@ -206,7 +207,7 @@ namespace BJSYGameCore.AutoCompo
             genProp4GO(gameObject, propName, field.Name);
         }
         /// <summary>
-        /// 默认生成字段，属性，以及初始化语句。
+        /// 默认生成字段，属性，以及初始化语句（一个常量用于自动查找）。
         /// </summary>
         /// <param name="component"></param>
         protected virtual void genCompo(Component component)
@@ -214,6 +215,8 @@ namespace BJSYGameCore.AutoCompo
             //字段
             var field = genField4Compo(component, genFieldName4Compo(component));
             var autoCompo = addAttribute2Field(field, component);
+            //常量
+            genField("const string", "PATH" + field.Name.ToUpper(), false);
             //属性
             string propName = field.Name;
             while (propName.StartsWith("_"))
@@ -222,16 +225,17 @@ namespace BJSYGameCore.AutoCompo
             var prop = genProp4Compo(component, propName, field.Name);
             //初始化
             addTypeUsing(typeof(TransformHelper));
-            _initMethod.Statements.append(Codo.assign(Codo.This.getField(field.Name),
-                Codo.This.getProp(NAME_OF_TRANSFORM).getMethod(NAME_OF_FIND_BY_PATH).invoke(Codo.String(objFieldDict[component].path))
-                .getMethod(NAME_OF_GETCOMPO, Codo.type(component.GetType().Name)).invoke()));
+            _initMethod.Statements.append(Codo.This.getField(field.Name).assign(Codo.This.getProp(NAME_OF_TRANSFORM).getMethod(NAME_OF_FIND).invoke(Codo.This.getField("PATH" + field.Name.ToUpper())
+                .getMethod(NAME_OF_GETCOMPO, Codo.type(component.GetType().Name)).invoke())));
             if (component is Button)
-                onGenButton(component as Button, field, autoCompo, prop);
+                onGenButton(component as Button, field, prop);
             else if (component is Animator)
                 onGenAnimator(component as Animator, field, prop);
         }
-        private void onGenButton(Button button, CodeMemberField field, CodeAttributeDeclaration autoCompo, CodeMemberProperty prop)
+        protected virtual void onGenButton(Button button, CodeMemberField field, CodeMemberProperty prop)
         {
+            CodeAttributeDeclaration autoCompo = field.CustomAttributes.OfType<CodeAttributeDeclaration>()
+                .FirstOrDefault(a => a.AttributeType.BaseType == typeof(AutoCompoAttribute).Name);
             //是按钮
             if (controllerType == CTRL_TYPE_BUTTON && button == buttonMain)
                 autoCompo.Arguments.Add(new CodeAttributeArgument(new CodePrimitiveExpression("mainButton")));
@@ -315,6 +319,11 @@ namespace BJSYGameCore.AutoCompo
         {
             CodeMemberProperty prop = genProp(MemberAttributes.Public | MemberAttributes.Final, propName, typeof(GameObject));
             prop.HasGet = true;
+            addTypeUsing(typeof(GameObject));
+            CodeConditionStatement If = Codo.If(Codo.This.getField(fieldName).op(CodeBinaryOperatorType.IdentityEquality, Codo.Null));
+            If.TrueStatements.append(Codo.This.getField(fieldName).assign(Codo.This.getProp(NAME_OF_TRANSFORM).getMethod(NAME_OF_FIND).invoke(Codo.This.getField("PATH" + fieldName.ToUpper()))
+                .getMethod(NAME_OF_GETCOMPO, Codo.type(typeof(GameObject).Name)).invoke()));
+            prop.GetStatements.Add(If);
             prop.GetStatements.Add(new CodeMethodReturnStatement(
                 new CodeFieldReferenceExpression(new CodeThisReferenceExpression(),
                 fieldName)));
@@ -331,8 +340,7 @@ namespace BJSYGameCore.AutoCompo
             CodeMemberProperty prop = genProp(MemberAttributes.Public | MemberAttributes.Final, propName, component.GetType());
             prop.HasGet = true;
             CodeConditionStatement If = Codo.If(Codo.This.getField(fieldName).op(CodeBinaryOperatorType.IdentityEquality, Codo.Null));
-            If.TrueStatements.append(Codo.assign(Codo.This.getField(fieldName),
-                Codo.This.getProp(NAME_OF_TRANSFORM).getMethod(NAME_OF_FIND_BY_PATH).invoke(Codo.String(objFieldDict[component].path))
+            If.TrueStatements.append(Codo.This.getField(fieldName).assign(Codo.This.getProp(NAME_OF_TRANSFORM).getMethod(NAME_OF_FIND).invoke(Codo.This.getField("PATH" + fieldName.ToUpper()))
                 .getMethod(NAME_OF_GETCOMPO, Codo.type(component.GetType().Name)).invoke()));
             prop.GetStatements.Add(If);
             prop.GetStatements.Add(new CodeMethodReturnStatement(

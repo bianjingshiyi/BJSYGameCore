@@ -7,6 +7,7 @@ using UnityEngine.UI;
 using System.Collections.Generic;
 using System.Reflection;
 using Object = UnityEngine.Object;
+// ReSharper disable InconsistentNaming
 #if UNITY_2019
 using UnityEditor.Experimental.SceneManagement;
 #endif
@@ -57,11 +58,28 @@ namespace BJSYGameCore.AutoCompo
             reset();
             if (_serializedObject == null)
                 _serializedObject = new SerializedObject(this);
-            GameObject sourceObject = getTargetGameObject(gameObject);
-            _serializedObject.FindProperty(NAME_OF_GAMEOBJECT).objectReferenceValue = sourceObject;
-            string path = getSavePath4GO(sourceObject);
-            _serializedObject.FindProperty(NAME_OF_SAVEPATH).stringValue = Path.GetDirectoryName(path);
-            _serializedObject.FindProperty(NAME_OF_SAVEFILENAME).stringValue = Path.GetFileNameWithoutExtension(path);
+            _gameObject = getTargetGameObject(gameObject);
+            _serializedObject.FindProperty(NAME_OF_GAMEOBJECT).objectReferenceValue = _gameObject;
+            bool willBeOverride;
+            if (tryFindExistScript(_gameObject, out _script, out willBeOverride))
+            {
+                if (willBeOverride)
+                {
+                    if (EditorUtility.DisplayDialog("已存在脚本", "AutoCompo发现" + gameObject.name + "上已经有一个同名的脚本，是否覆盖该脚本？",
+                        "是", "否"))
+                        _type = _script.GetClass();
+                    else
+                        _script = null;
+                }
+                else
+                    _type = _script.GetClass();
+            }
+            _serializedObject.FindProperty(NAME_OF_SCRIPT).objectReferenceValue = _script;
+            string path = getSavePath4GO(_gameObject);
+            _savePath = Path.GetDirectoryName(path);
+            _serializedObject.FindProperty(NAME_OF_SAVEPATH).stringValue = _savePath;
+            _saveFileName = Path.GetFileNameWithoutExtension(path);
+            _serializedObject.FindProperty(NAME_OF_SAVEFILENAME).stringValue = _saveFileName;
             _serializedObject.ApplyModifiedProperties();
             if (string.IsNullOrEmpty(_savePath))
             {
@@ -99,17 +117,15 @@ namespace BJSYGameCore.AutoCompo
             }
             if (_generator == null)
                 _generator = createGenerator();
-            if (_fieldList == null)
-            {
-                _fieldList = new List<AutoBindFieldInfo>();
-                if (_type == null && tryGetExistsType(out _type, out _script))
-                    _fieldList.AddRange(getFieldInfosFromType(_type));
-            }
             if (_objGenDict == null)
             {
                 _objGenDict = new Dictionary<Object, AutoBindFieldInfo>();
                 bool willBeOverride;
-                tryFindExistScript(_gameObject, out _script, out willBeOverride);
+                if (tryFindExistScript(_gameObject, out _script, out willBeOverride))
+                {
+                    _type = _script.GetClass();
+                    resetGenDictByType(_type);
+                }
                 onInitByCtrlType();
             }
             onGUISetting();
@@ -201,34 +217,76 @@ namespace BJSYGameCore.AutoCompo
                 }
             }
         }
-        private AutoBindFieldInfo[] getFieldInfosFromType(Type type)
+        void resetGenDictByType(Type type)
         {
+            _objGenDict.Clear();
             if (type == null)
-                return new AutoBindFieldInfo[0];
-            List<AutoBindFieldInfo> infoList = new List<AutoBindFieldInfo>();
-            foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic))
+                return;
+            foreach (FieldInfo field in type.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic))
             {
-                AutoBindFieldInfo info = getGenInfoFromFieldInfo(field);
-                if (info != null)
-                {
-                    infoList.Add(info);
-                }
+                var pair = getGenInfoFromFieldInfo(field);
+                if (pair.Key != null)
+                    _objGenDict.Add(pair.Key, pair.Value);
             }
-            return infoList.ToArray();
         }
         /// <summary>
         /// 如果字段有AutoCompo特性，则认为它是自动生成的，从特性中读取元数据生成字段信息。
         /// </summary>
         /// <param name="field"></param>
         /// <returns></returns>
-        protected virtual AutoBindFieldInfo getGenInfoFromFieldInfo(FieldInfo field)
+        protected virtual KeyValuePair<Object, AutoBindFieldInfo> getGenInfoFromFieldInfo(FieldInfo field)
         {
             AutoCompoAttribute autoCompo = field.getAttribute<AutoCompoAttribute>();
             if (autoCompo != null)
-                return new AutoBindFieldInfo(autoCompo.instanceID, autoCompo.path, field.FieldType, null, field.Name);
-            return null;
+            {
+                //先用InstanceID找
+                GameObject gameObject = findGameObjectByInstanceID(_gameObject, autoCompo.instanceID);
+                if (gameObject != null)
+                {
+                    if (field.FieldType != typeof(GameObject))
+                    {
+                        Component component = gameObject.GetComponent(field.FieldType);
+                        if (component != null)
+                            return new KeyValuePair<Object, AutoBindFieldInfo>(component, new AutoBindFieldInfo(autoCompo.instanceID, autoCompo.path, field.FieldType, null, field.Name));
+                        return default(KeyValuePair<Object, AutoBindFieldInfo>);
+                    }
+                    return new KeyValuePair<Object, AutoBindFieldInfo>(gameObject, new AutoBindFieldInfo(autoCompo.instanceID, autoCompo.path, field.FieldType, null, field.Name));
+                }
+                //再用路径找
+                if (!string.IsNullOrEmpty(autoCompo.path))
+                {
+                    Transform transform = _gameObject.transform.Find(autoCompo.path);
+                    if (transform != null)
+                    {
+                        gameObject = transform.gameObject;
+                        if (field.FieldType != typeof(GameObject))
+                        {
+                            Component component = gameObject.GetComponent(field.FieldType);
+                            if (component != null)
+                                return new KeyValuePair<Object, AutoBindFieldInfo>(component, new AutoBindFieldInfo(autoCompo.instanceID, autoCompo.path, field.FieldType, null, field.Name));
+                            return default(KeyValuePair<Object, AutoBindFieldInfo>);
+                        }
+                        return new KeyValuePair<Object, AutoBindFieldInfo>(gameObject, new AutoBindFieldInfo(autoCompo.instanceID, autoCompo.path, field.FieldType, null, field.Name));
+                    }
+                }
+            }
+            return default(KeyValuePair<Object, AutoBindFieldInfo>);
         }
 
+        GameObject findGameObjectByInstanceID(GameObject gameObject, int instanceID)
+        {
+            if (gameObject == null)
+                return null;
+            if (gameObject.GetInstanceID() == instanceID)
+                return gameObject;
+            for (int i = 0; i < gameObject.transform.childCount; i++)
+            {
+                GameObject childGameObject = findGameObjectByInstanceID(gameObject.transform.GetChild(i).gameObject, instanceID);
+                if (childGameObject != null)
+                    return childGameObject;
+            }
+            return null;
+        }
         protected virtual bool checkGenInput()
         {
             if (string.IsNullOrEmpty(_setting.Namespace))
@@ -262,14 +320,16 @@ namespace BJSYGameCore.AutoCompo
             if (newScript != _script)
             {
                 _script = newScript;
-                _fieldList.Clear();
+                _serializedObject.FindProperty(NAME_OF_SCRIPT).objectReferenceValue = _script;
                 if (_script != null)
                 {
                     _type = _script.GetClass();
-                    _fieldList.AddRange(getFieldInfosFromType(_type));
+                    resetGenDictByType(_type);
                     string path = AssetDatabase.GetAssetPath(_script);
                     _savePath = Path.GetDirectoryName(path);
+                    _serializedObject.FindProperty(NAME_OF_SAVEPATH).stringValue = _savePath;
                     _saveFileName = _type.Name;
+                    _serializedObject.FindProperty(NAME_OF_SAVEFILENAME).stringValue = _saveFileName;
                 }
                 else
                     _type = null;
@@ -290,8 +350,8 @@ namespace BJSYGameCore.AutoCompo
         {
             EditorGUILayout.BeginHorizontal();
             AutoBindFieldInfo field = getInfoFromExists(gameObject);
-            if (field != null && !_objGenDict.ContainsKey(gameObject))
-                _objGenDict.Add(gameObject, field);
+            //if (field != null && !_objGenDict.ContainsKey(gameObject))
+            //    _objGenDict.Add(gameObject, field);
             onGUIGameObjectField(gameObject, field);
             EditorGUILayout.EndHorizontal();
             if (_objFoldDict[gameObject])
@@ -369,9 +429,9 @@ namespace BJSYGameCore.AutoCompo
         {
             EditorGUILayout.BeginHorizontal();
             AutoBindFieldInfo field = getInfoFromExists(component);
-            if (field != null && !_objGenDict.ContainsKey(component))
-                _objGenDict.Add(component, field);
-            EditorGUI.BeginDisabledGroup(field != null && field.instanceId == 0);
+            //if (field != null && !_objGenDict.ContainsKey(component))
+            //    _objGenDict.Add(component, field);
+            EditorGUI.BeginDisabledGroup(field != null && !field.isGenerated);
             EditorGUILayout.BeginHorizontal(GUILayout.Width(WIDTH_OF_FIELD));
             if (isObjectGen(component))
             {
@@ -409,7 +469,8 @@ namespace BJSYGameCore.AutoCompo
             EditorGUI.EndDisabledGroup();
             EditorGUILayout.EndHorizontal();
         }
-        private void onCheckGenObj(Object obj)
+
+        void onCheckGenObj(Object obj)
         {
             bool isGen = _objGenDict.ContainsKey(obj);
             isGen = EditorGUILayout.Toggle(isGen);
@@ -497,13 +558,12 @@ namespace BJSYGameCore.AutoCompo
         {
             if (_objGenDict.ContainsKey(obj) && _objGenDict[obj] != null)
                 return _objGenDict[obj];
-            AutoBindFieldInfo fieldInfo = new AutoBindFieldInfo(
+            return new AutoBindFieldInfo(
                 obj.GetInstanceID(),
                 getPath(obj is GameObject ? obj as GameObject : (obj as Component).gameObject),
                 obj.GetType(),
                 null,
                 null);
-            return fieldInfo;
         }
         string getPath(GameObject gameObject)
         {
@@ -525,29 +585,17 @@ namespace BJSYGameCore.AutoCompo
         {
             if (obj == null)
                 return null;
-            //if (_objGenDict.ContainsKey(obj) && _objGenDict[obj] != null)
-            //    return _objGenDict[obj];
-            if (_fieldList == null)
-                return null;
-            foreach (var field in _fieldList.Where(f => f.targetType == obj.GetType()))
-            {
-                if (string.IsNullOrEmpty(field.path))
-                    continue;
-                GameObject gameObject = obj is GameObject ? obj as GameObject : (obj as Component).gameObject;
-                if (TransformHelper.isPathMatch(field.path, gameObject, _gameObject))
-                    return field;
-            }
-            return null;
+            return _objGenDict.ContainsKey(obj) ? _objGenDict[obj] : null;
         }
         protected virtual bool isPartOfAnyPath(GameObject gameObject)
         {
-            if (_fieldList != null)
+            if (_objGenDict != null)
             {
-                foreach (var field in _fieldList)
+                foreach (var pair in _objGenDict)
                 {
-                    if (string.IsNullOrEmpty(field.path))
+                    if (string.IsNullOrEmpty(pair.Value.path))
                         continue;
-                    if (TransformHelper.isPartOfPath(gameObject, _gameObject, field.path))
+                    if (TransformHelper.isPartOfPath(gameObject, _gameObject, pair.Value.path))
                         return true;
                 }
             }
@@ -589,27 +637,7 @@ namespace BJSYGameCore.AutoCompo
                 }
             }
 #endif
-            bool willBeOverride;
-            if (tryFindExistScript(gameObject, out _script, out willBeOverride))
-            {
-                if (willBeOverride)
-                {
-                    if (EditorUtility.DisplayDialog("已存在脚本", "AutoCompo发现" + gameObject.name + "上已经有一个同名的脚本，是否覆盖该脚本？", "是", "否"))
-                    {
-                        _type = _script.GetClass();
-                        return AssetDatabase.GetAssetPath(_script);
-                    }
-                    else
-                        return path;
-                }
-                else
-                {
-                    _type = _script.GetClass();
-                    return AssetDatabase.GetAssetPath(_script);
-                }
-            }
-            else
-                return path;
+            return _script != null ? AssetDatabase.GetAssetPath(_script) : path;
         }
         protected virtual void onGUICtrlSettting()
         {
@@ -643,7 +671,7 @@ namespace BJSYGameCore.AutoCompo
             AssetDatabase.Refresh();
             _autoAddList.Add(new AutoAddCompoInfo(_gameObject, _setting.Namespace + "." + _generator.typeName));
         }
-        private string getDefaultTypeName()
+        string getDefaultTypeName()
         {
             if (!string.IsNullOrEmpty(_saveFileName))
                 return _saveFileName;
@@ -769,6 +797,59 @@ namespace BJSYGameCore.AutoCompo
             return false;
         }
         #endregion
+        protected bool hasProp(Object obj, string propName)
+        {
+            return _objGenDict.ContainsKey(obj) && _objGenDict[obj].propDict.ContainsKey(propName);
+        }
+        protected T getProp<T>(Object obj, string propName)
+        {
+            if (!_objGenDict.ContainsKey(obj))
+                throw new KeyNotFoundException("不存在" + obj + "的生成信息");
+            if (!_objGenDict[obj].propDict.ContainsKey(propName))
+                throw new KeyNotFoundException(obj + "不存在属性" + propName);
+            else if (_objGenDict[obj].propDict[propName] is T)
+                return (T)_objGenDict[obj].propDict[propName];
+            else
+                throw new InvalidCastException(obj + "的属性" + propName + "的值" + _objGenDict[obj].propDict[propName] + "无法被转换为" + typeof(T).Name);
+        }
+        protected T getPropOrDefault<T>(Object obj, string propName)
+        {
+            if (!_objGenDict.ContainsKey(obj))
+                throw new KeyNotFoundException("不存在" + obj + "的生成信息");
+            if (!_objGenDict[obj].propDict.ContainsKey(propName))
+                return default(T);
+            else if (_objGenDict[obj].propDict[propName] is T)
+                return (T)_objGenDict[obj].propDict[propName];
+            else
+                return default(T);
+        }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <param name="propName"></param>
+        /// <param name="value"></param>
+        /// <returns>如果属性发生改变，那么返回true</returns>
+        protected bool setProp(Object obj, string propName, object value)
+        {
+            if (!_objGenDict.ContainsKey(obj))
+                throw new KeyNotFoundException("不存在" + obj + "的生成信息");
+            if (!_objGenDict[obj].propDict.ContainsKey(propName))
+            {
+                _objGenDict[obj].propDict[propName] = value;
+                return true;
+            }
+            else
+            {
+                if (_objGenDict[obj].propDict[propName] == value)
+                    return false;
+                else
+                {
+                    _objGenDict[obj].propDict[propName] = value;
+                    return true;
+                }
+            }
+        }
         void reset()
         {
             _objGenDict = null;
@@ -777,14 +858,14 @@ namespace BJSYGameCore.AutoCompo
                 _serializedObject.Dispose();
             _serializedObject = null;
         }
-        protected Type _type = null;
-        [SerializeField] protected MonoScript _script = null;
+        protected Type _type;
+        [SerializeField] protected MonoScript _script;
         [Obsolete("应该只有一个生成字段信息")]
-        List<AutoBindFieldInfo> _fieldList = null;
-        protected AutoCompoGenerator _generator = null;
-        string[] _ctrlTypes = null;
+        List<AutoBindFieldInfo> _fieldList;
+        protected AutoCompoGenerator _generator;
+        string[] _ctrlTypes;
         Vector2 _onGUIGameObjectScrollPos;
-        Dictionary<Object, bool> _objFoldDict = new Dictionary<Object, bool>();
+        readonly Dictionary<Object, bool> _objFoldDict = new Dictionary<Object, bool>();
         protected Dictionary<Object, AutoBindFieldInfo> _objGenDict;
         [SerializeField]
         protected GameObject _gameObject;
@@ -807,7 +888,7 @@ namespace BJSYGameCore.AutoCompo
         protected GameObject _listOrigin;
         [SerializeField]
         protected MonoScript _listItemTypeScript;
-        SerializedObject _serializedObject;
+        protected SerializedObject _serializedObject;
         [SerializeField]
         protected List<AutoAddCompoInfo> _autoAddList = new List<AutoAddCompoInfo>();
         protected const int PRIOR_SCENE_GENERATE = 15;
@@ -817,7 +898,7 @@ namespace BJSYGameCore.AutoCompo
         const string NAME_OF_SAVEPATH = "_savePath";
         const string NAME_OF_SAVEFILENAME = "_saveFileName";
         const string NAME_OF_SETTING = "_setting";
-        const string NAME_OF_CTRL_TYPE = "_controllerType";
+        protected const string NAME_OF_CTRL_TYPE = "_controllerType";
         const int WIDTH_OF_FIELD = 200;
         const int WIDTH_OF_TOGGLE = 25;
         #endregion

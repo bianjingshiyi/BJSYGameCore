@@ -24,6 +24,11 @@ namespace BJSYGameCore
                 }
             }
         }
+
+        public static CodeFieldReferenceExpression getField(string fieldName)
+        {
+            return new CodeFieldReferenceExpression(null, fieldName);
+        }
         public static CodeFieldReferenceExpression getField(this CodeExpression target, string fieldName)
         {
             return new CodeFieldReferenceExpression(target, fieldName);
@@ -31,6 +36,10 @@ namespace BJSYGameCore
         public static CodePropertyReferenceExpression getProp(this CodeExpression target, string propName)
         {
             return new CodePropertyReferenceExpression(target, propName);
+        }
+        public static CodeMethodReferenceExpression getMethod(string methodName, params CodeTypeReference[] typeParameters)
+        {
+            return new CodeMethodReferenceExpression(null, methodName, typeParameters);
         }
         public static CodeMethodReferenceExpression getMethod(this CodeExpression target, string methodName, params CodeTypeReference[] typeParameters)
         {
@@ -121,6 +130,11 @@ namespace BJSYGameCore
         public static CodeMemberMethod appendParam(this CodeMemberMethod method, string typeName, string name)
         {
             method.Parameters.Add(new CodeParameterDeclarationExpression(typeName, name));
+            return method;
+        }
+        public static CodeMemberMethod appendParam(this CodeMemberMethod method, Type type, string name)
+        {
+            method.Parameters.Add(new CodeParameterDeclarationExpression(type, name));
             return method;
         }
         public static CodeMemberMethod appendStatement(this CodeMemberMethod method, CodeStatement statement)

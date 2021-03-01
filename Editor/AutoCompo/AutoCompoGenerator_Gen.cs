@@ -15,7 +15,7 @@ namespace BJSYGameCore.AutoCompo
                 return;
             _nameSpace.Imports.Add(new CodeNamespaceImport(type.Namespace));
         }
-        protected CodeMemberField genField(CodeTypeDeclaration type, string typeName, string fieldName, bool applyAttributes = true)
+        protected CodeMemberField genField(CodeTypeDeclaration type, MemberAttributes attributes, string typeName, string fieldName, bool applyAttributes = true)
         {
             CodeMemberField field = new CodeMemberField();
             type.Members.Add(field);
@@ -26,12 +26,12 @@ namespace BJSYGameCore.AutoCompo
                     field.CustomAttributes.Add(new CodeAttributeDeclaration(fieldAttName));
                 }
             }
-            field.Attributes = MemberAttributes.Private | MemberAttributes.Final;
+            field.Attributes = attributes;
             field.Type = new CodeTypeReference(typeName);
             field.Name = fieldName;
             return field;
         }
-        protected CodeMemberField genField(CodeTypeDeclaration type, Type fieldType, string fieldName, bool applyAttributes = true)
+        protected CodeMemberField genField(CodeTypeDeclaration type, MemberAttributes attributes, Type fieldType, string fieldName, bool applyAttributes = true)
         {
             addTypeUsing(fieldType);
             CodeMemberField field = new CodeMemberField();
@@ -43,18 +43,26 @@ namespace BJSYGameCore.AutoCompo
                     field.CustomAttributes.Add(new CodeAttributeDeclaration(fieldAttName));
                 }
             }
-            field.Attributes = MemberAttributes.Private | MemberAttributes.Final;
+            field.Attributes = attributes;
             field.Type = new CodeTypeReference(fieldType.Name);
             field.Name = fieldName;
             return field;
         }
         protected CodeMemberField genField(string typeName, string fieldName, bool applyAttributes = true)
         {
-            return genField(_type, typeName, fieldName, applyAttributes);
+            return genField(_type, MemberAttributes.Public | MemberAttributes.Final, typeName, fieldName, applyAttributes);
         }
         protected CodeMemberField genField(Type fieldType, string fieldName, bool applyAttributes = true)
         {
-            return genField(_type, fieldType, fieldName, applyAttributes);
+            return genField(_type, MemberAttributes.Public | MemberAttributes.Final, fieldType, fieldName, applyAttributes);
+        }
+        protected CodeMemberField genField(MemberAttributes attributes, string typeName, string fieldName, bool applyAttributes = true)
+        {
+            return genField(_type, attributes, typeName, fieldName, applyAttributes);
+        }
+        protected CodeMemberField genField(MemberAttributes attributes, Type fieldType, string fieldName, bool applyAttributes = true)
+        {
+            return genField(_type, attributes, fieldType, fieldName, applyAttributes);
         }
         protected CodeMemberProperty genProp(CodeTypeDeclaration type, MemberAttributes attributes, string typeName, string propName)
         {
