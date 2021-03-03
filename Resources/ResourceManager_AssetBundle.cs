@@ -16,14 +16,15 @@ namespace BJSYGameCore
     public partial class ResourceManager
     {
 
-#region AssetDatabase加载资源
+        #region AssetDatabase加载资源
 #if UNITY_EDITOR
         /// <summary>
         /// 从AssetDatabase中加载资源。
         /// </summary>
         /// <param name="info"></param>
         /// <returns></returns>
-        public Object loadFromAssetDatabase(ResourceInfo info) {
+        public Object loadFromAssetDatabase(ResourceInfo info)
+        {
             Object obj = null;
             if (loadFromCache<Object>(info.path, out obj)) { return obj; }
             obj = UnityEditor.AssetDatabase.LoadAssetAtPath<Object>(info.path);
@@ -32,9 +33,9 @@ namespace BJSYGameCore
             return obj;
         }
 #endif
-#endregion
+        #endregion
 
-#region Resources加载资源
+        #region Resources加载资源
         /// <summary>
         /// 同步方法，从Resources中加载资源。
         /// </summary>
@@ -46,9 +47,11 @@ namespace BJSYGameCore
             ResourceInfo info = resourcesInfo.getInfoByPath(path);
             if (info == null) { return null; }
             //先尝试从缓存中获取
-            if (!loadFromCache(info.path, out Object obj)) {
+            if (!loadFromCache(info.path, out Object obj))
+            {
                 obj = Resources.Load(info.path);
-                if (obj == null) {
+                if (obj == null)
+                {
                     Debug.LogError($"从Resources同步加载{info.path}失败");
                 }
                 else { saveToCache(info.path, obj); }
@@ -61,29 +64,33 @@ namespace BJSYGameCore
         /// </summary>
         /// <param name="path">资源路径</param>
         /// <returns></returns>
-        public Task<T> loadFromResourcesAsync<T>(string path) where T : UnityEngine.Object {
+        public Task<T> loadFromResourcesAsync<T>(string path) where T : UnityEngine.Object
+        {
             TaskCompletionSource<T> tcs = new TaskCompletionSource<T>();
             //获取path对应的ResourceInfo
             ResourceInfo info = resourcesInfo.getInfoByPath(path);
             if (info == null) { tcs.SetCanceled(); }
             //先尝试从缓存中获取
-            else if (!loadFromCache(info.path, out T obj)) {
+            else if (!loadFromCache(info.path, out T obj))
+            {
                 var req = Resources.LoadAsync(info.path);
-                req.completed += op => {
+                req.completed += op =>
+                {
                     T newObj = (op as ResourceRequest).asset as T;
-                    if (newObj == null) {
+                    if (newObj == null)
+                    {
                         Debug.LogError($"从Resources异步加载{info.path}失败");
                     }
                     else { saveToCache(info.path, newObj); }
                     tcs.SetResult(newObj);
-                }; 
+                };
             }
             else { tcs.SetResult(obj); }
             return tcs.Task;
         }
-#endregion
+        #endregion
 
-#region Assetbundle加载资源
+        #region Assetbundle加载资源
         /// <summary>
         /// 同步方法，从AssetBundle中加载资源。
         /// </summary>
@@ -93,16 +100,17 @@ namespace BJSYGameCore
         {
             //获取path对应的ResourceInfo
             ResourceInfo info = resourcesInfo.getInfoByPath(path);
-            if(info == null) {return null;}
+            if (info == null) { return null; }
             //先尝试从缓存中获取
             if (!loadFromCache<Object>(info.path, out var obj))
             {
                 //上一步找不到，就加载AB包并Load出UObject
                 AssetBundle infoBundle = loadAssetBundle(info);
-                if (infoBundle == null) { return null;}
+                if (infoBundle == null) { return null; }
                 //加载资源
                 obj = infoBundle.LoadAsset(info.path);
-                if (obj == null) {
+                if (obj == null)
+                {
                     Debug.LogError($"从AB包同步加载{info.path}失败");
                 }
                 else { saveToCache(info.path, obj); }
@@ -115,18 +123,21 @@ namespace BJSYGameCore
         /// </summary>
         /// <param name="path"></param>
         /// <returns></returns>
-        public async Task<T> loadFromAssetBundleAsync<T>(string path) where T : UnityEngine.Object{
+        public async Task<T> loadFromAssetBundleAsync<T>(string path) where T : UnityEngine.Object
+        {
             //获取path对应的ResourceInfo
             ResourceInfo info = resourcesInfo.getInfoByPath(path);
             if (info == null) { return default; }
             //先尝试从缓存中获取
-            if (!loadFromCache<T>(info.path,out var obj)) {
+            if (!loadFromCache<T>(info.path, out var obj))
+            {
                 //上一步找不到，就加载AB包并Load出UObject
                 AssetBundle infoBundle = await loadAssetBundleAsync(info);
                 if (infoBundle == null) { return default; }
                 //加载资源
                 T newObj = await loadObjFromBundleAsync<T>(infoBundle, info.path);
-                if (newObj == null) {
+                if (newObj == null)
+                {
                     Debug.LogError($"从AB包异步加载{info.path}失败");
                 }
                 else { saveToCache(info.path, newObj); }
@@ -143,7 +154,8 @@ namespace BJSYGameCore
         public AssetBundle loadAssetBundle(ResourceInfo info)
         {
             //尝试在AB包Cache去获取infoBundle
-            if (!loadAssetBundleFromCache(info.bundleName, out var infoBundle)) {
+            if (!loadAssetBundleFromCache(info.bundleName, out var infoBundle))
+            {
                 //上一步找不到，就去加载info的AB包，
                 //在这之前要加载manifest
                 ResourceInfo manifestInfo = resourcesInfo.getInfoByPath("ab:assetbundlemanifest");
@@ -152,14 +164,18 @@ namespace BJSYGameCore
                 //然后根据manifest加载依赖项
                 var dependencies = manifest.GetDirectDependencies(info.bundleName);
                 List<string> dependenceList = null;
-                if (dependencies != null && dependencies.Length > 0) {
-                    foreach (var dependence in dependencies) {
+                if (dependencies != null && dependencies.Length > 0)
+                {
+                    foreach (var dependence in dependencies)
+                    {
                         AssetBundle dependencedBundle = loadBundleFromFile(dependence);
-                        if (dependencedBundle == null) {
+                        if (dependencedBundle == null)
+                        {
                             Debug.LogError("加载" + info.bundleName + "的依赖项" + dependence + "失败");
                             return null;
                         }
-                        else{
+                        else
+                        {
                             //记录依赖
                             if (dependenceList == null) { dependenceList = new List<string>(); }
                             dependenceList.Add(dependence);
@@ -169,11 +185,13 @@ namespace BJSYGameCore
                 }
                 //加载完依赖项之后，可以正式加载AB包了
                 infoBundle = loadBundleFromFile(info.bundleName);
-                if (infoBundle == null) {
+                if (infoBundle == null)
+                {
                     Debug.LogError($"同步加载AB包{info.bundleName}失败");
                     return null;
                 }
-                else {
+                else
+                {
                     var cacheItem = saveBundleToCache(info.bundleName, infoBundle);
                     cacheItem.dependenceList = dependenceList;
                 }
@@ -189,7 +207,8 @@ namespace BJSYGameCore
         public async Task<AssetBundle> loadAssetBundleAsync(ResourceInfo info)
         {
             //尝试在AB包Cache去获取infoBundle
-            if (!loadAssetBundleFromCache(info.bundleName, out var infoBundle)) {
+            if (!loadAssetBundleFromCache(info.bundleName, out var infoBundle))
+            {
                 //上一步找不到，就去加载info的AB包，
                 //在这之前要加载manifest
                 ResourceInfo manifestInfo = resourcesInfo.getInfoByPath("ab:assetbundlemanifest");
@@ -198,14 +217,18 @@ namespace BJSYGameCore
                 //然后根据manifest加载依赖项
                 var dependencies = manifest.GetDirectDependencies(info.bundleName);
                 List<string> dependenceList = null;
-                if (dependencies != null && dependencies.Length > 0) {
-                    foreach (var dependence in dependencies) {
+                if (dependencies != null && dependencies.Length > 0)
+                {
+                    foreach (var dependence in dependencies)
+                    {
                         AssetBundle dependencedBundle = await loadBundleFromWeb(dependence);
-                        if (dependencedBundle == null) {
+                        if (dependencedBundle == null)
+                        {
                             Debug.LogError("异步加载" + info.bundleName + "的依赖项" + dependence + "失败");
                             return null;
                         }
-                        else {
+                        else
+                        {
                             //记录依赖
                             if (dependenceList == null)
                                 dependenceList = new List<string>();
@@ -215,12 +238,14 @@ namespace BJSYGameCore
                     }
                 }
                 //加载完依赖项之后，可以正式加载AB包了
-                var newInfoBundle =  await loadBundleFromWeb(info.bundleName);
-                if (newInfoBundle == null) {
+                var newInfoBundle = await loadBundleFromWeb(info.bundleName);
+                if (newInfoBundle == null)
+                {
                     Debug.LogError($"异步加载AB包{info.bundleName}失败");
                     return null;
                 }
-                else {
+                else
+                {
                     var cacheItem = saveBundleToCache(info.bundleName, newInfoBundle);
                     cacheItem.dependenceList = dependenceList;
                 }
@@ -228,18 +253,22 @@ namespace BJSYGameCore
             }
             else { return infoBundle; }
         }
-#endregion
+        #endregion
 
-#region 和AssetBundle加载相关的工具方法
+        #region 和AssetBundle加载相关的工具方法
         // 同步方法，加载manifest
-        AssetBundleManifest loadAssetBundleManifest(ResourceInfo manifestInfo){
+        AssetBundleManifest loadAssetBundleManifest(ResourceInfo manifestInfo)
+        {
             //尝试在UObject缓存找manifest
-            if (!loadFromCache<AssetBundleManifest>(manifestInfo.path, out var manifest)){
+            if (!loadFromCache<AssetBundleManifest>(manifestInfo.path, out var manifest))
+            {
                 //上一步找不到，就在AB包缓存去找manifest的AB包并Load出manifest
-                if (!loadAssetBundleFromCache(manifestInfo.bundleName, out var manifestBundle)) {
+                if (!loadAssetBundleFromCache(manifestInfo.bundleName, out var manifestBundle))
+                {
                     //同步加载manifest的AB包
                     manifestBundle = loadBundleFromFile(manifestInfo.bundleName);
-                    if (manifestBundle == null) {
+                    if (manifestBundle == null)
+                    {
                         Debug.LogError("同步加载ManifestAB包失败，Manifest无法加载");
                         return null;
                     }
@@ -247,7 +276,8 @@ namespace BJSYGameCore
                 }
                 //从AB包Load出manifest
                 manifest = manifestBundle.LoadAsset<AssetBundleManifest>(manifestInfo.path);
-                if (manifest == null) {
+                if (manifest == null)
+                {
                     Debug.LogError("同步加载Manifest失败");
                     return null;
                 }
@@ -257,31 +287,38 @@ namespace BJSYGameCore
         }
 
         //异步方法，加载manifest
-        async Task<AssetBundleManifest> loadAssetBundleManifestAsync(ResourceInfo manifestInfo) {
+        async Task<AssetBundleManifest> loadAssetBundleManifestAsync(ResourceInfo manifestInfo)
+        {
             //尝试在UObject缓存找manifest
-            if (!loadFromCache<AssetBundleManifest>(manifestInfo.path, out var manifest)) {
+            if (!loadFromCache<AssetBundleManifest>(manifestInfo.path, out var manifest))
+            {
                 //上一步找不到，就在AB包缓存去找manifest的AB包并Load出manifest
-                if (!loadAssetBundleFromCache(manifestInfo.bundleName, out var manifestBundle)) {
+                if (!loadAssetBundleFromCache(manifestInfo.bundleName, out var manifestBundle))
+                {
                     //异步加载manifest的AB包
                     var newManifestBundle = await loadBundleFromWeb(manifestInfo.bundleName);
-                    if (newManifestBundle == null) {
+                    if (newManifestBundle == null)
+                    {
                         Debug.LogError("异步加载AssetBundleManifest失败");
                         return null;
                     }
                     else { saveBundleToCache(manifestInfo.bundleName, newManifestBundle); }
                     //从AB包异步加载manifest
                     var newManifest = await loadObjFromBundleAsync<AssetBundleManifest>(newManifestBundle, manifestInfo.path);
-                    if (newManifest == null) {
+                    if (newManifest == null)
+                    {
                         Debug.LogError("异步加载Manifest失败");
                         return null;
                     }
                     else { saveToCache(manifestInfo.path, newManifest); }
                     return newManifest;
                 }
-                else {
+                else
+                {
                     //找到了manifest的AB包，可以直接异步加载manifest
                     var newManifest = await loadObjFromBundleAsync<AssetBundleManifest>(manifestBundle, manifestInfo.path);
-                    if (newManifest == null) {
+                    if (newManifest == null)
+                    {
                         Debug.LogError("异步加载Manifest失败");
                         return null;
                     }
@@ -299,26 +336,34 @@ namespace BJSYGameCore
         }
 
         //异步方法，UnityAPI加载AB包
-        Task<AssetBundle> loadBundleFromWeb(string bundleName) {
-            if (startLoadBundleOperation(bundleName,out var lbo)) {
+        Task<AssetBundle> loadBundleFromWeb(string bundleName)
+        {
+            if (startLoadBundleOperation(bundleName, out var lbo))
+            {
                 TaskCompletionSource<AssetBundle> tcs = lbo.tcs;
                 string uri = Application.streamingAssetsPath + "/" +
                 Path.GetFileNameWithoutExtension(resourcesInfo.bundleOutputPath) + "/" + bundleName;
                 //尝试从缓存获取AB包
-                if (!loadAssetBundleFromCache(bundleName, out var resBundle)) {
+                if (!loadAssetBundleFromCache(bundleName, out var resBundle))
+                {
                     //缓存拿不到就加载AB包
-                    UnityWebRequestAssetBundle.GetAssetBundle(uri).SendWebRequest().completed += op => {
+                    UnityWebRequestAssetBundle.GetAssetBundle(uri).SendWebRequest().completed += op =>
+                    {
                         var uop = op as UnityWebRequestAsyncOperation;
                         //抛出加载异常
-                        if (uop.webRequest.isNetworkError) {
+                        if (uop.webRequest.isNetworkError)
+                        {
                             tcs.SetException(new HttpRequestException(uop.webRequest.error));
                             return;
                         }
-                        if (uop.webRequest.isHttpError) {
-                            if (uop.webRequest.responseCode == 404) {
+                        if (uop.webRequest.isHttpError)
+                        {
+                            if (uop.webRequest.responseCode == 404)
+                            {
                                 tcs.SetException(new FileNotFoundException());
                             }
-                            else {
+                            else
+                            {
                                 tcs.SetException(new HttpRequestException(uop.webRequest.error));
                             }
                             return;
@@ -328,7 +373,8 @@ namespace BJSYGameCore
                         completeLoadBundleOperation(bundleName);
                     };
                 }
-                else { 
+                else
+                {
                     tcs.SetResult(resBundle);
                     completeLoadBundleOperation(bundleName);
                 }
@@ -337,9 +383,11 @@ namespace BJSYGameCore
         }
 
         //异步方法，从AB包里面加载Asset(资源)
-        Task<T> loadObjFromBundleAsync<T>(AssetBundle bundle,string assetPath)where T:UnityEngine.Object {
+        Task<T> loadObjFromBundleAsync<T>(AssetBundle bundle, string assetPath) where T : UnityEngine.Object
+        {
             TaskCompletionSource<T> tcs = new TaskCompletionSource<T>();
-            bundle.LoadAssetAsync<T>(assetPath).completed += op => {
+            bundle.LoadAssetAsync<T>(assetPath).completed += op =>
+            {
                 T obj = (op as AssetBundleRequest).asset as T;
                 if (obj == null)
                     Debug.LogError($"从AB包加载{assetPath}失败");
@@ -350,7 +398,8 @@ namespace BJSYGameCore
 
 
         //缓存加载过的AB包
-        BundleCacheItem saveBundleToCache(string name, AssetBundle bundle) {
+        BundleCacheItem saveBundleToCache(string name, AssetBundle bundle)
+        {
             BundleCacheItem cacheItem = new BundleCacheItem() { bundle = bundle };
             bundleCacheDic[name] = cacheItem;
             return cacheItem;
@@ -358,30 +407,36 @@ namespace BJSYGameCore
         //缓存AB包的数据结构
         Dictionary<string, BundleCacheItem> bundleCacheDic { get; } = new Dictionary<string, BundleCacheItem>();
         [Serializable]
-        class BundleCacheItem {
+        class BundleCacheItem
+        {
             public AssetBundle bundle = null;
             public List<string> dependenceList = null;
         }
 
         //记录异步加载AB包任务的数据结构
-        class LoadBundleOperation {
+        class LoadBundleOperation
+        {
             public TaskCompletionSource<AssetBundle> tcs = new TaskCompletionSource<AssetBundle>();
         }
         Dictionary<string, LoadBundleOperation> loadBundleOperationDict = new Dictionary<string, LoadBundleOperation>();
         //开始一个加载AB包异步任务的操作
-        bool startLoadBundleOperation(string bundleName, out LoadBundleOperation lbo) {
-            if (!loadBundleOperationDict.ContainsKey(bundleName)) {
+        bool startLoadBundleOperation(string bundleName, out LoadBundleOperation lbo)
+        {
+            if (!loadBundleOperationDict.ContainsKey(bundleName))
+            {
                 lbo = new LoadBundleOperation();
                 loadBundleOperationDict[bundleName] = lbo;
                 return true;
             }
-            else {
+            else
+            {
                 lbo = loadBundleOperationDict[bundleName];
                 return false;
             }
         }
         //结束一个加载AB包异步任务的操作
-        void completeLoadBundleOperation(string bundleName) {
+        void completeLoadBundleOperation(string bundleName)
+        {
             if (loadBundleOperationDict.ContainsKey(bundleName))
                 loadBundleOperationDict.Remove(bundleName);
         }
@@ -389,14 +444,16 @@ namespace BJSYGameCore
         #endregion
 
         //暂时不知道有什么卵用.....
-        ResourceInfo getResourceInfo(string path) {
+        ResourceInfo getResourceInfo(string path)
+        {
             throw new NotImplementedException();
         }
 
 
-#region 废弃方法，不知道还用不用得着，先留着
+        #region 废弃方法，不知道还用不用得着，先留着
         [Obsolete]
-        void checkPathIsValid(string path) {
+        void checkPathIsValid(string path)
+        {
             //路径格式校验
             if (string.IsNullOrEmpty(path))
                 throw new ArgumentException("资源地址不能为空", nameof(path));
@@ -524,7 +581,7 @@ namespace BJSYGameCore
             //TODO:AssetBundle加载的Web实现。
             return AssetBundle.LoadFromFile(info.path);
         }
-#endregion
+        #endregion
 
 
     }

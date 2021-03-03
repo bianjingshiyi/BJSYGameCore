@@ -3,7 +3,6 @@ using System;
 using System.Threading.Tasks;
 using BJSYGameCore.UI;
 using System.CodeDom;
-using System.IO;
 using UnityEngine.Networking;
 
 namespace BJSYGameCore
@@ -27,22 +26,26 @@ namespace BJSYGameCore
         /// <typeparam name="T">资源类型</typeparam>
         /// <param name="info">资源信息</param>
         /// <returns>加载的资源</returns>
-        public T load<T>(ResourceInfo info)where T:UnityEngine.Object
+        public T load<T>(ResourceInfo info) where T : UnityEngine.Object
         {
-            switch (typeof(T).Name) {
+            switch (typeof(T).Name)
+            {
                 case nameof(ResourcesInfo):
                     if (resourcesInfo.resourceList.Contains(info))
                         return resourcesInfo as T;
-                    else {
+                    else
+                    {
                         Debug.LogError($"ResourceManager::resoucesInfo里面没有{info.path}");
                         return null;
                     }
                 case nameof(AssetBundleManifest):
                     return loadAssetBundleManifest(info) as T;
                 default:
-                    switch (info.type) {
+                    switch (info.type)
+                    {
                         case ResourceType.Assetbundle:
-                            if (typeof(T).Name == nameof(AssetBundle)) {
+                            if (typeof(T).Name == nameof(AssetBundle))
+                            {
                                 return loadAssetBundle(info) as T;
                             }
                             else return loadFromAssetBundle(info.path) as T;
@@ -74,7 +77,7 @@ namespace BJSYGameCore
         #endregion
 
 
-#region 废弃方法，不知道还用不用得着，先留着
+        #region 废弃方法，不知道还用不用得着，先留着
         /// <summary>
         /// 同步的加载一个资源。
         /// </summary>
@@ -82,7 +85,8 @@ namespace BJSYGameCore
         /// <param name="path"></param>
         /// <returns></returns>
         [Obsolete]
-        public T load<T>(string path) {
+        public T load<T>(string path)
+        {
             T res;
             if (string.IsNullOrEmpty(path))
                 throw new ArgumentException("路径不能为空", nameof(path));
@@ -100,7 +104,8 @@ namespace BJSYGameCore
                 else
                     throw new InvalidCastException("资源\"" + path + "\"" + uRes + "不是" + typeof(T).Name);
             }
-            else if (path.StartsWith("ab:") && resourcesInfo != null) {
+            else if (path.StartsWith("ab:") && resourcesInfo != null)
+            {
                 res = loadFromBundle<T>(resourcesInfo, path.Substring(3, path.Length - 3));
             }
             else
@@ -116,7 +121,7 @@ namespace BJSYGameCore
             else
                 return default;
         }
-#endregion
+        #endregion
 
         public void Dispose()
         {
