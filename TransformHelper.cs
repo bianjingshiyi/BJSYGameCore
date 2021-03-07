@@ -10,7 +10,7 @@ namespace BJSYGameCore.AutoCompo
                 return rootGameObject == gameObject;
             string[] names = path.Split('/');
             Transform transform = rootGameObject.transform;
-            for (int i = 1; i < names.Length; i++)
+            for (int i = 0; i < names.Length; i++)
             {
                 transform = transform.Find(names[i]);
                 if (transform == null)
@@ -95,6 +95,21 @@ namespace BJSYGameCore.AutoCompo
             }
             else
                 return transform;
+        }
+        public static string getChildPath(this Transform transform, Transform child, bool withHead = false)
+        {
+            if (transform == child)
+                return withHead ? "./" : string.Empty;
+            string path = child.gameObject.name;
+            for (Transform parent = child.parent; parent != transform; parent = parent.parent)
+            {
+                if (parent == null)
+                    return null;
+                path = parent.gameObject.name + "/" + path;
+            }
+            if (withHead)
+                path = "./" + path;
+            return path;
         }
     }
 }

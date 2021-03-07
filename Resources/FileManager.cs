@@ -17,7 +17,7 @@ namespace BJSYGameCore
         /// <returns>当文件写入完毕时返回</returns>
         public Task saveFile(string path, string text)
         {
-            throw new NotImplementedException();
+            return Task.Run(() => File.WriteAllText(path, text, System.Text.Encoding.UTF8));
         }
         /// <summary>
         /// 将二进制数据保存为文件到相对路径。
@@ -27,7 +27,7 @@ namespace BJSYGameCore
         /// <returns>当文件写入完毕时返回</returns>
         public Task saveFile(string path, byte[] bytes)
         {
-            throw new NotImplementedException();
+            return Task.Run(() => File.WriteAllBytes(path, bytes));
         }
         /// <summary>
         /// 是否存在指定文件？
@@ -36,7 +36,9 @@ namespace BJSYGameCore
         /// <returns>是否存在？</returns>
         public bool isFileExist(string path)
         {
-            throw new NotImplementedException();
+            if (Directory.Exists(path)) { return true; }
+            else if (File.Exists(path)) { return true; }
+            else { return false; }
         }
         /// <summary>
         /// 删除相对路径上的文件。
@@ -45,7 +47,13 @@ namespace BJSYGameCore
         /// <returns>是否存在文件被删除了？</returns>
         public bool deleteFile(string path)
         {
-            throw new NotImplementedException();
+            bool res = isFileExist(path);
+            if (res)
+            {
+                File.Delete(path);
+                return res;
+            }
+            else { return !res; }
         }
         /// <summary>
         /// 获取某个目录下的所有符合通配符条件的文件路径。
@@ -56,7 +64,12 @@ namespace BJSYGameCore
         /// <returns>所有符合条件的文件路径</returns>
         public string[] getFiles(string dir, string filter, bool includeChildDir)
         {
-            throw new NotImplementedException();
+            if(filter=="*" || filter == "?")
+            {
+                if (includeChildDir) { return Directory.GetFiles(dir, filter, SearchOption.AllDirectories); }
+                else { return Directory.GetFiles(dir, filter, SearchOption.TopDirectoryOnly); }
+            }
+            throw new ArgumentException("Invalid Filter Character!!!");
         }
         /// <summary>
         /// 读取某个文本文件的内容
@@ -66,7 +79,14 @@ namespace BJSYGameCore
         /// <exception cref="FileLoadException">当目标文件不是文本文件的时候抛出该异常。</exception>
         public Task<string> readTextFromFile(string path)
         {
-            throw new NotImplementedException();
+            try
+            {
+                return Task.Run(() => File.ReadAllText(path));
+            }
+            catch(FileLoadException)
+            {
+                throw new FileLoadException("Invalid Text File!!");
+            }
         }
         /// <summary>
         /// 读取某个二进制文件的数据
@@ -76,7 +96,14 @@ namespace BJSYGameCore
         /// <exception cref="FileLoadException">当目标文件不是二进制文件的时候抛出该异常。</exception>
         public Task<byte[]> readBytesFromFile(string path)
         {
-            throw new NotImplementedException();
+            try
+            {
+                return Task.Run(() => File.ReadAllBytes(path));
+            }
+            catch (FileLoadException)
+            {
+                throw new FileLoadException("Invalid Binary File!!");
+            }
         }
     }
 }

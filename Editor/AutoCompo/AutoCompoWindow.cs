@@ -7,6 +7,7 @@ using UnityEngine.UI;
 using System.Collections.Generic;
 using System.Reflection;
 using Object = UnityEngine.Object;
+using System.Diagnostics.CodeAnalysis;
 // ReSharper disable InconsistentNaming
 #if UNITY_2019
 using UnityEditor.Experimental.SceneManagement;
@@ -31,6 +32,7 @@ namespace BJSYGameCore.AutoCompo
         {
             GetWindow<AutoCompoWindow>(typeof(AutoCompoWindow).Name, true).checkGameObject(Selection.gameObjects.Length > 0 ? Selection.gameObjects[0] : null, true);
         }
+#if UNITY_2017
         [MenuItem("Assets/Create/AutoCompo/GetPrefab")]
         [MenuItem("GameObject/AutoCompo/GetPrefab")]
         public static void onMenuItemGetPrefab()
@@ -51,6 +53,8 @@ namespace BJSYGameCore.AutoCompo
                     break;
             }
         }
+#endif
+        [SuppressMessage("Style", "IDE0018:内联变量声明", Justification = "<挂起>")]
         public void checkGameObject(GameObject gameObject, bool forceReselect = false)
         {
             if (gameObject == null || (!forceReselect && _gameObject == gameObject))
@@ -62,18 +66,7 @@ namespace BJSYGameCore.AutoCompo
             _serializedObject.FindProperty(NAME_OF_GAMEOBJECT).objectReferenceValue = _gameObject;
             bool willBeOverride;
             if (tryFindExistScript(_gameObject, out _script, out willBeOverride))
-            {
-                if (willBeOverride)
-                {
-                    if (EditorUtility.DisplayDialog("已存在脚本", "AutoCompo发现" + gameObject.name + "上已经有一个同名的脚本，是否覆盖该脚本？",
-                        "是", "否"))
-                        _type = _script.GetClass();
-                    else
-                        _script = null;
-                }
-                else
-                    _type = _script.GetClass();
-            }
+                _type = _script.GetClass();
             _serializedObject.FindProperty(NAME_OF_SCRIPT).objectReferenceValue = _script;
             string path = getSavePath4GO(_gameObject);
             _savePath = Path.GetDirectoryName(path);
@@ -95,6 +88,9 @@ namespace BJSYGameCore.AutoCompo
             if (_setting == null)
                 _setting = loadSetting();
         }
+
+        [SuppressMessage("Style", "IDE0018:内联变量声明", Justification = "<挂起>")]
+        [SuppressMessage("Style", "IDE0059:不需要赋值", Justification = "<挂起>")]
         protected void OnGUI()
         {
             if (this == null)
@@ -123,8 +119,22 @@ namespace BJSYGameCore.AutoCompo
                 bool willBeOverride;
                 if (tryFindExistScript(_gameObject, out _script, out willBeOverride))
                 {
-                    _type = _script.GetClass();
-                    resetGenDictByType(_type);
+                    if (willBeOverride)
+                    {
+                        if (EditorUtility.DisplayDialog("已存在脚本", "AutoCompo发现" + _gameObject.name + "上已经有一个同名的脚本，是否覆盖该脚本？",
+                            "是", "否"))
+                        {
+                            _type = _script.GetClass();
+                            resetGenDictByType(_type);
+                        }
+                        else
+                            _script = null;
+                    }
+                    else
+                    {
+                        _type = _script.GetClass();
+                        resetGenDictByType(_type);
+                    }
                 }
                 onInitByCtrlType();
             }
@@ -229,33 +239,37 @@ namespace BJSYGameCore.AutoCompo
                     _objGenDict.Add(pair.Key, pair.Value);
             }
         }
+
+
         /// <summary>
         /// 如果字段有AutoCompo特性，则认为它是自动生成的，从特性中读取元数据生成字段信息。
+        /// 如果已经存在组件，字段在自动生成的文件里声明，并且有对应的属性可以来获取相关信息，则认为它是自动生成的。
         /// </summary>
         /// <param name="field"></param>
         /// <returns></returns>
+        [SuppressMessage("Style", "IDE0034:简化 \"default\" 表达式", Justification = "<挂起>")]
         protected virtual KeyValuePair<Object, AutoBindFieldInfo> getGenInfoFromFieldInfo(FieldInfo field)
         {
-            AutoCompoAttribute autoCompo = field.getAttribute<AutoCompoAttribute>();
-            if (autoCompo != null)
+            AutoCompoAttribute autoCompoAttr = field.getAttribute<AutoCompoAttribute>();
+            if (autoCompoAttr != null)
             {
                 //先用InstanceID找
-                GameObject gameObject = findGameObjectByInstanceID(_gameObject, autoCompo.instanceID);
+                GameObject gameObject = findGameObjectByInstanceID(_gameObject, autoCompoAttr.instanceID);
                 if (gameObject != null)
                 {
                     if (field.FieldType != typeof(GameObject))
                     {
                         Component component = gameObject.GetComponent(field.FieldType);
                         if (component != null)
-                            return new KeyValuePair<Object, AutoBindFieldInfo>(component, new AutoBindFieldInfo(autoCompo.instanceID, autoCompo.path, field.FieldType, null, field.Name));
+                            return new KeyValuePair<Object, AutoBindFieldInfo>(component, new AutoBindFieldInfo(autoCompoAttr.instanceID, autoCompoAttr.path, field.FieldType, null, field.Name));
                         return default(KeyValuePair<Object, AutoBindFieldInfo>);
                     }
-                    return new KeyValuePair<Object, AutoBindFieldInfo>(gameObject, new AutoBindFieldInfo(autoCompo.instanceID, autoCompo.path, field.FieldType, null, field.Name));
+                    return new KeyValuePair<Object, AutoBindFieldInfo>(gameObject, new AutoBindFieldInfo(autoCompoAttr.instanceID, autoCompoAttr.path, field.FieldType, null, field.Name));
                 }
                 //再用路径找
-                if (!string.IsNullOrEmpty(autoCompo.path))
+                if (!string.IsNullOrEmpty(autoCompoAttr.path))
                 {
-                    Transform transform = _gameObject.transform.Find(autoCompo.path);
+                    Transform transform = _gameObject.transform.Find(autoCompoAttr.path);
                     if (transform != null)
                     {
                         gameObject = transform.gameObject;
@@ -263,10 +277,37 @@ namespace BJSYGameCore.AutoCompo
                         {
                             Component component = gameObject.GetComponent(field.FieldType);
                             if (component != null)
-                                return new KeyValuePair<Object, AutoBindFieldInfo>(component, new AutoBindFieldInfo(autoCompo.instanceID, autoCompo.path, field.FieldType, null, field.Name));
+                                return new KeyValuePair<Object, AutoBindFieldInfo>(component, new AutoBindFieldInfo(autoCompoAttr.instanceID, autoCompoAttr.path, field.FieldType, null, field.Name));
                             return default(KeyValuePair<Object, AutoBindFieldInfo>);
                         }
-                        return new KeyValuePair<Object, AutoBindFieldInfo>(gameObject, new AutoBindFieldInfo(autoCompo.instanceID, autoCompo.path, field.FieldType, null, field.Name));
+                        return new KeyValuePair<Object, AutoBindFieldInfo>(gameObject, new AutoBindFieldInfo(autoCompoAttr.instanceID, autoCompoAttr.path, field.FieldType, null, field.Name));
+                    }
+                }
+            }
+            else if (_script.text.Contains("<auto-generated>") &&//文件是自动生成的
+                _script.text.Contains(field.FieldType.Name + " " + field.Name))//自动生成的文件中包含字段声明
+            {
+                Component autoComponent = _gameObject.GetComponent(_type);
+                if (autoComponent == null)
+                    return default(KeyValuePair<Object, AutoBindFieldInfo>);
+                //查找对应的属性
+                foreach (var property in _type.GetProperties())
+                {
+                    //类型与名字相同则认为是对应属性
+                    if (property.PropertyType != field.FieldType || field.Name != "_" + property.Name)
+                        continue;
+                    Object obj = property.GetValue(autoComponent) as Object;
+                    if (obj is GameObject)
+                    {
+                        GameObject gameObject = obj as GameObject;
+                        return new KeyValuePair<Object, AutoBindFieldInfo>(gameObject,
+                            new AutoBindFieldInfo(true, _gameObject.transform.getChildPath(gameObject.transform), typeof(GameObject), null, field.Name));
+                    }
+                    else if (obj is Component)
+                    {
+                        Component component = obj as Component;
+                        return new KeyValuePair<Object, AutoBindFieldInfo>(component,
+                            new AutoBindFieldInfo(true, _gameObject.transform.getChildPath(component.transform), field.FieldType, null, field.Name));
                     }
                 }
             }
@@ -595,7 +636,7 @@ namespace BJSYGameCore.AutoCompo
                 {
                     if (string.IsNullOrEmpty(pair.Value.path))
                         continue;
-                    if (TransformHelper.isPartOfPath(gameObject, _gameObject, pair.Value.path))
+                    if (gameObject == _gameObject || TransformHelper.isPartOfPath(gameObject, _gameObject, pair.Value.path))
                         return true;
                 }
             }
