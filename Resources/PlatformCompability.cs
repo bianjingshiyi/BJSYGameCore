@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
 namespace BJSYGameCore
 {
@@ -9,13 +10,26 @@ namespace BJSYGameCore
         PlatformCompability()
         {
             currentPlatform = Application.platform;
+            is64Bit = IntPtr.Size == 8;
         }
 
         readonly RuntimePlatform currentPlatform;
+        readonly bool is64Bit;
+        
+        /// <summary>
+        /// 当前平台
+        /// </summary>
+        public RuntimePlatform Platform => currentPlatform;
+
+        /// <summary>
+        /// 是否是64位平台
+        /// </summary>
+        public bool Is64Bit => is64Bit;
 
         public PlatformCompability(RuntimePlatform rtp)
         {
             currentPlatform = rtp;
+            is64Bit = IntPtr.Size == 8;
         }
 
         /// <summary>
