@@ -197,14 +197,22 @@ namespace BJSYGameCore.AutoCompo
             else
                 fieldName = genFieldName4GO(gameObject);
             //字段
+            addTypeUsing(typeof(GameObject));
             var field = genField(typeof(GameObject), fieldName);
-            addAttribute2Field(field, gameObject);
+            //常量
+            var constField = genField("const string", "PATH" + field.Name.ToUpper(), false);
+            constField.InitExpression = Codo.String(rootGameObject.transform.getChildPath(gameObject.transform));
             //属性
             string propName = field.Name;
             while (propName.StartsWith("_"))
                 propName = propName.Substring(1, propName.Length - 1);
             propName = propName.headToLower();
             genProp4GO(gameObject, propName, field.Name);
+            //初始化
+            addTypeUsing(typeof(TransformHelper));
+            _initMethod.Statements.append(Codo.This.getField(field.Name).assign(Codo.This.getProp(NAME_OF_TRANSFORM)
+                .getMethod(NAME_OF_FIND).invoke(Codo.getField("PATH" + field.Name.ToUpper()))
+                .getProp(NAME_OF_GAMEOBJECT)));
         }
         /// <summary>
         /// 默认生成字段，属性，以及初始化语句（一个常量用于自动查找）。
@@ -214,9 +222,9 @@ namespace BJSYGameCore.AutoCompo
         {
             //字段
             var field = genField4Compo(component, genFieldName4Compo(component));
-            var autoCompo = addAttribute2Field(field, component);
             //常量
-            genField("const string", "PATH" + field.Name.ToUpper(), false);
+            var constField = genField("const string", "PATH" + field.Name.ToUpper(), false);
+            constField.InitExpression = Codo.String(rootGameObject.transform.getChildPath(component.transform));
             //属性
             string propName = field.Name;
             while (propName.StartsWith("_"))
@@ -225,8 +233,9 @@ namespace BJSYGameCore.AutoCompo
             var prop = genProp4Compo(component, propName, field.Name);
             //初始化
             addTypeUsing(typeof(TransformHelper));
-            _initMethod.Statements.append(Codo.This.getField(field.Name).assign(Codo.This.getProp(NAME_OF_TRANSFORM).getMethod(NAME_OF_FIND).invoke(Codo.This.getField("PATH" + field.Name.ToUpper())
-                .getMethod(NAME_OF_GETCOMPO, Codo.type(component.GetType().Name)).invoke())));
+            _initMethod.Statements.append(Codo.This.getField(field.Name).assign(Codo.This.getProp(NAME_OF_TRANSFORM)
+                .getMethod(NAME_OF_FIND).invoke(Codo.getField("PATH" + field.Name.ToUpper()))
+                .getMethod(NAME_OF_GETCOMPO, Codo.type(component.GetType().Name)).invoke()));
             if (component is Button)
                 onGenButton(component as Button, field, prop);
             else if (component is Animator)
@@ -321,7 +330,8 @@ namespace BJSYGameCore.AutoCompo
             prop.HasGet = true;
             addTypeUsing(typeof(GameObject));
             CodeConditionStatement If = Codo.If(Codo.This.getField(fieldName).op(CodeBinaryOperatorType.IdentityEquality, Codo.Null));
-            If.TrueStatements.append(Codo.This.getField(fieldName).assign(Codo.This.getProp(NAME_OF_TRANSFORM).getMethod(NAME_OF_FIND).invoke(Codo.This.getField("PATH" + fieldName.ToUpper()))
+            If.TrueStatements.append(Codo.This.getField(fieldName).assign(Codo.This.getProp(NAME_OF_TRANSFORM)
+                .getMethod(NAME_OF_FIND).invoke(Codo.getField("PATH" + fieldName.ToUpper()))
                 .getMethod(NAME_OF_GETCOMPO, Codo.type(typeof(GameObject).Name)).invoke()));
             prop.GetStatements.Add(If);
             prop.GetStatements.Add(new CodeMethodReturnStatement(
@@ -340,7 +350,8 @@ namespace BJSYGameCore.AutoCompo
             CodeMemberProperty prop = genProp(MemberAttributes.Public | MemberAttributes.Final, propName, component.GetType());
             prop.HasGet = true;
             CodeConditionStatement If = Codo.If(Codo.This.getField(fieldName).op(CodeBinaryOperatorType.IdentityEquality, Codo.Null));
-            If.TrueStatements.append(Codo.This.getField(fieldName).assign(Codo.This.getProp(NAME_OF_TRANSFORM).getMethod(NAME_OF_FIND).invoke(Codo.This.getField("PATH" + fieldName.ToUpper()))
+            If.TrueStatements.append(Codo.This.getField(fieldName).assign(Codo.This.getProp(NAME_OF_TRANSFORM)
+                .getMethod(NAME_OF_FIND).invoke(Codo.getField("PATH" + fieldName.ToUpper()))
                 .getMethod(NAME_OF_GETCOMPO, Codo.type(component.GetType().Name)).invoke()));
             prop.GetStatements.Add(If);
             prop.GetStatements.Add(new CodeMethodReturnStatement(

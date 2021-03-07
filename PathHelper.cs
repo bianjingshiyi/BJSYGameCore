@@ -25,19 +25,20 @@ namespace BJSYGameCore
             }
             return path;
         }
-        public static string getChildPath(this Transform transform, Transform child)
+        public static string getChildPath(this Transform transform, Transform child, bool withHead = false)
         {
-            if (transform != child)
+            if (transform == child)
+                return withHead ? "./" : string.Empty;
+            string path = child.gameObject.name;
+            for (Transform parent = child.parent; parent != transform; parent = parent.parent)
             {
-                string path = child.gameObject.name;
-                for (Transform parent = child.parent; parent != null && parent != transform; parent = parent.parent)
-                {
-                    path = parent.gameObject.name + "/" + path;
-                }
-                return path;
+                if (parent == null)
+                    return null;
+                path = parent.gameObject.name + "/" + path;
             }
-            else
-                return string.Empty;
+            if (withHead)
+                path = "./" + path;
+            return path;
         }
         public static T findInstanceAt<T>(this Scene scene, string path) where T : Component
         {

@@ -10,7 +10,7 @@ namespace BJSYGameCore.AutoCompo
                 return rootGameObject == gameObject;
             string[] names = path.Split('/');
             Transform transform = rootGameObject.transform;
-            for (int i = 1; i < names.Length; i++)
+            for (int i = 0; i < names.Length; i++)
             {
                 transform = transform.Find(names[i]);
                 if (transform == null)
