@@ -296,7 +296,7 @@ namespace BJSYGameCore.AutoCompo
                     //类型与名字相同则认为是对应属性
                     if (property.PropertyType != field.FieldType || field.Name != "_" + property.Name)
                         continue;
-                    Object obj = property.GetValue(autoComponent) as Object;
+                    Object obj = property.GetValue(autoComponent, new object[0]) as Object;
                     if (obj is GameObject)
                     {
                         GameObject gameObject = obj as GameObject;
