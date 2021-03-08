@@ -19,7 +19,7 @@ namespace BJSYGameCore.AutoCompo
         {
             CodeMemberField field = new CodeMemberField();
             type.Members.Add(field);
-            if (applyAttributes)
+            if (applyAttributes && _setting != null)
             {
                 foreach (var fieldAttName in _setting.fieldAttributes)
                 {
@@ -36,7 +36,7 @@ namespace BJSYGameCore.AutoCompo
             addTypeUsing(fieldType);
             CodeMemberField field = new CodeMemberField();
             type.Members.Add(field);
-            if (applyAttributes)
+            if (applyAttributes && _setting != null)
             {
                 foreach (var fieldAttName in _setting.fieldAttributes)
                 {

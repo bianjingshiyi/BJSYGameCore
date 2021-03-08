@@ -40,6 +40,19 @@ namespace BJSYGameCore.AutoCompo
             genType4RootGO();
             return unit;
         }
+        public CodeCompileUnit genScript4GO(GameObject gameObject, string nameSpace)
+        {
+            rootGameObject = gameObject;
+            CodeCompileUnit unit = new CodeCompileUnit();
+            //命名空间
+            _nameSpace = new CodeNamespace(nameSpace);
+            unit.Namespaces.Add(_nameSpace);
+            //类
+            _type = new CodeTypeDeclaration();
+            _nameSpace.Types.Add(_type);
+            genType4RootGO();
+            return unit;
+        }
         public virtual string genTypeName4GO(GameObject gameObject)
         {
             if (string.IsNullOrEmpty(typeName))
@@ -59,16 +72,16 @@ namespace BJSYGameCore.AutoCompo
         /// </summary>
         protected virtual void genType4RootGO()
         {
-            addTypeUsing(typeof(AutoCompoAttribute));
-            _type.CustomAttributes.Add(new CodeAttributeDeclaration(typeof(AutoCompoAttribute).Name,
-                new CodeAttributeArgument(new CodePrimitiveExpression(rootGameObject.GetInstanceID()))));
             _type.Attributes = MemberAttributes.Public | MemberAttributes.Final;
             _type.IsPartial = true;
             _type.IsClass = true;
             _type.Name = genTypeName4GO(rootGameObject);
-            foreach (string baseType in _setting.baseTypes)
+            if (_setting != null)
             {
-                _type.BaseTypes.Add(baseType);
+                foreach (string baseType in _setting.baseTypes)
+                {
+                    _type.BaseTypes.Add(baseType);
+                }
             }
             genMembers();
             genRootGameObject();

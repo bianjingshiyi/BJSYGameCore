@@ -111,5 +111,13 @@ namespace BJSYGameCore.AutoCompo
                 path = "./" + path;
             return path;
         }
+        public static bool isChildOf(this Transform transform, Transform parent)
+        {
+            if (transform == null)
+                return false;
+            if (transform.parent == parent)
+                return true;
+            return isChildOf(transform.parent, parent);
+        }
     }
 }
