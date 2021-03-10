@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using System.IO;
+using System.Text;
 
 namespace BJSYGameCore
 {
@@ -17,7 +18,8 @@ namespace BJSYGameCore
         /// <returns>当文件写入完毕时返回</returns>
         public Task saveFile(string path, string text)
         {
-            return Task.Run(() => File.WriteAllText(path, text, System.Text.Encoding.UTF8));
+            StreamWriter sw = new StreamWriter(path);
+            return sw.WriteAsync(text);
         }
         /// <summary>
         /// 将二进制数据保存为文件到相对路径。
@@ -27,7 +29,9 @@ namespace BJSYGameCore
         /// <returns>当文件写入完毕时返回</returns>
         public Task saveFile(string path, byte[] bytes)
         {
-            return Task.Run(() => File.WriteAllBytes(path, bytes));
+            StreamWriter sw = new StreamWriter(path);
+            char[] chars = Encoding.ASCII.GetChars(bytes);
+            return sw.WriteAsync(chars);
         }
         /// <summary>
         /// 是否存在指定文件？
@@ -64,12 +68,12 @@ namespace BJSYGameCore
         /// <returns>所有符合条件的文件路径</returns>
         public string[] getFiles(string dir, string filter, bool includeChildDir)
         {
-            if (filter == "*" || filter == "?")
-            {
-                if (includeChildDir) { return Directory.GetFiles(dir, filter, SearchOption.AllDirectories); }
-                else { return Directory.GetFiles(dir, filter, SearchOption.TopDirectoryOnly); }
+            if (includeChildDir) { 
+                return Directory.GetFiles(dir, filter, SearchOption.AllDirectories); 
             }
-            throw new ArgumentException("Invalid Filter Character!!!");
+            else { 
+                return Directory.GetFiles(dir, filter, SearchOption.TopDirectoryOnly); 
+            }
         }
         /// <summary>
         /// 读取某个文本文件的内容
@@ -81,7 +85,9 @@ namespace BJSYGameCore
         {
             try
             {
-                return Task.Run(() => File.ReadAllText(path));
+                TaskCompletionSource<string> tcs = new TaskCompletionSource<string>();
+                tcs.SetResult(File.ReadAllText(path));
+                return tcs.Task;
             }
             catch (FileLoadException)
             {
@@ -98,34 +104,14 @@ namespace BJSYGameCore
         {
             try
             {
-                return Task.Run(() => File.ReadAllBytes(path));
+                TaskCompletionSource<byte[]> tcs = new TaskCompletionSource<byte[]>();
+                tcs.SetResult(File.ReadAllBytes(path));
+                return tcs.Task;
             }
             catch (FileLoadException)
             {
                 throw new FileLoadException("Invalid Binary File!!");
             }
-        }
-        /// <summary>
-        /// 读取某个文本文件的指定行
-        /// </summary>
-        /// <param name="path">文件相对路径</param>
-        /// <param name="startLine">从第几行开始，0代表第一行</param>
-        /// <param name="count">读多少行</param>
-        /// <returns>当指定行读取完毕时返回</returns>
-        public Task<string[]> readTextFile(string path, int startLine, int count)
-        {
-            throw new NotImplementedException();
-        }
-        /// <summary>
-        /// 读取某个二进制文件的指定区
-        /// </summary>
-        /// <param name="path">文件相对路径</param>
-        /// <param name="offset">从第几个byte开始，0代表从头开始</param>
-        /// <param name="length">读取的长度</param>
-        /// <returns>当指定区域读取完毕时返回数组</returns>
-        public Task<byte[]> readBinaryFile(string path, int offset, int length)
-        {
-            throw new NotImplementedException();
         }
     }
 }
