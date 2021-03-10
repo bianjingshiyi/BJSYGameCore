@@ -64,7 +64,7 @@ namespace BJSYGameCore
         /// <returns>所有符合条件的文件路径</returns>
         public string[] getFiles(string dir, string filter, bool includeChildDir)
         {
-            if(filter=="*" || filter == "?")
+            if (filter == "*" || filter == "?")
             {
                 if (includeChildDir) { return Directory.GetFiles(dir, filter, SearchOption.AllDirectories); }
                 else { return Directory.GetFiles(dir, filter, SearchOption.TopDirectoryOnly); }
@@ -77,13 +77,13 @@ namespace BJSYGameCore
         /// <param name="path">文件相对路径</param>
         /// <returns>当文件读取完毕时返回其文本内容</returns>
         /// <exception cref="FileLoadException">当目标文件不是文本文件的时候抛出该异常。</exception>
-        public Task<string> readTextFromFile(string path)
+        public Task<string> readTextFile(string path)
         {
             try
             {
                 return Task.Run(() => File.ReadAllText(path));
             }
-            catch(FileLoadException)
+            catch (FileLoadException)
             {
                 throw new FileLoadException("Invalid Text File!!");
             }
@@ -94,7 +94,7 @@ namespace BJSYGameCore
         /// <param name="path">文件相对路径</param>
         /// <returns>当文件读取完毕时返回其二进制数据</returns>
         /// <exception cref="FileLoadException">当目标文件不是二进制文件的时候抛出该异常。</exception>
-        public Task<byte[]> readBytesFromFile(string path)
+        public Task<byte[]> readBinaryFile(string path)
         {
             try
             {
@@ -104,6 +104,28 @@ namespace BJSYGameCore
             {
                 throw new FileLoadException("Invalid Binary File!!");
             }
+        }
+        /// <summary>
+        /// 读取某个文本文件的指定行
+        /// </summary>
+        /// <param name="path">文件相对路径</param>
+        /// <param name="startLine">从第几行开始，0代表第一行</param>
+        /// <param name="count">读多少行</param>
+        /// <returns>当指定行读取完毕时返回</returns>
+        public Task<string[]> readTextFile(string path, int startLine, int count)
+        {
+            throw new NotImplementedException();
+        }
+        /// <summary>
+        /// 读取某个二进制文件的指定区
+        /// </summary>
+        /// <param name="path">文件相对路径</param>
+        /// <param name="offset">从第几个byte开始，0代表从头开始</param>
+        /// <param name="length">读取的长度</param>
+        /// <returns>当指定区域读取完毕时返回数组</returns>
+        public Task<byte[]> readBinaryFile(string path, int offset, int length)
+        {
+            throw new NotImplementedException();
         }
     }
 }

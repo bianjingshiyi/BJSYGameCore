@@ -72,7 +72,7 @@ namespace BJSYGameCore.AutoCompo
         /// </summary>
         protected virtual void genType4RootGO()
         {
-            _type.Attributes = MemberAttributes.Public | MemberAttributes.Final;
+            _type.Attributes = MemberAttributes.Final;
             _type.IsPartial = true;
             _type.IsClass = true;
             _type.Name = genTypeName4GO(rootGameObject);
@@ -345,7 +345,7 @@ namespace BJSYGameCore.AutoCompo
             CodeConditionStatement If = Codo.If(Codo.This.getField(fieldName).op(CodeBinaryOperatorType.IdentityEquality, Codo.Null));
             If.TrueStatements.append(Codo.This.getField(fieldName).assign(Codo.This.getProp(NAME_OF_TRANSFORM)
                 .getMethod(NAME_OF_FIND).invoke(Codo.getField("PATH" + fieldName.ToUpper()))
-                .getMethod(NAME_OF_GETCOMPO, Codo.type(typeof(GameObject).Name)).invoke()));
+                .getProp(NAME_OF_GAMEOBJECT)));
             prop.GetStatements.Add(If);
             prop.GetStatements.Add(new CodeMethodReturnStatement(
                 new CodeFieldReferenceExpression(new CodeThisReferenceExpression(),

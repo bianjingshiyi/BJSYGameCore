@@ -248,7 +248,8 @@ namespace BJSYGameCore.AutoCompo
             _objGenDict.Clear();
             if (type == null)
                 return;
-            foreach (FieldInfo field in type.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic))
+            FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic);
+            foreach (FieldInfo field in fields)
             {
                 var pair = getGenInfoFromFieldInfo(field);
                 if (pair.Key != null)
@@ -311,9 +312,11 @@ namespace BJSYGameCore.AutoCompo
                         foreach (var property in _type.GetProperties())
                         {
                             //类型与名字相同则认为是对应属性
-                            if (property.PropertyType != field.FieldType || field.Name != "_" + property.Name)
+                            if (property.PropertyType != field.FieldType || !field.Name.Equals("_" + property.Name, StringComparison.CurrentCultureIgnoreCase))
                                 continue;
                             Object obj = property.GetValue(autoComponent, new object[0]) as Object;
+                            if (obj == null)
+                                continue;
                             if (obj is GameObject)
                             {
                                 GameObject gameObject = obj as GameObject;
@@ -572,7 +575,10 @@ namespace BJSYGameCore.AutoCompo
         {
             if (string.IsNullOrEmpty(_savePath) && _script != null)
             {
-                return Path.GetDirectoryName(AssetDatabase.GetAssetPath(_script)) + "/" + typeName + "_AutoGen.cs";
+                if (_autoScripts.Length == 1)
+                    return AssetDatabase.GetAssetPath(_autoScripts[0]);
+                else
+                    return Path.GetDirectoryName(AssetDatabase.GetAssetPath(_script)) + "/" + typeName + "_AutoGen.cs";
             }
             return _savePath + "/" + typeName + ".cs";
         }
