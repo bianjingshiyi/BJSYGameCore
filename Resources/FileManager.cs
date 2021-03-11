@@ -60,6 +60,7 @@ namespace BJSYGameCore
         /// <returns>是否存在文件被删除了？</returns>
         public bool deleteFile(string path)
         {
+            path = processPath(path);
             bool res = isFileExist(path);
             if (res)
             {
@@ -77,6 +78,7 @@ namespace BJSYGameCore
         /// <returns>所有符合条件的文件路径</returns>
         public string[] getFiles(string dir, string filter, bool includeChildDir)
         {
+            dir = processPath(dir);
             if (includeChildDir) { 
                 return Directory.GetFiles(dir, filter, SearchOption.AllDirectories); 
             }
