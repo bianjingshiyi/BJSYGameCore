@@ -131,38 +131,40 @@ namespace BJSYGameCore.AutoCompo
             {
                 //初始化
                 _generator = createGenerator();
+                if (_serializedObject == null)
+                    _serializedObject = new SerializedObject(this);
                 loadEditorSettings();
                 _objGenDict = new Dictionary<Object, AutoBindFieldInfo>();
-                if (_script == null)
+                if (script == null)
                 {
                     bool willBeOverride;
-                    if (tryFindExistScript(_gameObject, out _script, out willBeOverride))
+                    MonoScript script;
+                    if (tryFindExistScript(_gameObject, out script, out willBeOverride))
                     {
                         if (willBeOverride)
                         {
                             if (EditorUtility.DisplayDialog("已存在脚本", "AutoCompo发现" + _gameObject.name + "上已经有一个同名的脚本，是否覆盖该脚本？",
                                 "是", "否"))
                             {
-                                _type = _script.GetClass();
-                                _autoScripts = tryFindAllAutoScript(_script);
+                                this.script = script;
+                                _type = this.script.GetClass();
+                                _autoScripts = tryFindAllAutoScript(this.script);
                                 resetGenDictByType(_type);
                             }
-                            else
-                                _script = null;
-
                         }
                         else
                         {
-                            _type = _script.GetClass();
-                            _autoScripts = tryFindAllAutoScript(_script);
+                            this.script = script;
+                            _type = this.script.GetClass();
+                            _autoScripts = tryFindAllAutoScript(this.script);
                             resetGenDictByType(_type);
                         }
                     }
                 }
                 else
                 {
-                    _type = _script.GetClass();
-                    _autoScripts = tryFindAllAutoScript(_script);
+                    _type = script.GetClass();
+                    _autoScripts = tryFindAllAutoScript(script);
                     resetGenDictByType(_type);
                 }
                 onInitByCtrlType();
@@ -201,6 +203,7 @@ namespace BJSYGameCore.AutoCompo
                 _removeObject = null;
             }
             bool confirmGen = false;
+            string savePath = null;
             if (GUILayout.Button("保存脚本"))
             {
                 if (checkGenInput())
@@ -210,18 +213,15 @@ namespace BJSYGameCore.AutoCompo
             {
                 if (checkGenInput())
                 {
-                    string savePath = EditorUtility.SaveFilePanel("另存为脚本", _savePath, getDefaultTypeName(), "cs");
-                    if (!string.IsNullOrEmpty(savePath))
-                    {
-                        _savePath = Path.GetDirectoryName(savePath);
-                        _saveFileName = Path.GetFileNameWithoutExtension(savePath);
-                        if (Directory.Exists(_savePath))
-                            confirmGen = true;
-                    }
+                    savePath = EditorUtility.SaveFilePanel("另存为脚本",
+                        Path.GetDirectoryName(getSaveFilePath(_gameObject.name)),
+                        _type != null ? _type.Name : _gameObject.name, "cs");
+                    if (!string.IsNullOrEmpty(savePath) && Directory.Exists(Path.GetDirectoryName(savePath)))
+                        confirmGen = true;
                 }
             }
             if (confirmGen)
-                onGenerate();
+                onGenerate(savePath);
         }
         protected void OnDisable()
         {
@@ -253,26 +253,19 @@ namespace BJSYGameCore.AutoCompo
             GUI.enabled = false;
             EditorGUILayout.ObjectField("要生成脚本的游戏物体", _gameObject, typeof(GameObject), true);
             GUI.enabled = true;
-            MonoScript newScript = EditorGUILayout.ObjectField("脚本对象", _script, typeof(MonoScript), false) as MonoScript;
-            if (newScript != _script)
+            MonoScript newScript = EditorGUILayout.ObjectField("脚本对象", script, typeof(MonoScript), false) as MonoScript;
+            if (newScript != script)
             {
-                _script = newScript;
-                _serializedObject.FindProperty(NAME_OF_SCRIPT).objectReferenceValue = _script;
-                if (_script != null)
+                script = newScript;
+                _serializedObject.FindProperty(NAME_OF_SCRIPT).objectReferenceValue = script;
+                if (script != null)
                 {
-                    _type = _script.GetClass();
+                    _type = script.GetClass();
                     resetGenDictByType(_type);
-                    string path = AssetDatabase.GetAssetPath(_script);
-                    _savePath = Path.GetDirectoryName(path);
-                    _serializedObject.FindProperty(NAME_OF_SAVEPATH).stringValue = _savePath;
-                    _saveFileName = _type.Name;
-                    _serializedObject.FindProperty(NAME_OF_SAVEFILENAME).stringValue = _saveFileName;
                 }
                 else
                     _type = null;
             }
-            if (!string.IsNullOrEmpty(_savePath))
-                EditorGUILayout.LabelField("保存路径", string.IsNullOrEmpty(_saveFileName) ? _savePath : _savePath + "/" + _saveFileName);
             if (_type == null)
                 EditorGUILayout.PropertyField(_serializedObject.FindProperty(NAME_OF_SETTING), new GUIContent("设置"), true);
             if (_ctrlTypes == null || _ctrlTypes.Length < 1)

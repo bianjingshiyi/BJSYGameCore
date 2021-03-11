@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using Object = UnityEngine.Object;
 using System.Diagnostics.CodeAnalysis;
+using System.CodeDom;
 // ReSharper disable InconsistentNaming
 #if UNITY_2019
 using UnityEditor.Experimental.SceneManagement;
@@ -31,17 +32,7 @@ namespace BJSYGameCore.AutoCompo
             //if (tryFindExistScript(_gameObject, out _script, out willBeOverride))
             //    _type = _script.GetClass();
             //_serializedObject.FindProperty(NAME_OF_SCRIPT).objectReferenceValue = _script;
-            string path = getSavePath4GO(_gameObject);
-            _savePath = Path.GetDirectoryName(path);
-            _serializedObject.FindProperty(NAME_OF_SAVEPATH).stringValue = _savePath;
-            _saveFileName = Path.GetFileNameWithoutExtension(path);
-            _serializedObject.FindProperty(NAME_OF_SAVEFILENAME).stringValue = _saveFileName;
             _serializedObject.ApplyModifiedProperties();
-            if (string.IsNullOrEmpty(_savePath))
-            {
-                Close();
-                throw new DirectoryNotFoundException();
-            }
         }
         public void init(GameObject gameObject, MonoScript script, Type type)
         {
@@ -60,8 +51,8 @@ namespace BJSYGameCore.AutoCompo
                 _serializedObject = new SerializedObject(this);
             _gameObject = getTargetGameObject(gameObject);
             _serializedObject.FindProperty(NAME_OF_GAMEOBJECT).objectReferenceValue = _gameObject;
-            _script = script;
-            _serializedObject.FindProperty(NAME_OF_SCRIPT).objectReferenceValue = _script;
+            this.script = script;
+            _serializedObject.FindProperty(NAME_OF_SCRIPT).objectReferenceValue = this.script;
             _type = type;
             _serializedObject.ApplyModifiedProperties();
         }
@@ -413,7 +404,7 @@ namespace BJSYGameCore.AutoCompo
                 }
             }
 #endif
-            return _script != null ? AssetDatabase.GetAssetPath(_script) : path;
+            return script != null ? AssetDatabase.GetAssetPath(script) : path;
         }
         bool isObjectGen(Object obj)
         {
@@ -542,45 +533,36 @@ namespace BJSYGameCore.AutoCompo
         /// <summary>
         /// 如果已经存在类型，那么重新生成该类型，如果不存在则生成和GameObject同名的脚本。
         /// </summary>
-        protected virtual void onGenerate()
+        protected virtual CodeCompileUnit onGenerate(string path)
         {
-            _generator.typeName = getDefaultTypeName();
             _generator.objFieldDict = _objGenDict;
             _generator.controllerType = _controllerType;
             _generator.buttonMain = _buttonMain;
             _generator.listOrigin = _listOrigin;
             if (_listItemTypeScript != null)
                 _generator.listItemTypeName = _listItemTypeScript.GetClass().Name;
-            var unit = _type != null ? _generator.genScript4GO(_gameObject, _type.Namespace) : _generator.genScript4GO(_gameObject, _setting);
-            FileInfo fileInfo = new FileInfo(getSaveFilePath(unit.Namespaces[0].Types[0].Name));
+            CodeCompileUnit unit = _type != null ? _generator.genScript4GO(_gameObject, _type) : _generator.genScript4GO(_gameObject, _setting);
+            FileInfo fileInfo = new FileInfo(string.IsNullOrEmpty(path) ? getSaveFilePath(unit.Namespaces[0].Types[0].Name) : path);
             CodeDOMHelper.writeUnitToFile(fileInfo, unit);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            _autoAddList.Add(new AutoAddCompoInfo(_gameObject, _setting.Namespace + "." + _generator.typeName));
-        }
-        string getDefaultTypeName()
-        {
-            if (!string.IsNullOrEmpty(_saveFileName))
-                return _saveFileName;
-            if (_type != null)
-                return _type.Name;
-            return _generator.genTypeName4GO(_gameObject);
+            _autoAddList.Add(new AutoAddCompoInfo(_gameObject, _setting.Namespace + "." + unit.Namespaces[0].Types[0].Name));
+            return unit;
         }
         /// <summary>
-        /// 默认路径是文件夹/类名.cs
+        /// 如果已经存在自动生成脚本，则覆盖自动生成的脚本
+        /// 如果已经存在脚本，则保存在同一目录下
+        /// 二者皆不存在，则保存在与prefab相同目录下
         /// </summary>
         /// <param name="typeName"></param>
         /// <returns></returns>
         protected virtual string getSaveFilePath(string typeName)
         {
-            if (string.IsNullOrEmpty(_savePath) && _script != null)
-            {
-                if (_autoScripts.Length == 1)
-                    return AssetDatabase.GetAssetPath(_autoScripts[0]);
-                else
-                    return Path.GetDirectoryName(AssetDatabase.GetAssetPath(_script)) + "/" + typeName + "_AutoGen.cs";
-            }
-            return _savePath + "/" + typeName + ".cs";
+            if (_autoScripts.Length == 1)
+                return AssetDatabase.GetAssetPath(_autoScripts[0]);
+            if (script != null)
+                return Path.GetDirectoryName(AssetDatabase.GetAssetPath(script)) + "/" + typeName + "_AutoGen.cs";
+            return Path.GetDirectoryName(AssetDatabase.GetAssetPath(_gameObject)) + "/" + typeName + ".cs";
         }
         void saveEditorSettings()
         {
@@ -591,8 +573,18 @@ namespace BJSYGameCore.AutoCompo
         protected AutoCompoGenSetting _setting = null;
         [SerializeField]
         protected GameObject _gameObject;
+        protected MonoScript script
+        {
+            get { return _script; }
+            set
+            {
+                _script = value;
+                _serializedObject.FindProperty(NAME_OF_SCRIPT).objectReferenceValue = value;
+                _serializedObject.ApplyModifiedPropertiesWithoutUndo();
+            }
+        }
         [SerializeField]
-        protected MonoScript _script;
+        private MonoScript _script;
         [SerializeField]
         protected MonoScript[] _autoScripts;
         protected Type _type;
@@ -609,20 +601,11 @@ namespace BJSYGameCore.AutoCompo
         protected GameObject _listOrigin;
         [SerializeField]
         protected MonoScript _listItemTypeScript;
-        [SerializeField]
-        protected string _savePath;
-        /// <summary>
-        /// 保存文件名，同时也被当做默认的类名来使用。
-        /// </summary>
-        [SerializeField]
-        protected string _saveFileName;
         protected SerializedObject _serializedObject;
         [SerializeField]
         protected List<AutoAddCompoInfo> _autoAddList = new List<AutoAddCompoInfo>();
         const string NAME_OF_GAMEOBJECT = "_gameObject";
         const string NAME_OF_SCRIPT = "_script";
-        const string NAME_OF_SAVEPATH = "_savePath";
-        const string NAME_OF_SAVEFILENAME = "_saveFileName";
         const string NAME_OF_SETTING = "_setting";
         protected const string NAME_OF_CTRL_TYPE = "_controllerType";
     }

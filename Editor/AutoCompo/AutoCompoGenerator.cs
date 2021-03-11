@@ -40,42 +40,35 @@ namespace BJSYGameCore.AutoCompo
             genType4RootGO();
             return unit;
         }
-        public CodeCompileUnit genScript4GO(GameObject gameObject, string nameSpace)
+        public CodeCompileUnit genScript4GO(GameObject gameObject, Type existType)
         {
             rootGameObject = gameObject;
             CodeCompileUnit unit = new CodeCompileUnit();
             //命名空间
-            _nameSpace = new CodeNamespace(nameSpace);
+            _nameSpace = new CodeNamespace(existType.Namespace);
             unit.Namespaces.Add(_nameSpace);
             //类
             _type = new CodeTypeDeclaration();
             _nameSpace.Types.Add(_type);
-            genType4RootGO();
+            genType4RootGO(existType);
             return unit;
         }
         public virtual string genTypeName4GO(GameObject gameObject)
         {
             if (string.IsNullOrEmpty(typeName))
-                return gameObject.name.headToUpper();
-            if (char.IsDigit(typeName[0]) || !typeName.All(c => char.IsLetterOrDigit(c) || c == '_'))
-                throw new InvalidOperationException("类名" + typeName + "非法");
-            return typeName;
-            //string typeName;
-            //string[] compoTypes;
-            //if (tryParseGOName(gameObject.name, out typeName, out compoTypes))
-            //    return typeName;
-            //else
-            //    throw new FormatException(gameObject.name + "不符合格式\\w.\\w*");
+                return gameObject.name;
+            else
+                return typeName;
         }
         /// <summary>
         /// 默认生成一个自动绑定方法。
         /// </summary>
-        protected virtual void genType4RootGO()
+        protected virtual void genType4RootGO(Type existType = null)
         {
             _type.Attributes = MemberAttributes.Final;
             _type.IsPartial = true;
             _type.IsClass = true;
-            _type.Name = genTypeName4GO(rootGameObject);
+            _type.Name = existType == null ? genTypeName4GO(rootGameObject) : existType.Name;
             if (_setting != null)
             {
                 foreach (string baseType in _setting.baseTypes)
@@ -91,8 +84,8 @@ namespace BJSYGameCore.AutoCompo
         /// </summary>
         protected virtual void genMembers()
         {
-            _initMethod = genMethod(MemberAttributes.Public | MemberAttributes.Final, typeof(void), "autoInit");
-            _clearMethod = genMethod(MemberAttributes.Public | MemberAttributes.Final, typeof(void), "autoClear");
+            _initMethod = genMethod(MemberAttributes.Public | MemberAttributes.Final, typeof(void), getInitMethodName());
+            _clearMethod = genMethod(MemberAttributes.Public | MemberAttributes.Final, typeof(void), getClearMethodName());
             if (controllerType == CTRL_TYPE_LIST || controllerType == CTRL_TYPE_BUTTON_LIST)
             {
                 //ItemPool类型
@@ -177,6 +170,16 @@ namespace BJSYGameCore.AutoCompo
                 indexOf.Parameters.append(listItemTypeName, "item");
                 indexOf.Statements.append(Codo.Return(Codo.This.getField(itemPool.Name).getMethod("indexOf").invoke(Codo.arg("item"))));
             }
+        }
+
+        protected virtual string getInitMethodName()
+        {
+            return "autoInit";
+        }
+
+        protected virtual string getClearMethodName()
+        {
+            return "autoClear";
         }
         /// <summary>
         /// 根据提供的字段字典进行生成。
@@ -266,7 +269,7 @@ namespace BJSYGameCore.AutoCompo
             //事件
             CodeMemberEvent Event;
             if (controllerType == CTRL_TYPE_BUTTON && button == buttonMain)
-                Event = genEvent(typeof(Action).Name, "onClick", Codo.type(typeName));
+                Event = genEvent(typeof(Action).Name, "onClick", Codo.type(_type.Name));
             else
                 Event = genEvent(typeof(Action).Name, "on" + name + "Click");
             //回调函数
@@ -464,7 +467,7 @@ namespace BJSYGameCore.AutoCompo
         protected const string NAME_OF_ONCLICK = "onClick";
         protected const string NAME_OF_ADDLISTENER = "AddListener";
         protected const string NAME_OF_REMOVELISTENER = "RemoveListener";
-        readonly string[] _ctrlTypes = new string[]
+        readonly string[] _ctrlTypes =
         {
             CTRL_TYPE_BUTTON,
             CTRL_TYPE_LIST,
