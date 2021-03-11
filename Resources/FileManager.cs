@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using System.IO;
 using System.Text;
+using UnityEngine;
 
 namespace BJSYGameCore
 {
@@ -10,6 +11,13 @@ namespace BJSYGameCore
     /// </summary>
     public class FileManager
     {
+        string processPath(string path)
+        {
+            if (Application.platform == RuntimePlatform.Android)
+                path = Path.Combine(Application.persistentDataPath, path);
+            return path;
+        }
+
         /// <summary>
         /// 将文本保存为文件到相对路径。
         /// </summary>
@@ -18,6 +26,7 @@ namespace BJSYGameCore
         /// <returns>当文件写入完毕时返回</returns>
         public Task saveFile(string path, string text)
         {
+            path = processPath(path);
             StreamWriter sw = new StreamWriter(path);
             return sw.WriteAsync(text);
         }
@@ -29,9 +38,9 @@ namespace BJSYGameCore
         /// <returns>当文件写入完毕时返回</returns>
         public Task saveFile(string path, byte[] bytes)
         {
-            StreamWriter sw = new StreamWriter(path);
-            char[] chars = Encoding.ASCII.GetChars(bytes);
-            return sw.WriteAsync(chars);
+            path = processPath(path);
+            FileStream fs = new FileStream(path, FileMode.OpenOrCreate,FileAccess.Write);
+            return fs.WriteAsync(bytes, 0, bytes.Length);
         }
         /// <summary>
         /// 是否存在指定文件？
@@ -40,8 +49,8 @@ namespace BJSYGameCore
         /// <returns>是否存在？</returns>
         public bool isFileExist(string path)
         {
-            if (Directory.Exists(path)) { return true; }
-            else if (File.Exists(path)) { return true; }
+            path = processPath(path);
+            if (File.Exists(path)) { return true; }
             else { return false; }
         }
         /// <summary>
@@ -83,11 +92,11 @@ namespace BJSYGameCore
         /// <exception cref="FileLoadException">当目标文件不是文本文件的时候抛出该异常。</exception>
         public Task<string> readTextFile(string path)
         {
+            path = processPath(path);
             try
             {
-                TaskCompletionSource<string> tcs = new TaskCompletionSource<string>();
-                tcs.SetResult(File.ReadAllText(path));
-                return tcs.Task;
+                StreamReader sw = new StreamReader(path);
+                return sw.ReadToEndAsync();
             }
             catch (FileLoadException)
             {
@@ -102,10 +111,13 @@ namespace BJSYGameCore
         /// <exception cref="FileLoadException">当目标文件不是二进制文件的时候抛出该异常。</exception>
         public Task<byte[]> readBinaryFile(string path)
         {
+            path = processPath(path);
             try
             {
                 TaskCompletionSource<byte[]> tcs = new TaskCompletionSource<byte[]>();
-                tcs.SetResult(File.ReadAllBytes(path));
+                FileStream fs = new FileStream(path, FileMode.OpenOrCreate,FileAccess.Read);
+                byte[] buffer = new byte[fs.Length];
+                fs.ReadAsync(buffer, 0, (int)fs.Length).ContinueWith((t)=>tcs.SetResult(buffer));
                 return tcs.Task;
             }
             catch (FileLoadException)
