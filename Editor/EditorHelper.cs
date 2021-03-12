@@ -7,6 +7,35 @@ using UnityEngine;
 using Object = UnityEngine.Object;
 namespace BJSYGameCore
 {
+    public static class EditorGUILayoutHelper
+    {
+        /// <summary>
+        /// Toggle，如果值发生改变则返回true并提供新的值。
+        /// </summary>
+        /// <param name="label"></param>
+        /// <param name="value"></param>
+        /// <param name="newValue"></param>
+        /// <returns></returns>
+        public static bool toggle(string label, bool value, out bool newValue)
+        {
+            newValue = EditorGUILayout.Toggle(label, value);
+            return value != newValue;
+        }
+        /// <summary>
+        /// ObjectField，如果值发生改变则返回true并提供新的值
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="label"></param>
+        /// <param name="value"></param>
+        /// <param name="newValue"></param>
+        /// <param name="allowSceneObjects"></param>
+        /// <returns></returns>
+        public static bool objectField<T>(string label, T value, out T newValue, bool allowSceneObjects) where T : Object
+        {
+            newValue = EditorGUILayout.ObjectField(label, value, typeof(T), allowSceneObjects) as T;
+            return value != newValue;
+        }
+    }
     public static class EditorHelper
     {
         /// <summary>

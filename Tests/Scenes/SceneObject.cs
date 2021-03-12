@@ -14,7 +14,7 @@ namespace UI
     using BJSYGameCore.AutoCompo;
     using System;
     using UnityEngine;
-    
+    using BJSYGameCore;
     [AutoCompoAttribute(24514)]
     public partial class SceneObject : UIObject
     {

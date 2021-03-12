@@ -57,8 +57,7 @@ namespace BJSYGameCore.AutoCompo
         {
             if (string.IsNullOrEmpty(typeName))
                 return gameObject.name;
-            else
-                return typeName;
+            return typeName;
         }
         /// <summary>
         /// 默认生成一个自动绑定方法。
@@ -193,7 +192,7 @@ namespace BJSYGameCore.AutoCompo
                 if (fieldInfo.targetType == typeof(GameObject))
                     genGameObject(rootGameObject.find(fieldInfo.path));
                 else
-                    genCompo(findComponentByPath(fieldInfo.path, fieldInfo.targetType));
+                    genCompo(findComponentByPath(fieldInfo.path, fieldInfo.targetType), fieldInfo);
             }
             //如果方法里面没有任何绑定内容，那么就不需要。
             if (_initMethod.Statements.Count < 1)
@@ -234,7 +233,7 @@ namespace BJSYGameCore.AutoCompo
         /// 默认生成字段，属性，以及初始化语句（一个常量用于自动查找）。
         /// </summary>
         /// <param name="component"></param>
-        protected virtual void genCompo(Component component)
+        protected virtual void genCompo(Component component, AutoBindFieldInfo fieldInfo)
         {
             //字段
             var field = genField4Compo(component, genFieldName4Compo(component));
@@ -256,6 +255,8 @@ namespace BJSYGameCore.AutoCompo
                 onGenButton(component as Button, field, prop);
             else if (component is Animator)
                 onGenAnimator(component as Animator, field, prop);
+            else if (component is RectTransform && fieldInfo.getValueOrDefault<bool>("isList"))
+                onGenList(component as RectTransform, field, fieldInfo);
         }
         protected virtual void onGenButton(Button button, CodeMemberField field, CodeMemberProperty prop)
         {
@@ -313,6 +314,10 @@ namespace BJSYGameCore.AutoCompo
                 CodeMemberField Const = genField("const string", fieldName, false);
                 Const.InitExpression = Codo.String(parameter.name);
             }
+        }
+        protected virtual void onGenList(RectTransform transform, CodeMemberField field, AutoBindFieldInfo fieldInfo)
+        {
+
         }
         protected CodeAttributeDeclaration addAttribute2Field(CodeMemberField field, Object obj, params string[] tags)
         {

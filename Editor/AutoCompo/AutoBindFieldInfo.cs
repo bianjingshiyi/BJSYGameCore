@@ -46,5 +46,12 @@ namespace BJSYGameCore.AutoCompo
                 this.ctrlType = ctrlType;
             this.fieldName = fieldName;
         }
+        public T getValueOrDefault<T>(string key)
+        {
+            if (propDict.ContainsKey(key) && propDict[key] is T)
+                return (T)propDict[key];
+            else
+                return default(T);
+        }
     }
 }

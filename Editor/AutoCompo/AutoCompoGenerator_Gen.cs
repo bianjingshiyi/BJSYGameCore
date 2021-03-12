@@ -9,9 +9,11 @@ namespace BJSYGameCore.AutoCompo
     {
         protected void addTypeUsing(Type type)
         {
+            if (type.IsPrimitive)
+                return;
             if (string.IsNullOrEmpty(type.Namespace))
                 return;
-            if (_nameSpace.Imports.OfType<CodeNamespaceImport>().Any(n => n.Namespace == type.Namespace))
+            if (_nameSpace.Name == type.Namespace && _nameSpace.Imports.OfType<CodeNamespaceImport>().Any(n => n.Namespace == type.Namespace))
                 return;
             _nameSpace.Imports.Add(new CodeNamespaceImport(type.Namespace));
         }

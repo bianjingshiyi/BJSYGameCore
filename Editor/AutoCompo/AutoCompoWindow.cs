@@ -350,10 +350,29 @@ namespace BJSYGameCore.AutoCompo
             setSepecifiedFieldName(obj, EditorGUILayout.TextField(getSpecifiedFieldName(obj)));
             EditorGUILayout.EndHorizontal();
             EditorGUILayout.BeginHorizontal();
+            if (obj is RectTransform)
+                onGUIGenRectTransform(obj as RectTransform, field);
             EditorGUILayout.Space();
             if (GUILayout.Button("-", GUILayout.Width(25)))
                 _removeObject = obj;
             EditorGUILayout.EndHorizontal();
+        }
+        void onGUIGenRectTransform(RectTransform transform, AutoBindFieldInfo field)
+        {
+            //如果是RectTransform，那么可以当列表。
+            bool isList = field.getValueOrDefault<bool>("isList");
+            if (EditorGUILayoutHelper.toggle("列表", isList, out isList))
+            {
+                field.propDict["isList"] = isList;
+            }
+            if (isList)
+            {
+                GameObject template = field.getValueOrDefault<GameObject>("template");
+                if (EditorGUILayoutHelper.objectField("列表模板", template, out template, true))
+                {
+                    field.propDict["template"] = template;
+                }
+            }
         }
         protected virtual bool canEditGameObjectName(GameObject gameObject)
         {
@@ -496,11 +515,9 @@ namespace BJSYGameCore.AutoCompo
                 _listItemTypeScript = EditorGUILayout.ObjectField("列表项类型", _listItemTypeScript, typeof(MonoScript), false) as MonoScript;
             }
         }
-        #region 逻辑层
-        #endregion
         void reset()
         {
-            _objGenDict = null;
+            _objGenDict.Clear();
             _objFoldDict.Clear();
             if (_serializedObject != null)
                 _serializedObject.Dispose();

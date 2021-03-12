@@ -1,6 +1,6 @@
 ﻿using System;
 using UnityEngine;
-namespace BJSYGameCore.AutoCompo
+namespace BJSYGameCore
 {
     public static class TransformHelper
     {
