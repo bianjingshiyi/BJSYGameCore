@@ -13,9 +13,7 @@ namespace BJSYGameCore
     {
         string processPath(string path)
         {
-            if (Application.platform == RuntimePlatform.Android)
-                path = Path.Combine(Application.persistentDataPath, path);
-            return path;
+            return Path.Combine(Application.persistentDataPath, path);
         }
 
         /// <summary>
@@ -119,7 +117,7 @@ namespace BJSYGameCore
                 TaskCompletionSource<byte[]> tcs = new TaskCompletionSource<byte[]>();
                 FileStream fs = new FileStream(path, FileMode.OpenOrCreate,FileAccess.Read);
                 byte[] buffer = new byte[fs.Length];
-                fs.ReadAsync(buffer, 0, (int)fs.Length).ContinueWith((t)=>tcs.SetResult(buffer));
+                fs.ReadAsync(buffer, 0, (int)fs.Length).GetAwaiter().OnCompleted(() => tcs.SetResult(buffer));
                 return tcs.Task;
             }
             catch (FileLoadException)
