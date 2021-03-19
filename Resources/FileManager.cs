@@ -3,6 +3,8 @@ using System.Threading.Tasks;
 using System.IO;
 using System.Text;
 using UnityEngine;
+using System.Linq;
+using System.Threading;
 
 namespace BJSYGameCore
 {
@@ -22,11 +24,16 @@ namespace BJSYGameCore
         /// <param name="path">文件保存根目录下的相对路径</param>
         /// <param name="text">文本内容</param>
         /// <returns>当文件写入完毕时返回</returns>
-        public Task saveFile(string path, string text)
+        public async Task saveFile(string path, string text)
         {
             path = processPath(path);
-            StreamWriter sw = new StreamWriter(path);
-            return sw.WriteAsync(text);
+            string dir = Path.GetDirectoryName(path);
+            if (!Directory.Exists(dir))
+                Directory.CreateDirectory(dir);
+            using (StreamWriter sw = new StreamWriter(path))
+            {
+                await sw.WriteAsync(text);
+            }
         }
         /// <summary>
         /// 将二进制数据保存为文件到相对路径。
@@ -37,7 +44,7 @@ namespace BJSYGameCore
         public Task saveFile(string path, byte[] bytes)
         {
             path = processPath(path);
-            FileStream fs = new FileStream(path, FileMode.OpenOrCreate,FileAccess.Write);
+            FileStream fs = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write);
             return fs.WriteAsync(bytes, 0, bytes.Length);
         }
         /// <summary>
@@ -77,11 +84,15 @@ namespace BJSYGameCore
         public string[] getFiles(string dir, string filter, bool includeChildDir)
         {
             dir = processPath(dir);
-            if (includeChildDir) { 
-                return Directory.GetFiles(dir, filter, SearchOption.AllDirectories); 
+            if (!Directory.Exists(dir))
+                return new string[0];
+            if (includeChildDir)
+            {
+                return Directory.GetFiles(dir, filter, SearchOption.AllDirectories);
             }
-            else { 
-                return Directory.GetFiles(dir, filter, SearchOption.TopDirectoryOnly); 
+            else
+            {
+                return Directory.GetFiles(dir, filter, SearchOption.TopDirectoryOnly);
             }
         }
         /// <summary>
@@ -95,13 +106,61 @@ namespace BJSYGameCore
             path = processPath(path);
             try
             {
-                StreamReader sw = new StreamReader(path);
-                return sw.ReadToEndAsync();
+                using (StreamReader sw = new StreamReader(path))
+                {
+                    return sw.ReadToEndAsync();
+                }
             }
             catch (FileLoadException)
             {
                 throw new FileLoadException("Invalid Text File!!");
             }
+        }
+        public async Task<string[]> readTextFileHead(string path, int startLine = 0, int lineCount = 1, CancellationToken? cancelToken = null)
+        {
+            path = processPath(path);
+            try
+            {
+                string[] headLines = new string[lineCount];
+                using (StreamReader reader = new StreamReader(path))
+                {
+                    for (int i = 0; i < startLine; i++)
+                    {
+                        if (cancelToken != null && cancelToken.Value.IsCancellationRequested)
+                            return headLines;
+                        await reader.ReadLineAsync();
+                    }
+                    for (int i = 0; i < lineCount; i++)
+                    {
+                        if (cancelToken != null && cancelToken.Value.IsCancellationRequested)
+                            return headLines;
+                        headLines[i] = await reader.ReadLineAsync();
+                    }
+                }
+                return headLines;
+            }
+            catch (FileLoadException e)
+            {
+                throw new FileLoadException("Invalid Text File!!", e);
+            }
+        }
+        /// <summary>
+        /// 读取一组文件的指定数目行
+        /// </summary>
+        /// <param name="paths"></param>
+        /// <param name="lineCount"></param>
+        /// <param name="cancelToken"></param>
+        /// <returns></returns>
+        public Task<string[][]> readTextFilesHead(string[] paths, int startLine = 0, int lineCount = 1, CancellationToken? cancelToken = null)
+        {
+            Task<string[]>[] tasks = new Task<string[]>[paths.Length];
+            for (int i = 0; i < paths.Length; i++)
+            {
+                if (cancelToken != null && cancelToken.Value.IsCancellationRequested)
+                    return Task.WhenAll(tasks.Take(i));
+                tasks[i] = readTextFileHead(paths[i], startLine, lineCount, cancelToken);
+            }
+            return Task.WhenAll(tasks);
         }
         /// <summary>
         /// 读取某个二进制文件的数据
@@ -115,7 +174,7 @@ namespace BJSYGameCore
             try
             {
                 TaskCompletionSource<byte[]> tcs = new TaskCompletionSource<byte[]>();
-                FileStream fs = new FileStream(path, FileMode.OpenOrCreate,FileAccess.Read);
+                FileStream fs = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Read);
                 byte[] buffer = new byte[fs.Length];
                 fs.ReadAsync(buffer, 0, (int)fs.Length).GetAwaiter().OnCompleted(() => tcs.SetResult(buffer));
                 return tcs.Task;
