@@ -252,13 +252,13 @@ namespace BJSYGameCore.AutoCompo
                 .getMethod(NAME_OF_FIND).invoke(Codo.getField("PATH" + field.Name.ToUpper()))
                 .getMethod(NAME_OF_GETCOMPO, Codo.type(component.GetType().Name)).invoke()));
             if (component is Button)
-                onGenButton(component as Button, field, prop);
+                onGenButton(component as Button, component.gameObject == rootGameObject, field, prop);
             else if (component is Animator)
                 onGenAnimator(component as Animator, field, prop);
             else if (component is RectTransform && fieldInfo.getValueOrDefault<bool>("isList"))
                 onGenList(component as RectTransform, field, fieldInfo);
         }
-        protected virtual void onGenButton(Button button, CodeMemberField field, CodeMemberProperty prop)
+        protected virtual void onGenButton(Button button, bool isRootComponent, CodeMemberField field, CodeMemberProperty prop)
         {
             CodeAttributeDeclaration autoCompo = field.CustomAttributes.OfType<CodeAttributeDeclaration>()
                 .FirstOrDefault(a => a.AttributeType.BaseType == typeof(AutoCompoAttribute).Name);
@@ -269,32 +269,33 @@ namespace BJSYGameCore.AutoCompo
             name = name.headToUpper();
             //事件
             CodeMemberEvent Event;
-            if (controllerType == CTRL_TYPE_BUTTON && button == buttonMain)
+            if ((controllerType == CTRL_TYPE_BUTTON && button == buttonMain) ||
+                isRootComponent)
                 Event = genEvent(typeof(Action).Name, "onClick", Codo.type(_type.Name));
             else
-                Event = genEvent(typeof(Action).Name, "on" + name + "Click");
+                Event = genEvent(typeof(Action).Name, "on" + name + "Click", Codo.type(_type.Name));
             //回调函数
             CodeMemberMethod callbackMethod;
-            if (controllerType == CTRL_TYPE_BUTTON && button == buttonMain)
+            if ((controllerType == CTRL_TYPE_BUTTON && button == buttonMain) || isRootComponent)
             {
                 callbackMethod = genMethod(MemberAttributes.Private | MemberAttributes.Final, typeof(void), "clickCallback");
                 callbackMethod.Statements.Add(new CodeConditionStatement(
-                new CodeBinaryOperatorExpression(Codo.This.getEvent(Event.Name), CodeBinaryOperatorType.IdentityInequality, Codo.Null),
-                    Codo.This.getEvent(Event.Name).invoke(Codo.This).statement()));
+                new CodeBinaryOperatorExpression(Codo.getEvent(Event.Name), CodeBinaryOperatorType.IdentityInequality, Codo.Null),
+                    Codo.getEvent(Event.Name).invoke(Codo.This).statement()));
             }
             else
             {
                 callbackMethod = genMethod(MemberAttributes.Private | MemberAttributes.Final, typeof(void), name + "ClickCallback");
                 callbackMethod.Statements.Add(new CodeConditionStatement(
-                    new CodeBinaryOperatorExpression(Codo.This.getEvent(Event.Name), CodeBinaryOperatorType.IdentityInequality, Codo.Null),
-                        Codo.This.getEvent(Event.Name).invoke().statement()));
+                    new CodeBinaryOperatorExpression(Codo.getEvent(Event.Name), CodeBinaryOperatorType.IdentityInequality, Codo.Null),
+                        Codo.getEvent(Event.Name).invoke(Codo.This).statement()));
             }
             //注册
-            _initMethod.Statements.Add(Codo.This.getField(field.Name).getProp(NAME_OF_ONCLICK)
-                .getMethod(NAME_OF_ADDLISTENER).invoke(Codo.This.getMethod(callbackMethod.Name)).statement());
+            _initMethod.Statements.Add(Codo.getField(field.Name).getProp(NAME_OF_ONCLICK)
+                .getMethod(NAME_OF_ADDLISTENER).invoke(Codo.getMethod(callbackMethod.Name)).statement());
             //注销
-            _clearMethod.Statements.Add(Codo.This.getField(field.Name).getProp(NAME_OF_ONCLICK)
-                .getMethod(NAME_OF_REMOVELISTENER).invoke(Codo.This.getMethod(callbackMethod.Name)).statement());
+            _clearMethod.Statements.Add(Codo.getField(field.Name).getProp(NAME_OF_ONCLICK)
+                .getMethod(NAME_OF_REMOVELISTENER).invoke(Codo.getMethod(callbackMethod.Name)).statement());
         }
         /// <summary>
         /// 生成动画参数对应的常量

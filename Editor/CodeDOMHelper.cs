@@ -45,6 +45,10 @@ namespace BJSYGameCore
         {
             return new CodeMethodReferenceExpression(target, methodName, typeParameters);
         }
+        public static CodeEventReferenceExpression getEvent(string eventName)
+        {
+            return new CodeEventReferenceExpression(null, eventName);
+        }
         public static CodeEventReferenceExpression getEvent(this CodeExpression target, string eventName)
         {
             return new CodeEventReferenceExpression(target, eventName);

@@ -29,28 +29,15 @@ namespace BJSYGameCore
         {
             if (!string.IsNullOrEmpty(path))
             {
-                string[] names = path.Split('/');
-                if (names.Length > 0)
-                {
-                    GameObject root = scene.GetRootGameObjects().FirstOrDefault(e => { return e.name == names[0]; });
-                    if (root != null)
-                    {
-                        Transform child = root.transform;
-                        for (int i = 1; i < names.Length; i++)
-                        {
-                            if (child != null)
-                                child = child.Find(names[i]);
-                        }
-                        if (child != null)
-                            return child.GetComponent<T>();
-                        else
-                            return null;
-                    }
-                    else
-                        return null;
-                }
+                int index = path.IndexOf('/');
+                if (index < 0)
+                    return scene.GetRootGameObjects().FirstOrDefault(go => go.name == path)?.GetComponent<T>();
                 else
-                    return null;
+                {
+                    string rootName = path.Substring(0, index);
+                    path = path.Substring(index + 1, path.Length - index - 1);
+                    return scene.GetRootGameObjects().FirstOrDefault(go => go.name == rootName)?.transform.Find(path)?.GetComponent<T>();
+                }
             }
             else
                 return null;

@@ -250,9 +250,9 @@ namespace BJSYGameCore.AutoCompo
         {
             if (_serializedObject == null)
                 _serializedObject = new SerializedObject(this);
-            GUI.enabled = false;
+            EditorGUI.BeginDisabledGroup(true);
             EditorGUILayout.ObjectField("要生成脚本的游戏物体", _gameObject, typeof(GameObject), true);
-            GUI.enabled = true;
+            EditorGUI.EndDisabledGroup();
             MonoScript newScript = EditorGUILayout.ObjectField("脚本对象", script, typeof(MonoScript), false) as MonoScript;
             if (newScript != script)
             {
@@ -266,16 +266,26 @@ namespace BJSYGameCore.AutoCompo
                 else
                     _type = null;
             }
+            if (_autoScripts != null && _autoScripts.Length > 0)
+            {
+                EditorGUI.BeginDisabledGroup(true);
+                EditorGUILayout.LabelField("已自动生成脚本：");
+                foreach (MonoScript autoScript in _autoScripts)
+                {
+                    EditorGUILayout.ObjectField(autoScript, typeof(MonoScript), false);
+                }
+                EditorGUI.EndDisabledGroup();
+            }
             if (_type == null)
                 EditorGUILayout.PropertyField(_serializedObject.FindProperty(NAME_OF_SETTING), new GUIContent("设置"), true);
-            if (_ctrlTypes == null || _ctrlTypes.Length < 1)
-                _ctrlTypes = new string[] { "none" }.Concat(_generator.ctrlTypes).ToArray();
-            SerializedProperty ctrlTypeProp = _serializedObject.FindProperty(NAME_OF_CTRL_TYPE);
-            int index = Array.IndexOf(_ctrlTypes, ctrlTypeProp.stringValue);
-            if (index < 0)
-                index = 0;
-            index = EditorGUILayout.Popup("类型", index, _ctrlTypes);
-            ctrlTypeProp.stringValue = _ctrlTypes[index];
+            //if (_ctrlTypes == null || _ctrlTypes.Length < 1)
+            //    _ctrlTypes = new string[] { "none" }.Concat(_generator.ctrlTypes).ToArray();
+            //SerializedProperty ctrlTypeProp = _serializedObject.FindProperty(NAME_OF_CTRL_TYPE);
+            //int index = Array.IndexOf(_ctrlTypes, ctrlTypeProp.stringValue);
+            //if (index < 0)
+            //    index = 0;
+            //index = EditorGUILayout.Popup("类型", index, _ctrlTypes);
+            //ctrlTypeProp.stringValue = _ctrlTypes[index];
             _serializedObject.ApplyModifiedProperties();
         }
         void onGUIGameObject(GameObject gameObject)
@@ -329,6 +339,7 @@ namespace BJSYGameCore.AutoCompo
         }
         protected virtual void onGUIGenFields()
         {
+            EditorGUILayout.LabelField("要自动生成的字段：");
             if (_objGenDict.Count > 0)
             {
                 foreach (var pair in _objGenDict)
@@ -517,8 +528,10 @@ namespace BJSYGameCore.AutoCompo
         }
         void reset()
         {
-            _objGenDict.Clear();
-            _objFoldDict.Clear();
+            if (_objGenDict != null)
+                _objGenDict.Clear();
+            if (_objFoldDict != null)
+                _objFoldDict.Clear();
             if (_serializedObject != null)
                 _serializedObject.Dispose();
             _serializedObject = null;
