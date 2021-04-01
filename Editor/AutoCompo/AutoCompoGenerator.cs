@@ -248,7 +248,7 @@ namespace BJSYGameCore.AutoCompo
             var prop = genProp4Compo(component, propName, field.Name);
             //初始化
             addTypeUsing(typeof(TransformHelper));
-            _initMethod.Statements.append(Codo.This.getField(field.Name).assign(Codo.This.getProp(NAME_OF_TRANSFORM)
+            _initMethod.Statements.append(Codo.getField(field.Name).assign(Codo.getProp(NAME_OF_TRANSFORM)
                 .getMethod(NAME_OF_FIND).invoke(Codo.getField("PATH" + field.Name.ToUpper()))
                 .getMethod(NAME_OF_GETCOMPO, Codo.type(component.GetType().Name)).invoke()));
             if (component is Button)
@@ -371,14 +371,12 @@ namespace BJSYGameCore.AutoCompo
         {
             CodeMemberProperty prop = genProp(MemberAttributes.Public | MemberAttributes.Final, propName, component.GetType());
             prop.HasGet = true;
-            CodeConditionStatement If = Codo.If(Codo.This.getField(fieldName).op(CodeBinaryOperatorType.IdentityEquality, Codo.Null));
-            If.TrueStatements.append(Codo.This.getField(fieldName).assign(Codo.This.getProp(NAME_OF_TRANSFORM)
+            CodeConditionStatement If = Codo.If(Codo.getField(fieldName).op(CodeBinaryOperatorType.IdentityEquality, Codo.Null));
+            If.TrueStatements.append(Codo.getField(fieldName).assign(Codo.getProp(NAME_OF_TRANSFORM)
                 .getMethod(NAME_OF_FIND).invoke(Codo.getField("PATH" + fieldName.ToUpper()))
                 .getMethod(NAME_OF_GETCOMPO, Codo.type(component.GetType().Name)).invoke()));
             prop.GetStatements.Add(If);
-            prop.GetStatements.Add(new CodeMethodReturnStatement(
-                new CodeFieldReferenceExpression(new CodeThisReferenceExpression(),
-                fieldName)));
+            prop.GetStatements.Add(Codo.Return(Codo.getField(fieldName)));
             return prop;
         }
         protected CodeMemberField genField4Compo(Component component, string fieldName)

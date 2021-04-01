@@ -33,6 +33,10 @@ namespace BJSYGameCore
         {
             return new CodeFieldReferenceExpression(target, fieldName);
         }
+        public static CodePropertyReferenceExpression getProp(string propName)
+        {
+            return new CodePropertyReferenceExpression(null, propName);
+        }
         public static CodePropertyReferenceExpression getProp(this CodeExpression target, string propName)
         {
             return new CodePropertyReferenceExpression(target, propName);
