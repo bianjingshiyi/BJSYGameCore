@@ -120,6 +120,10 @@ namespace BJSYGameCore.UI {
         public VirtualList(Func<T> itemGernerator, LayoutGroup layoutGroup) {
             layoutGroupRectTrans = layoutGroup.GetComponent<RectTransform>();
             scrollRect = layoutGroupRectTrans.GetComponentInParent<ScrollRect>();
+            if(scrollRect == null) {
+                Debug.LogError("ScrollRect should not be null in parent obj!!! \n (父物体里ScrollRect不能为空)");
+                return;
+            }
             Rect viewPortRect = scrollRect.GetComponent<RectTransform>().rect;
             //考虑了padding在内计算出的实际视口的宽和高
             float realHeight = viewPortRect.height - layoutGroup.padding.top - layoutGroup.padding.bottom;
