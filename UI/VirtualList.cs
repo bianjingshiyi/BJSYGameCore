@@ -75,18 +75,26 @@ namespace BJSYGameCore.UI {
                     csf.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
                 }
 
+                
                 // 判断LayoutGroup的类型，然后计算LayoutGroup的尺寸
                 switch (layoutGroupType) {
                     case LayoutGroupType.Horizontal:
+                        //锚点设在左侧
+                        layoutGroupRectTrans.anchorMin = Vector2.zero;
+                        layoutGroupRectTrans.anchorMax = Vector2.up;
+
                         layoutGroupRectTrans.setWidth(value * realCellSize.x);
                         break;
                     case LayoutGroupType.Vertical:
+                        //锚点设在顶端
+                        layoutGroupRectTrans.anchorMin = Vector2.up;
+                        layoutGroupRectTrans.anchorMax = Vector2.one;
+
                         layoutGroupRectTrans.setHeight(value * realCellSize.y);
                         break;
                     case LayoutGroupType.Gird:
-                        //重置一下LayoutGroup的位置和锚点，锚点重置到左上角
-                        layoutGroupRectTrans.anchorMax = layoutGroupRectTrans.anchorMin = new Vector2(0, 1);
-                        layoutGroupRectTrans.anchoredPosition = Vector2.zero;
+                        //锚点设在左上角
+                        layoutGroupRectTrans.anchorMin = layoutGroupRectTrans.anchorMax = Vector2.up;
 
                         if (scrollRect.horizontal && !scrollRect.vertical) {
                             int colCount = Mathf.CeilToInt((float)value / VerticalCount);
@@ -100,6 +108,7 @@ namespace BJSYGameCore.UI {
                         }
                         break;
                 }
+                layoutGroupRectTrans.anchoredPosition = Vector2.zero;
             }
         }
 
@@ -144,19 +153,16 @@ namespace BJSYGameCore.UI {
                       "（这个虚拟列表不支持ScrollRect的horizontal和vertical同时勾选的情况）");
                     return;
                 }
-                if (gridLayoutGroup.startCorner != GridLayoutGroup.Corner.UpperLeft) {
-                    Debug.LogWarning("If StartCorner isn't UpperLeft, it will behave unpredicatively, so force it \n" +
-                      "（StartCorner不是UpperLeft将会出现不可预知的表现，故强行设置之）");
-                    gridLayoutGroup.startCorner = GridLayoutGroup.Corner.UpperLeft;
-                }
+                //gridLayoutGroup只能从左上角开始
+                gridLayoutGroup.startCorner = GridLayoutGroup.Corner.UpperLeft;
             }
             else if (layoutGroup is VerticalLayoutGroup) {
                 layoutGroupType = LayoutGroupType.Vertical;
                 VerticalLayoutGroup verticalLayoutGroup = layoutGroup as VerticalLayoutGroup;
 
                 // 考虑spacing计算列表中UI物体尺寸
-                float cellWidth = ListUIObjRectTrans.rect.width * ListUIObjRectTrans.localScale.x;
-                float cellHeight = ListUIObjRectTrans.rect.height * listUIObjRectTrans.localScale.y+ verticalLayoutGroup.spacing;
+                float cellWidth = ListUIObjRectTrans.rect.width * (verticalLayoutGroup.childScaleWidth?ListUIObjRectTrans.localScale.x:1);
+                float cellHeight = ListUIObjRectTrans.rect.height * (verticalLayoutGroup.childScaleHeight?listUIObjRectTrans.localScale.y:1)+ verticalLayoutGroup.spacing;
                 realCellSize = new Vector2(cellWidth,cellHeight);
                 //计算横行和纵行的个数
                 HorizontalCount = 1;
@@ -165,15 +171,29 @@ namespace BJSYGameCore.UI {
                 //对verticalLayoutGroup做一下容错设置
                 verticalLayoutGroup.childForceExpandHeight = false;
                 verticalLayoutGroup.childControlHeight = false;
-                verticalLayoutGroup.childScaleHeight = true;
+                //verticalLayoutGroup只能是从上到下
+                switch (verticalLayoutGroup.childAlignment) {
+                    case TextAnchor.MiddleCenter:
+                    case TextAnchor.LowerCenter:
+                        verticalLayoutGroup.childAlignment = TextAnchor.UpperCenter;
+                        break;
+                    case TextAnchor.MiddleLeft:
+                    case TextAnchor.LowerLeft:
+                        verticalLayoutGroup.childAlignment = TextAnchor.UpperLeft;
+                        break;
+                    case TextAnchor.MiddleRight:
+                    case TextAnchor.LowerRight:
+                        verticalLayoutGroup.childAlignment = TextAnchor.UpperRight;
+                        break;
+                }
             }
             else if (layoutGroup is HorizontalLayoutGroup) {
                 layoutGroupType = LayoutGroupType.Horizontal;
                 HorizontalLayoutGroup horizontalLayoutGroup = layoutGroup as HorizontalLayoutGroup;
 
                 // 考虑spacing计算列表中UI物体尺寸
-                float cellWidth = ListUIObjRectTrans.rect.width * ListUIObjRectTrans.localScale.x + horizontalLayoutGroup.spacing;
-                float cellHeight = ListUIObjRectTrans.rect.height * listUIObjRectTrans.localScale.y;
+                float cellWidth = ListUIObjRectTrans.rect.width * (horizontalLayoutGroup.childScaleWidth?ListUIObjRectTrans.localScale.x:1) + horizontalLayoutGroup.spacing;
+                float cellHeight = ListUIObjRectTrans.rect.height * (horizontalLayoutGroup.childScaleHeight?listUIObjRectTrans.localScale.y:1);
                 realCellSize = new Vector2(cellWidth, cellHeight);
                 //计算横行和纵行的个数
                 VerticalCount = 1;
@@ -183,6 +203,21 @@ namespace BJSYGameCore.UI {
                 horizontalLayoutGroup.childForceExpandWidth = false;
                 horizontalLayoutGroup.childControlWidth = false;
                 horizontalLayoutGroup.childScaleWidth = true;
+                //horizontalLayoutGroup只能是从左到右
+                switch (horizontalLayoutGroup.childAlignment) {
+                    case TextAnchor.UpperLeft:
+                    case TextAnchor.UpperCenter:
+                        horizontalLayoutGroup.childAlignment = TextAnchor.UpperRight;
+                        break;
+                    case TextAnchor.MiddleLeft:
+                    case TextAnchor.MiddleCenter:
+                        horizontalLayoutGroup.childAlignment = TextAnchor.MiddleRight;
+                        break;
+                    case TextAnchor.LowerLeft:
+                    case TextAnchor.LowerCenter:
+                        horizontalLayoutGroup.childAlignment = TextAnchor.LowerRight;
+                        break;
+                }
             }
             else {
                 Debug.LogError("The param of layoutGroup must be a subclass object of LayoutGroup \n" +
@@ -262,6 +297,7 @@ namespace BJSYGameCore.UI {
                     element.rectTransform.anchoredPosition -= deltaPos;
                     uiElements.AddLast(element);
                     onDisplayUIObj?.Invoke(uiObjIndex, element.uiObj);
+                    
                 }
             }
             // 列表向上翻
