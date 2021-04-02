@@ -16,9 +16,12 @@ public class VirtualListTest : MonoBehaviour
 {
     VirtualList<UIObject> virtualList;
     GridLayoutGroup glg;
+    VerticalLayoutGroup vlg;
     public UIObject itemObj;
     List<TestDat> testDatList = new List<TestDat>();
- 
+
+    int count = 0;
+
     void initData()
     {
         for(int i = 0; i < 1000; i++)
@@ -35,21 +38,31 @@ public class VirtualListTest : MonoBehaviour
     private void Start()
     {
         glg = GetComponent<GridLayoutGroup>();
-        virtualList = new VirtualList<UIObject>(generateItem,glg);
-        virtualList.onDisPlayItem += setItemView;
+        if(glg)
+            virtualList = new VirtualList<UIObject>(generateItem,glg);
+        vlg = GetComponent<VerticalLayoutGroup>();
+        if (vlg)
+            virtualList = new VirtualList<UIObject>(generateItem, vlg);
+        virtualList.onDisplayUIObj += setItemView;
+        virtualList.TotalDataCount = testDatList.Count;
         initItemObj();
     }
 
     void initItemObj()
     {
-        for(int i=0;i<testDatList.Count;i++)
-            virtualList.addItem();
+        for(int i = 0; i < testDatList.Count; i++)
+        {
+            var item = virtualList.addItem();
+            //if (item) item.transform.parent = transform;
+        }
+            
     }
 
     UIObject generateItem()
     {
         UIObject obj =  Instantiate(itemObj,transform);
         obj.gameObject.SetActive(true);
+        obj.gameObject.name = $"obj{count++}";
         return obj;
     }
 
