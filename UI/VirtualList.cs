@@ -39,14 +39,19 @@ namespace BJSYGameCore.UI {
         private LinkedList<UIElement> uiElements = new LinkedList<UIElement>();
         // UI物体生成器，UI物体生成方法需要由外面指定
         private Func<T> uiObjGernerator;
-        // 最后一个UI物体的索引
-        private int rearUIObjIndex = -1;
         // 数据的总量
         private int totalDataCount = 0;
         // 考虑了spacing的列表中UI物体尺寸
         private Vector2 realCellSize = Vector2.zero;
         // 记录上一次滚动时，列表横行或纵行的行数
         private int lastLineCount = 0;
+        // 最后一个UI物体的索引
+        private int rearUIObjIndex = -1;
+        // 第一个元素最开始的位置，用来做reset
+        private Vector2 originPos = Vector2.zero;
+        // 链表中第一个指针最开始的位置
+        private LinkedListNode<UIElement> originFirstNode;
+
 
         public RectTransform ListUIObjRectTrans {
             get {
@@ -75,7 +80,6 @@ namespace BJSYGameCore.UI {
                     csf.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
                 }
 
-                
                 // 判断LayoutGroup的类型，然后计算LayoutGroup的尺寸
                 switch (layoutGroupType) {
                     case LayoutGroupType.Horizontal:
@@ -166,7 +170,8 @@ namespace BJSYGameCore.UI {
 
                 // 考虑spacing计算列表中UI物体尺寸
                 float cellWidth = ListUIObjRectTrans.rect.width * (verticalLayoutGroup.childScaleWidth?ListUIObjRectTrans.localScale.x:1);
-                float cellHeight = ListUIObjRectTrans.rect.height * (verticalLayoutGroup.childScaleHeight?listUIObjRectTrans.localScale.y:1)+ verticalLayoutGroup.spacing;
+                float cellHeight = ListUIObjRectTrans.rect.height * (verticalLayoutGroup.childScaleHeight ? listUIObjRectTrans.localScale.y : 1);
+                cellHeight += verticalLayoutGroup.spacing;
                 realCellSize = new Vector2(cellWidth,cellHeight);
                 //计算横行和纵行的个数
                 HorizontalCount = 1;
@@ -242,18 +247,19 @@ namespace BJSYGameCore.UI {
             if (uiElements.Count < TotalElementCount) {
                 T uiObj = uiObjGernerator?.Invoke();
                 if (uiObjGernerator == null) {
-                    Debug.LogError("UIObjGernerator should not be null!!! \n" +
-                        "UIObjGernerator 不应该为空");
+                    Debug.LogError("UIObjGernerator should not be null!!! \n UIObjGernerator 不应该为空");
                 }
 
                 RectTransform objRectTransform = uiObj.GetComponent<RectTransform>();
                 if (objRectTransform == null) {
-                    Debug.LogError("UI obj must have RectTransfrom, but it didn't!!! \n" +
-                        "UI物体一定有RectTransform，但是它没有");
+                    Debug.LogError("UI obj must have RectTransfrom, but it didn't!!! \n UI物体一定有RectTransform，但是它没有");
                     return null;
                 }
 
                 uiElements.AddLast(new UIElement { uiObj = uiObj, rectTransform = objRectTransform });
+                if (originFirstNode == null) {
+                    originFirstNode = uiElements.First;
+                }
                 onDisplayUIObj?.Invoke(++rearUIObjIndex, uiObj);
                 return uiObj;
             }
@@ -261,10 +267,44 @@ namespace BJSYGameCore.UI {
         }
 
         /// <summary>
+        /// 重置方法，目前已知的使用场合：
+        /// 1. 在LayoutGroup的元素重新排序之前
+        /// 2. 在LayoutGruop重新激活的时候(OnEnable)
+        /// </summary>
+        public void reset() {
+            //重置部分成员
+            layoutGroupRectTrans.anchoredPosition = Vector2.zero;
+            rearUIObjIndex = TotalElementCount - 1;
+            lastLineCount = 0;
+            uiElements.Clear();
+
+            // 有坑！LayoutGroup的元素顺序是根据Transfrom的顺序去排列的
+            // 所以我们要获取一下LayoutGroup里ui列表元素的Transform
+            List<RectTransform> tempList = new List<RectTransform>();
+            foreach(RectTransform childTrans in layoutGroupRectTrans) {
+                if (!childTrans.gameObject.activeInHierarchy) { continue; }
+                tempList.Add(childTrans);
+            }
+            for(int elementIndex = 0;elementIndex<tempList.Count;elementIndex++) {
+                UIElement element = new UIElement { rectTransform = tempList[elementIndex] ,uiObj = null };
+                element.uiObj = element.rectTransform.gameObject as T;
+                if (element.uiObj == null) { element.uiObj = element.rectTransform.GetComponent<T>(); }
+
+                element.rectTransform.anchoredPosition = Vector2.zero;
+
+                uiElements.AddLast(element);
+                onDisplayUIObj?.Invoke(elementIndex, element.uiObj);
+            }
+        }
+
+        /// <summary>
         /// 列表滚动回调
         /// </summary>
         /// <param name="_"></param>
         void onScrollDrag(Vector2 _) {
+            if (originPos == Vector2.zero) {
+                originPos = uiElements.First.Value.rectTransform.anchoredPosition;
+            }
             switch (layoutGroupType) {
                 case LayoutGroupType.Vertical:
                     updateVertical();
@@ -296,10 +336,11 @@ namespace BJSYGameCore.UI {
                     if (uiObjIndex >= TotalDataCount || uiObjIndex < TotalElementCount) { continue; }
 
                     //刷新位置和数据
-                    UIElement element = uiElements.First.Value;
-                    uiElements.RemoveFirst();
+                    var elementNode = uiElements.First;
+                    UIElement element = elementNode.Value;
                     element.rectTransform.anchoredPosition -= deltaPos;
-                    uiElements.AddLast(element);
+                    uiElements.RemoveFirst();
+                    uiElements.AddLast(elementNode);
                     onDisplayUIObj?.Invoke(uiObjIndex, element.uiObj);
                     
                 }
@@ -311,10 +352,11 @@ namespace BJSYGameCore.UI {
                     if (uiObjIndex >= TotalDataCount || uiObjIndex < TotalElementCount) { continue; }
 
                     //刷新位置和数据
-                    UIElement element = uiElements.Last.Value;
-                    uiElements.RemoveLast();
+                    var elementNode = uiElements.Last;
+                    UIElement element = elementNode.Value;
                     element.rectTransform.anchoredPosition += deltaPos;
-                    uiElements.AddFirst(element);
+                    uiElements.RemoveLast();
+                    uiElements.AddFirst(elementNode);
                     onDisplayUIObj?.Invoke(uiObjIndex - TotalElementCount, element.uiObj);
                 }
             }
@@ -338,10 +380,11 @@ namespace BJSYGameCore.UI {
                     if (uiObjIndex >= TotalDataCount || uiObjIndex < TotalElementCount) { continue; }
 
                     //刷新位置和数据
-                    UIElement element = uiElements.First.Value;
-                    uiElements.RemoveFirst();
+                    var elementNode = uiElements.First;
+                    UIElement element = elementNode.Value;
                     element.rectTransform.anchoredPosition += deltaPos;
-                    uiElements.AddLast(element);
+                    uiElements.RemoveFirst();
+                    uiElements.AddLast(elementNode);
                     onDisplayUIObj?.Invoke(uiObjIndex, element.uiObj);
                 }
             }
@@ -352,10 +395,11 @@ namespace BJSYGameCore.UI {
                     if (uiObjIndex >= TotalDataCount || uiObjIndex < TotalElementCount) { continue; }
 
                     //刷新位置和数据
-                    UIElement element = uiElements.Last.Value;
-                    uiElements.RemoveLast();
+                    var elementNode = uiElements.Last;
+                    UIElement element = elementNode.Value;
                     element.rectTransform.anchoredPosition -= deltaPos;
-                    uiElements.AddFirst(element);
+                    uiElements.RemoveLast();
+                    uiElements.AddFirst(elementNode);
                     onDisplayUIObj?.Invoke(uiObjIndex - TotalElementCount, element.uiObj);
                 }
             }
