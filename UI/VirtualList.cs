@@ -63,11 +63,17 @@ namespace BJSYGameCore.UI
         /// 记录上一次滚动时，列表横行或纵行的行数
         /// </summary>
         private int lastLineCount = 0;
-        // 最后一个UI物体的索引
+        /// <summary>
+        /// 最后一个UI物体的索引
+        /// </summary>
         private int rearUIObjIndex = -1;
-        // 第一个元素最开始的位置，用来做reset
+        /// <summary>
+        /// 第一个元素最开始的位置，用来做reset
+        /// </summary>
         private Vector2 originPos = Vector2.zero;
-        // 链表中第一个指针最开始的位置
+        /// <summary>
+        /// 链表中第一个指针最开始的位置
+        /// </summary>
         private LinkedListNode<UIElement> originFirstNode;
 
 
