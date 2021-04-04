@@ -35,6 +35,10 @@ public class VirtualListTest : MonoBehaviour
         initData();
     }
 
+    private void OnEnable() {
+        if(virtualList!= null) { virtualList.reset(); }
+    }
+
     private void Start()
     {
         glg = GetComponent<GridLayoutGroup>();

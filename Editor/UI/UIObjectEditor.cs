@@ -62,7 +62,7 @@ namespace BJSYGameCore.UI
                                     //Controller当前状态
                                     string currentStateName = (target as UIObject).getController(controllerName, layer.stateMachine.states.Select(s => s.state.name).ToArray());
                                     EditorGUILayout.LabelField(currentStateName, GUILayout.Width(100));
-                                    Debug.Log(currentStateName, target);
+                                    // Debug.Log(currentStateName, target);
                                 }
                                 else if (layer.stateMachine != null && layer.stateMachine.states.Length > 0)
                                 {
