@@ -175,6 +175,7 @@ namespace BJSYGameCore.AutoCompo
             //onGUIGameObject(_gameObject);
             onGUIGenFields();
             EditorGUILayout.EndScrollView();
+            GUILayout.Box("将GameObject或者Component拖拽到这里来添加自动生成字段", GUILayout.Height(64));
             Rect dragArea = GUILayoutUtility.GetLastRect();
             if (dragArea.Contains(Event.current.mousePosition))
             {
@@ -363,10 +364,6 @@ namespace BJSYGameCore.AutoCompo
                     onGUIGenField(null, field);
                 }
             }
-            else
-            {
-                GUILayout.Box("将GameObject或者Component拖拽到这里来添加自动生成字段", GUILayout.Height(128));
-            }
         }
         protected virtual void onGUIGenField(Object obj, AutoBindFieldInfo field)
         {
@@ -382,7 +379,7 @@ namespace BJSYGameCore.AutoCompo
             {
                 Object redirObj = EditorGUILayout.ObjectField("丢失对象", null, field.targetType, true);
                 if (redirObj != null)
-                    _redirObjField = new KeyValuePair<Object, AutoBindFieldInfo>(redirObj, field);
+                    setRedirObjField(field, redirObj);
             }
             if (obj != null)
                 setSepecifiedFieldName(obj, EditorGUILayout.TextField(getSpecifiedFieldName(obj)));
@@ -398,6 +395,21 @@ namespace BJSYGameCore.AutoCompo
             EditorGUI.EndDisabledGroup();
             EditorGUILayout.EndHorizontal();
         }
+
+        private void setRedirObjField(AutoBindFieldInfo field, Object redirObj)
+        {
+            GameObject redirGameObject = redirObj is GameObject ? (GameObject)redirObj : ((Component)redirObj).gameObject;
+            GameObject prefabGameObject = getTargetGameObject(redirGameObject);
+            if (prefabGameObject == null)
+            {
+                Debug.LogError(redirGameObject + "不是" + _gameObject + "的一部分", redirGameObject);
+                return;
+            }
+            redirObj = redirObj is GameObject ? (Object)prefabGameObject : prefabGameObject.GetComponent(redirObj.GetType());
+            field.path = _gameObject.transform.getChildPath(prefabGameObject.transform);
+            _redirObjField = new KeyValuePair<Object, AutoBindFieldInfo>(redirObj, field);
+        }
+
         void onGUIGenRectTransform(RectTransform transform, AutoBindFieldInfo field)
         {
             //如果是RectTransform，那么可以当列表。

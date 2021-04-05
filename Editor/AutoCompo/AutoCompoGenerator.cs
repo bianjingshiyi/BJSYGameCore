@@ -192,7 +192,21 @@ namespace BJSYGameCore.AutoCompo
                 if (fieldInfo.targetType == typeof(GameObject))
                     genGameObject(rootGameObject.find(fieldInfo.path));
                 else
-                    genCompo(findComponentByPath(fieldInfo.path, fieldInfo.targetType), fieldInfo);
+                {
+                    GameObject targetGameObject = rootGameObject.find(fieldInfo.path);
+                    if (targetGameObject == null)
+                    {
+                        Debug.LogError("无法找到物体" + fieldInfo.path);
+                        continue;
+                    }
+                    Component targetComponent = targetGameObject.GetComponent(fieldInfo.targetType);
+                    if (targetComponent == null)
+                    {
+                        Debug.LogError("无法找到组件" + fieldInfo.targetType.Name, targetGameObject);
+                        continue;
+                    }
+                    genCompo(targetComponent, fieldInfo);
+                }
             }
             //如果方法里面没有任何绑定内容，那么就不需要。
             if (_initMethod.Statements.Count < 1)
@@ -309,8 +323,13 @@ namespace BJSYGameCore.AutoCompo
             foreach (var parameter in controller.parameters)
             {
                 string fieldName = "ANIM_PARAM_";
-                if (!prop.Name.StartsWith("as"))
-                    fieldName += prop.Name.Substring(2, prop.Name.Length - 2).ToUpper() + "_";
+                string animatorName = prop.Name;
+                if (animatorName.EndsWith("Animator", StringComparison.OrdinalIgnoreCase))
+                    animatorName = animatorName.Substring(0, animatorName.Length - 8);
+                if (animatorName.StartsWith("_"))
+                    animatorName = animatorName.Substring(1, animatorName.Length - 1);
+                if (!(animatorName.StartsWith("as") && char.IsUpper(animatorName[2])))
+                    fieldName += animatorName.ToUpper() + "_";
                 fieldName += parameter.name.ToUpper();
                 CodeMemberField Const = genField("const string", fieldName, false);
                 Const.InitExpression = Codo.String(parameter.name);

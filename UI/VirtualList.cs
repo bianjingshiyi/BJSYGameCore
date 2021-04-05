@@ -9,7 +9,7 @@ using UnityEngine.UI;
 
 namespace BJSYGameCore.UI {
     /// <summary>
-    /// 虚拟列表
+    /// 虚拟列表（暂时只支持从上到下和从左到右的排序）
     /// </summary>
     /// <typeparam name="T"> UI物体的类型 </typeparam>
     public class VirtualList<T> where T : MonoBehaviour {

@@ -47,6 +47,8 @@ namespace BJSYGameCore
         {
             if (gameObject == null)
                 throw new ArgumentNullException("gameObject");
+            if (path == null)
+                throw new ArgumentNullException("path");
             Transform transform = gameObject.transform.Find(path, true);
             return transform != null ? transform.gameObject : null;
         }
@@ -96,6 +98,13 @@ namespace BJSYGameCore
             else
                 return transform;
         }
+        /// <summary>
+        /// 获取子物体路径
+        /// </summary>
+        /// <param name="transform"></param>
+        /// <param name="child"></param>
+        /// <param name="withHead"></param>
+        /// <returns>如果子物体不存在则返回null</returns>
         public static string getChildPath(this Transform transform, Transform child, bool withHead = false)
         {
             if (transform == child)
