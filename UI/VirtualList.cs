@@ -71,11 +71,6 @@ namespace BJSYGameCore.UI
         /// 第一个元素最开始的位置，用来做reset
         /// </summary>
         private Vector2 originPos = Vector2.zero;
-        /// <summary>
-        /// 链表中第一个指针最开始的位置
-        /// </summary>
-        private LinkedListNode<UIElement> originFirstNode;
-
 
         public RectTransform ListUIObjRectTrans {
             get {
@@ -167,6 +162,7 @@ namespace BJSYGameCore.UI
                 Debug.LogError("ScrollRect should not be null in parent obj!!! \n (父物体里ScrollRect不能为空)");
                 return;
             }
+
             Rect viewPortRect = scrollRect.GetComponent<RectTransform>().rect;
             //考虑了padding在内计算出的实际视口的宽和高
             float realHeight = viewPortRect.height - layoutGroup.padding.top - layoutGroup.padding.bottom;
@@ -309,9 +305,6 @@ namespace BJSYGameCore.UI
                 }
 
                 uiElements.AddLast(new UIElement { uiObj = uiObj, rectTransform = objRectTransform });
-                if (originFirstNode == null) {
-                    originFirstNode = uiElements.First;
-                }
                 onDisplayUIObj?.Invoke(++rearUIObjIndex, uiObj);
                 return uiObj;
             }
@@ -320,10 +313,16 @@ namespace BJSYGameCore.UI
 
         /// <summary>
         /// 重置方法，目前已知的使用场合：
-        /// 1. 在LayoutGroup的元素重新排序之前
+        /// 1. 在LayoutGroup的元素重新排序之后
         /// 2. 在LayoutGruop重新激活的时候(OnEnable)
         /// </summary>
         public void reset() {
+            //考虑到不拖动的情况下，originPos的值始终是0向量
+            //需要在这里检查一下，初始化originPos
+            if (originPos == Vector2.zero) {
+                originPos = uiElements.First.Value.rectTransform.anchoredPosition;
+            }
+
             //重置部分成员
             layoutGroupRectTrans.anchoredPosition = Vector2.zero;
             rearUIObjIndex = TotalElementCount - 1;
@@ -342,7 +341,16 @@ namespace BJSYGameCore.UI
                 element.uiObj = element.rectTransform.gameObject as T;
                 if (element.uiObj == null) { element.uiObj = element.rectTransform.GetComponent<T>(); }
 
-                element.rectTransform.anchoredPosition = Vector2.zero;
+                float newPosX = 0, newPosY = 0;
+                if (scrollRect.vertical && !scrollRect.horizontal) {
+                    newPosX = realCellSize.x * (elementIndex % HorizontalCount);
+                    newPosY = -realCellSize.y * (elementIndex / HorizontalCount);
+                }
+                else if (scrollRect.horizontal && !scrollRect.vertical) {
+                    newPosX = realCellSize.x * (elementIndex / VerticalCount);
+                    newPosY = -realCellSize.y * (elementIndex % VerticalCount);
+                }
+                element.rectTransform.anchoredPosition = originPos + new Vector2(newPosX, newPosY);
 
                 uiElements.AddLast(element);
                 onDisplayUIObj?.Invoke(elementIndex, element.uiObj);
@@ -357,18 +365,8 @@ namespace BJSYGameCore.UI
             if (originPos == Vector2.zero) {
                 originPos = uiElements.First.Value.rectTransform.anchoredPosition;
             }
-            switch (layoutGroupType) {
-                case LayoutGroupType.Vertical:
-                    updateVertical();
-                    break;
-                case LayoutGroupType.Horizontal:
-                    updateHorizontal();
-                    break;
-                case LayoutGroupType.Gird:
-                    if (scrollRect.horizontal && !scrollRect.vertical) { updateHorizontal(); }
-                    else if (scrollRect.vertical && !scrollRect.horizontal) { updateVertical(); }
-                    break;
-            }
+            if (scrollRect.horizontal && !scrollRect.vertical) { updateHorizontal(); }
+            else if (scrollRect.vertical && !scrollRect.horizontal) { updateVertical(); }
         }
 
         /// <summary>
