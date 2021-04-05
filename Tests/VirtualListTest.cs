@@ -36,7 +36,7 @@ public class VirtualListTest : MonoBehaviour
     }
 
     private void OnEnable() {
-        if(virtualList!= null) { virtualList.reset(); }
+        if(virtualList!= null) { virtualList.reShow(); }
     }
 
     private void Start()
@@ -54,12 +54,13 @@ public class VirtualListTest : MonoBehaviour
 
     private void Update() {
         if (Input.GetKeyUp(KeyCode.R)) {
-            virtualList.reset();
+            virtualList.reShow();
         }
     }
 
     void initItemObj()
     {
+        virtualList.reset();
         for(int i = 0; i < testDatList.Count; i++)
         {
             var item = virtualList.addItem();

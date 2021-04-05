@@ -28,11 +28,7 @@ namespace BJSYGameCore.UI
             Vertical,
         }
 
-        //由于Vertical和Horizontal类型的LayoutGroup
-        //没有提供UI物体的尺寸信息
-        //这里需要从外部获取一下
-        public RectTransform listUIObjRectTrans;
-
+        private RectTransform listUIObjRectTrans;
         private LayoutGroupType layoutGroupType;
         private RectTransform layoutGroupRectTrans;
         private ScrollRect scrollRect;
@@ -72,6 +68,9 @@ namespace BJSYGameCore.UI
         /// </summary>
         private Vector2 originPos = Vector2.zero;
 
+        //由于Vertical和Horizontal类型的LayoutGroup
+        //没有提供UI物体的尺寸信息
+        //这里需要从外部获取一下
         public RectTransform ListUIObjRectTrans {
             get {
                 if (listUIObjRectTrans == null) {
@@ -280,6 +279,7 @@ namespace BJSYGameCore.UI
 
             scrollRect.onValueChanged.AddListener(onScrollDrag);
             this.uiObjGernerator = itemGernerator;
+            reset();
         }
 
         /// <summary>
@@ -289,17 +289,23 @@ namespace BJSYGameCore.UI
         /// <returns>UI物体实例</returns>
         public T addItem()
         {
-            if (uiElements.Count < TotalElementCount)
-            {
+            if (uiElements.Count > 0) {
+                foreach (UIElement element in uiElements) {
+                    if (!element.uiObj.gameObject.activeInHierarchy) {
+                        element.uiObj.gameObject.SetActive(true);
+                        onDisplayUIObj?.Invoke(++rearUIObjIndex, element.uiObj);
+                        return element.uiObj;
+                    }
+                }
+            }
+            if (uiElements.Count < TotalElementCount) {
                 T uiObj = uiObjGernerator?.Invoke();
-                if (uiObjGernerator == null)
-                {
+                if (uiObjGernerator == null) {
                     Debug.LogError("UIObjGernerator should not be null!!! \n UIObjGernerator 不应该为空");
                 }
 
                 RectTransform objRectTransform = uiObj.GetComponent<RectTransform>();
-                if (objRectTransform == null)
-                {
+                if (objRectTransform == null) {
                     Debug.LogError("UI obj must have RectTransfrom, but it didn't!!! \n UI物体一定有RectTransform，但是它没有");
                     return null;
                 }
@@ -312,16 +318,12 @@ namespace BJSYGameCore.UI
         }
 
         /// <summary>
-        /// 重置方法，目前已知的使用场合：
-        /// 1. 在LayoutGroup的元素重新排序之后
-        /// 2. 在LayoutGruop重新激活的时候(OnEnable)
+        /// 在LayoutGruop重新激活的时候(OnEnable)，需要调用此方法，重新校正一下虚拟列表
         /// </summary>
-        public void reset() {
+        public void reShow() {
             //考虑到不拖动的情况下，originPos的值始终是0向量
             //需要在这里检查一下，初始化originPos
-            if (originPos == Vector2.zero) {
-                originPos = uiElements.First.Value.rectTransform.anchoredPosition;
-            }
+            if (!tryInitOriginPos()) { return; }
 
             //重置部分成员
             layoutGroupRectTrans.anchoredPosition = Vector2.zero;
@@ -331,6 +333,7 @@ namespace BJSYGameCore.UI
 
             // 有坑！LayoutGroup的元素顺序是根据Transfrom的顺序去排列的
             // 所以我们要获取一下LayoutGroup里ui列表元素的Transform
+            // 用它的顺序来重置uiElements
             List<RectTransform> tempList = new List<RectTransform>();
             foreach(RectTransform childTrans in layoutGroupRectTrans) {
                 if (!childTrans.gameObject.activeInHierarchy) { continue; }
@@ -358,15 +361,54 @@ namespace BJSYGameCore.UI
         }
 
         /// <summary>
+        /// 在需要重用虚拟列表之前reset一下
+        /// </summary>
+        public void reset() {
+            //重置部分成员
+            layoutGroupRectTrans.anchoredPosition = Vector2.zero;
+            rearUIObjIndex = -1;
+            lastLineCount = 0;
+            uiElements.Clear();
+
+            // 有坑！LayoutGroup的元素顺序是根据Transfrom的顺序去排列的
+            // 所以我们要获取一下LayoutGroup里ui列表元素的Transform，
+            // 用它的顺序来重置uiElements
+            List<RectTransform> tempList = new List<RectTransform>();
+            foreach (RectTransform childTrans in layoutGroupRectTrans) {
+                tempList.Add(childTrans);
+            }
+            for(int elementIndex = 0; elementIndex < tempList.Count; elementIndex++) {
+                UIElement element = new UIElement { rectTransform = tempList[elementIndex], uiObj = null };
+                element.uiObj = element.rectTransform.gameObject as T;
+                if (element.uiObj == null) { element.uiObj = element.rectTransform.GetComponent<T>(); }
+
+                element.uiObj.gameObject.SetActive(false);
+                uiElements.AddLast(element);
+            }
+        }
+
+        /// <summary>
         /// 列表滚动回调
         /// </summary>
         /// <param name="_"></param>
         void onScrollDrag(Vector2 _) {
+            if(!tryInitOriginPos()) { return; }
+            if (scrollRect.horizontal && !scrollRect.vertical){ updateHorizontal(); }
+            else if (scrollRect.vertical && !scrollRect.horizontal){ updateVertical(); }
+        }
+
+        /// <summary>
+        /// 尝试初始化originPos
+        /// </summary>
+        /// <returns>初始化失败返回false，其他情况为true</returns>
+        bool tryInitOriginPos() {
+            if(originPos != Vector2.zero) { return true; }
+            if (uiElements.Count == 0) { return false; }
             if (originPos == Vector2.zero) {
                 originPos = uiElements.First.Value.rectTransform.anchoredPosition;
+                return true;
             }
-            if (scrollRect.horizontal && !scrollRect.vertical) { updateHorizontal(); }
-            else if (scrollRect.vertical && !scrollRect.horizontal) { updateVertical(); }
+            return false;
         }
 
         /// <summary>
@@ -464,35 +506,6 @@ namespace BJSYGameCore.UI
                 }
             }
             lastLineCount = lineCount;
-        }
-
-        /// <summary>
-        /// 重载整个视口里面的元素
-        /// </summary>
-        public void ReloadViewportElements()
-        {
-            var ele = uiElements.Last;
-            for (int i = 0; ele != null; i++, ele = ele.Previous)
-            {
-                var index = rearUIObjIndex - i;
-                if (index < 0 || index >= TotalDataCount) continue;
-                onDisplayUIObj?.Invoke(index, ele.Value.uiObj);
-            }
-        }
-
-        /// <summary>
-        /// 重载在指定位置的元素
-        /// </summary>
-        /// <param name="index"></param>
-        public void ReloadElementAt(int index)
-        {
-            var delta = rearUIObjIndex - index;
-            if (delta < 0 || delta >= uiElements.Count) return;
-
-            var ele = uiElements.Last;
-            for (int i = 0; i < delta; i++, ele = ele.Previous) ;
-
-            onDisplayUIObj?.Invoke(index, ele.Value.uiObj);
         }
     }
 }
