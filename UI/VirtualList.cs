@@ -133,6 +133,9 @@ namespace BJSYGameCore.UI {
             }
         }
 
+        public int RearUIObjIndex { get => rearUIObjIndex; }
+
+
         /// <summary>
         /// 构造函数
         /// </summary>
@@ -412,6 +415,19 @@ namespace BJSYGameCore.UI {
             }
 
             lastLineCount = lineCount;
+        }
+
+        /// <summary>
+        /// 重载在指定位置的元素
+        /// </summary>
+        /// <param name="index">数据索引</param>
+        public void ReloadElementAt(int index) {
+            var delta = rearUIObjIndex - index;
+            if (delta < 0 || delta >= uiElements.Count) { return; }
+
+            var ele = uiElements.Last;
+            for (int i = 0; i <delta; i++, ele = ele.Previous) ;
+            onDisplayUIObj?.Invoke(index, ele.Value.uiObj);
         }
 
         #region 这一坨先留着，可能以后有用

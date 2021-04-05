@@ -61,6 +61,12 @@ public class VirtualListTest : MonoBehaviour
             testDatList.Reverse();
             initItemObj();
         }
+        //模拟修改单个元素的情况
+        if (Input.GetKeyUp(KeyCode.P)) {
+            int i = 50000;
+            testDatList[35] = new TestDat { data1 = i, data2 = (1000 - i).ToString(), data3 = new Vector2(i, -i) };
+            virtualList.ReloadElementAt(35);
+        }
     }
 
     void initItemObj()
