@@ -36,10 +36,7 @@ public class VirtualListTest : MonoBehaviour
     }
 
     private void OnEnable() {
-        //此例中数据集未发生变化，所以直接reShow
         if (virtualList != null) { virtualList.reShow(); }
-        //如果数据集发生变化，大概要这么写：
-        //if (virtualList != null) { initItemObj(); }
     }
 
     private void Start()
