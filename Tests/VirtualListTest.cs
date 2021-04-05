@@ -52,6 +52,12 @@ public class VirtualListTest : MonoBehaviour
         initItemObj();
     }
 
+    private void Update() {
+        if (Input.GetKeyUp(KeyCode.R)) {
+            virtualList.reset();
+        }
+    }
+
     void initItemObj()
     {
         for(int i = 0; i < testDatList.Count; i++)
