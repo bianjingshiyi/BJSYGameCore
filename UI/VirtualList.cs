@@ -279,6 +279,7 @@ namespace BJSYGameCore.UI
 
             scrollRect.onValueChanged.AddListener(onScrollDrag);
             this.uiObjGernerator = itemGernerator;
+            //这里调一下reset是为了将ListUIObjRectTrans给添加到uiElements里面
             reset();
         }
 
@@ -289,6 +290,7 @@ namespace BJSYGameCore.UI
         /// <returns>UI物体实例</returns>
         public T addItem()
         {
+            //如果uiElements里面有现成的可用，就不必创建新的
             if (uiElements.Count > 0) {
                 foreach (UIElement element in uiElements) {
                     if (!element.uiObj.gameObject.activeInHierarchy) {
@@ -318,13 +320,11 @@ namespace BJSYGameCore.UI
         }
 
         /// <summary>
-        /// 在LayoutGruop重新激活的时候(OnEnable)，需要调用此方法，重新校正一下虚拟列表
+        /// 在LayoutGruop重新激活的时候(OnEnable)，
+        /// 如果数据集没有发生变化，需要调用此方法，重新校正一下虚拟列表
+        /// 如果数据集发生变化了，直接用reset，然后重新addItem吧
         /// </summary>
         public void reShow() {
-            //考虑到不拖动的情况下，originPos的值始终是0向量
-            //需要在这里检查一下，初始化originPos
-            if (!tryInitOriginPos()) { return; }
-
             //重置部分成员
             layoutGroupRectTrans.anchoredPosition = Vector2.zero;
             rearUIObjIndex = TotalElementCount - 1;
@@ -339,21 +339,13 @@ namespace BJSYGameCore.UI
                 if (!childTrans.gameObject.activeInHierarchy) { continue; }
                 tempList.Add(childTrans);
             }
+
             for(int elementIndex = 0;elementIndex<tempList.Count;elementIndex++) {
                 UIElement element = new UIElement { rectTransform = tempList[elementIndex] ,uiObj = null };
                 element.uiObj = element.rectTransform.gameObject as T;
                 if (element.uiObj == null) { element.uiObj = element.rectTransform.GetComponent<T>(); }
 
-                float newPosX = 0, newPosY = 0;
-                if (scrollRect.vertical && !scrollRect.horizontal) {
-                    newPosX = realCellSize.x * (elementIndex % HorizontalCount);
-                    newPosY = -realCellSize.y * (elementIndex / HorizontalCount);
-                }
-                else if (scrollRect.horizontal && !scrollRect.vertical) {
-                    newPosX = realCellSize.x * (elementIndex / VerticalCount);
-                    newPosY = -realCellSize.y * (elementIndex % VerticalCount);
-                }
-                element.rectTransform.anchoredPosition = originPos + new Vector2(newPosX, newPosY);
+                element.rectTransform.anchoredPosition = Vector2.zero;
 
                 uiElements.AddLast(element);
                 onDisplayUIObj?.Invoke(elementIndex, element.uiObj);
@@ -392,7 +384,6 @@ namespace BJSYGameCore.UI
         /// </summary>
         /// <param name="_"></param>
         void onScrollDrag(Vector2 _) {
-            if(!tryInitOriginPos()) { return; }
             if (scrollRect.horizontal && !scrollRect.vertical){ updateHorizontal(); }
             else if (scrollRect.vertical && !scrollRect.horizontal){ updateVertical(); }
         }
@@ -401,15 +392,15 @@ namespace BJSYGameCore.UI
         /// 尝试初始化originPos
         /// </summary>
         /// <returns>初始化失败返回false，其他情况为true</returns>
-        bool tryInitOriginPos() {
-            if(originPos != Vector2.zero) { return true; }
-            if (uiElements.Count == 0) { return false; }
-            if (originPos == Vector2.zero) {
-                originPos = uiElements.First.Value.rectTransform.anchoredPosition;
-                return true;
-            }
-            return false;
-        }
+        //bool tryInitOriginPos() {
+        //    if(originPos != Vector2.zero) { return true; }
+        //    if (uiElements.Count == 0) { return false; }
+        //    if (originPos == Vector2.zero) {
+        //        originPos = uiElements.First.Value.rectTransform.anchoredPosition;
+        //        return true;
+        //    }
+        //    return false;
+        //}
 
         /// <summary>
         /// 纵向滚动刷新
