@@ -282,6 +282,7 @@ namespace BJSYGameCore.UI {
                 T uiObj = uiObjGernerator?.Invoke();
                 if (uiObjGernerator == null) {
                     Debug.LogError("UIObjGernerator should not be null!!! \n UIObjGernerator 不应该为空");
+                    return null;
                 }
 
                 RectTransform objRectTransform = uiObj.GetComponent<RectTransform>();
