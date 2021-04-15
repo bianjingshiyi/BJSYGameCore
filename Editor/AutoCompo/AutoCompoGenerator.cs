@@ -55,9 +55,9 @@ namespace BJSYGameCore.AutoCompo
         }
         public virtual string genTypeName4GO(GameObject gameObject)
         {
-            if (string.IsNullOrEmpty(typeName))
+            if (string.IsNullOrEmpty(specifiedTypeName))
                 return gameObject.name;
-            return typeName;
+            return specifiedTypeName;
         }
         /// <summary>
         /// 默认生成一个自动绑定方法。
@@ -76,7 +76,14 @@ namespace BJSYGameCore.AutoCompo
                 }
             }
             genMembers();
-            genRootGameObject();
+            genBindFields();
+        }
+        protected virtual Dictionary<Type, ComponentGenerator> initComponentGenrators()
+        {
+            Dictionary<Type, ComponentGenerator> dict = new Dictionary<Type, ComponentGenerator>();
+            dict[typeof(Button)] = new ButtonGenerator();
+            dict[typeof(Animator)] = new AnimatorGenerator();
+            return dict;
         }
         /// <summary>
         /// 默认生成init和clear方法。
@@ -183,10 +190,11 @@ namespace BJSYGameCore.AutoCompo
         /// <summary>
         /// 根据提供的字段字典进行生成。
         /// </summary>
-        protected virtual void genRootGameObject()
+        protected virtual void genBindFields()
         {
             if (controllerType == CTRL_TYPE_BUTTON && buttonMain == null)
                 throw new InvalidOperationException("控件类型为按钮却没有主按钮");
+            _compoGenDict = initComponentGenrators();
             foreach (var fieldInfo in objFieldDict.Values.Where(f => f != null && f.isGenerated))
             {
                 if (fieldInfo.targetType == typeof(GameObject))
@@ -253,18 +261,23 @@ namespace BJSYGameCore.AutoCompo
             var field = genField4Compo(component, genFieldName4Compo(component));
             //常量
             var constField = genField("const string", "PATH" + field.Name.ToUpper(), false);
-            constField.InitExpression = Codo.String(rootGameObject.transform.getChildPath(component.transform));
+            constField.InitExpression = Codo.String(fieldInfo.path);
             //属性
-            string propName = field.Name;
-            while (propName.StartsWith("_"))
-                propName = propName.Substring(1, propName.Length - 1);
-            propName = propName.headToLower();
-            var prop = genProp4Compo(component, propName, field.Name);
+            var prop = genProp4Compo(component, genPropName4Field(field.Name), field.Name);
             //初始化
             addTypeUsing(typeof(TransformHelper));
             _initMethod.Statements.append(Codo.getField(field.Name).assign(Codo.getProp(NAME_OF_TRANSFORM)
                 .getMethod(NAME_OF_FIND).invoke(Codo.getField("PATH" + field.Name.ToUpper()))
                 .getMethod(NAME_OF_GETCOMPO, Codo.type(component.GetType().Name)).invoke()));
+            //特殊组件处理
+            foreach (var pair in _compoGenDict)
+            {
+                if (pair.Key == component.GetType() || component.GetType().IsSubclassOf(pair.Key))
+                {
+                    pair.Value.onGen(this, component, component.gameObject == rootGameObject, fieldInfo, field);
+                    return;
+                }
+            }
             if (component is Button)
                 onGenButton(component as Button, component.gameObject == rootGameObject, field, prop);
             else if (component is Animator)
@@ -441,26 +454,32 @@ namespace BJSYGameCore.AutoCompo
                 fullname = name + typeName;
             if (_type == null)
                 return fullname;
-            while (_type.Members.OfType<CodeMemberField>().Any(f => f.Name == fullname))
+            while (_type.Members.OfType<CodeMemberField>().Any(f => f.Name == fullname) &&
+                gameObject.transform.parent != null &&
+                gameObject.transform.parent.gameObject != rootGameObject)
             {
                 gameObject = gameObject.transform.parent.gameObject;
                 fullname = "_" + gameObject.name.headToLower() + "_" + fullname.Substring(1, fullname.Length - 1).headToUpper();
             }
             return fullname;
         }
+        public virtual string genPropName4Field(string fieldName)
+        {
+            string propName = fieldName;
+            while (propName.StartsWith("_"))
+                propName = propName.Substring(1, propName.Length - 1);
+            propName = propName.headToLower();
+            return propName;
+        }
         protected virtual string getSimpleTypeName(Type type)
         {
             return type.Name;
-        }
-        Component findComponentByPath(string path, Type type)
-        {
-            return TransformHelper.findGameObjectByPath(rootGameObject, path).GetComponent(type);
         }
         public virtual IEnumerable<string> ctrlTypes
         {
             get { return _ctrlTypes; }
         }
-        public string typeName { get; set; }
+        public string specifiedTypeName { get; set; }
         public Dictionary<Object, AutoBindFieldInfo> objFieldDict { get; set; }
         public string controllerType { get; set; }
         //按钮
@@ -469,7 +488,20 @@ namespace BJSYGameCore.AutoCompo
         public GameObject listOrigin { get; set; }
         public string listItemTypeName { get; set; }
         public GameObject rootGameObject { get; set; }
+        public CodeTypeDeclaration type
+        {
+            get { return _type; }
+        }
+        public CodeMemberMethod initMethod
+        {
+            get { return _initMethod; }
+        }
+        public CodeMemberMethod clearMethod
+        {
+            get { return _clearMethod; }
+        }
         protected AutoCompoGenSetting _setting;
+        protected Dictionary<Type, ComponentGenerator> _compoGenDict = new Dictionary<Type, ComponentGenerator>();
         protected CodeNamespace _nameSpace;
         protected CodeTypeDeclaration _type;
         protected CodeMemberMethod _initMethod;
@@ -477,19 +509,19 @@ namespace BJSYGameCore.AutoCompo
         public const string CTRL_TYPE_BUTTON = "button";
         public const string CTRL_TYPE_LIST = "list";
         public const string CTRL_TYPE_BUTTON_LIST = "buttonList";
-        protected const string FIELD_NAME_ORIGIN = "_origin";
-        protected const string FIELD_NAME_ITEM_POOL = "_itemPool";
-        protected const string METHOD_NAME_LIST_INIT_POOL = "initPool";
-        protected const string NAME_OF_GAMEOBJECT = "gameObject";
-        protected const string NAME_OF_SET_ACTIVE = "SetActive";
-        protected const string NAME_OF_TRANSFORM = "transform";
-        protected const string NAME_OF_FIND = "Find";
-        protected const string NAME_OF_FIND_BY_PATH = "Find";
-        protected const string NAME_OF_ADDCOMPO = "AddComponent";
-        protected const string NAME_OF_GETCOMPO = "GetComponent";
-        protected const string NAME_OF_ONCLICK = "onClick";
-        protected const string NAME_OF_ADDLISTENER = "AddListener";
-        protected const string NAME_OF_REMOVELISTENER = "RemoveListener";
+        public const string FIELD_NAME_ORIGIN = "_origin";
+        public const string FIELD_NAME_ITEM_POOL = "_itemPool";
+        public const string METHOD_NAME_LIST_INIT_POOL = "initPool";
+        public const string NAME_OF_GAMEOBJECT = "gameObject";
+        public const string NAME_OF_SET_ACTIVE = "SetActive";
+        public const string NAME_OF_TRANSFORM = "transform";
+        public const string NAME_OF_FIND = "Find";
+        public const string NAME_OF_FIND_BY_PATH = "Find";
+        public const string NAME_OF_ADDCOMPO = "AddComponent";
+        public const string NAME_OF_GETCOMPO = "GetComponent";
+        public const string NAME_OF_ONCLICK = "onClick";
+        public const string NAME_OF_ADDLISTENER = "AddListener";
+        public const string NAME_OF_REMOVELISTENER = "RemoveListener";
         readonly string[] _ctrlTypes =
         {
             CTRL_TYPE_BUTTON,

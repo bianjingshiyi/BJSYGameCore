@@ -90,10 +90,15 @@ namespace BJSYGameCore
         }
         public static MonoScript[] tryFindScripts(Func<MonoScript, bool> filter)
         {
-            return AssetDatabase.FindAssets("t:" + typeof(MonoScript).Name)
+            List<MonoScript> scriptList = new List<MonoScript>();
+            foreach (var script in AssetDatabase.FindAssets("t:" + typeof(MonoScript).Name)
                 .Select(g => AssetDatabase.GUIDToAssetPath(g))
-                .Select(p => AssetDatabase.LoadAssetAtPath<MonoScript>(p))
-                .Where(s => s != null && filter(s)).ToArray();
+                .Select(p => AssetDatabase.LoadAssetAtPath<MonoScript>(p)))
+            {
+                if (script != null && filter(script))
+                    scriptList.Add(script);
+            }
+            return scriptList.ToArray();
         }
     }
 }

@@ -110,7 +110,7 @@ namespace Tests
             child.transform.parent = gameObject.transform;
             AutoCompoGenerator generator = new AutoCompoGenerator()
             {
-                typeName = "AutoUIView",
+                specifiedTypeName = "AutoUIView",
                 objFieldDict = new Dictionary<Object, AutoBindFieldInfo>()
                 {
                     { animator, new AutoBindFieldInfo(animator.GetInstanceID(),"./",typeof(Animator),null,"_animator") },
@@ -152,7 +152,7 @@ namespace Tests
             Button button = gameObject.AddComponent<Button>();
             AutoCompoGenerator generator = new AutoCompoGenerator()
             {
-                typeName = "CommonButton",
+                specifiedTypeName = "CommonButton",
                 objFieldDict = new Dictionary<Object, AutoBindFieldInfo>()
                 {
                     { button, new AutoBindFieldInfo(button.GetInstanceID(),"./",typeof(Button),null,"_button") }
@@ -189,7 +189,7 @@ namespace Tests
             Button button = gameObject.AddComponent<Button>();
             AutoCompoGenerator generator = new AutoCompoGenerator()
             {
-                typeName = "CommonButton",
+                specifiedTypeName = "CommonButton",
                 objFieldDict = new Dictionary<Object, AutoBindFieldInfo>()
                 {
                     { button, new AutoBindFieldInfo(button.GetInstanceID(),"./",typeof(Button),null,null) }
@@ -225,7 +225,7 @@ namespace Tests
             item.transform.SetParent(gameObject.transform);
             AutoCompoGenerator generator = new AutoCompoGenerator()
             {
-                typeName = "ItemList",
+                specifiedTypeName = "ItemList",
                 objFieldDict = new Dictionary<Object, AutoBindFieldInfo>()
                 {
                     { item, new AutoBindFieldInfo(item.GetInstanceID(),"./Item",typeof(GameObject),null,null) }

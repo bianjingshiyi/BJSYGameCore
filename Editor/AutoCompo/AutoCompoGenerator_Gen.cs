@@ -7,7 +7,7 @@ namespace BJSYGameCore.AutoCompo
 {
     partial class AutoCompoGenerator
     {
-        protected void addTypeUsing(Type type)
+        public void addTypeUsing(Type type)
         {
             if (type.IsPrimitive)
                 return;
@@ -50,19 +50,19 @@ namespace BJSYGameCore.AutoCompo
             field.Name = fieldName;
             return field;
         }
-        protected CodeMemberField genField(string typeName, string fieldName, bool applyAttributes = true)
+        public CodeMemberField genField(string typeName, string fieldName, bool applyAttributes = true)
         {
             return genField(_type, MemberAttributes.Public | MemberAttributes.Final, typeName, fieldName, applyAttributes);
         }
-        protected CodeMemberField genField(Type fieldType, string fieldName, bool applyAttributes = true)
+        public CodeMemberField genField(Type fieldType, string fieldName, bool applyAttributes = true)
         {
             return genField(_type, MemberAttributes.Public | MemberAttributes.Final, fieldType, fieldName, applyAttributes);
         }
-        protected CodeMemberField genField(MemberAttributes attributes, string typeName, string fieldName, bool applyAttributes = true)
+        public CodeMemberField genField(MemberAttributes attributes, string typeName, string fieldName, bool applyAttributes = true)
         {
             return genField(_type, attributes, typeName, fieldName, applyAttributes);
         }
-        protected CodeMemberField genField(MemberAttributes attributes, Type fieldType, string fieldName, bool applyAttributes = true)
+        public CodeMemberField genField(MemberAttributes attributes, Type fieldType, string fieldName, bool applyAttributes = true)
         {
             return genField(_type, attributes, fieldType, fieldName, applyAttributes);
         }
@@ -93,7 +93,7 @@ namespace BJSYGameCore.AutoCompo
         {
             return genProp(_type, attributes, propType, propName);
         }
-        protected CodeMemberMethod genMethod(CodeTypeDeclaration type, MemberAttributes attributes, string returnTypeName, string methodName)
+        public CodeMemberMethod genMethod(CodeTypeDeclaration type, MemberAttributes attributes, string returnTypeName, string methodName)
         {
             CodeMemberMethod method = new CodeMemberMethod
             {
@@ -104,7 +104,7 @@ namespace BJSYGameCore.AutoCompo
             type.Members.Add(method);
             return method;
         }
-        protected CodeMemberMethod genMethod(CodeTypeDeclaration type, MemberAttributes attributes, Type returnType, string methodName)
+        public CodeMemberMethod genMethod(CodeTypeDeclaration type, MemberAttributes attributes, Type returnType, string methodName)
         {
             addTypeUsing(returnType);
             CodeMemberMethod method = new CodeMemberMethod
@@ -116,15 +116,15 @@ namespace BJSYGameCore.AutoCompo
             type.Members.Add(method);
             return method;
         }
-        protected CodeMemberMethod genMethod(MemberAttributes attributes, Type returnType, string methodName)
+        public CodeMemberMethod genMethod(MemberAttributes attributes, Type returnType, string methodName)
         {
             return genMethod(_type, attributes, returnType, methodName);
         }
-        protected CodeMemberMethod genMethod(MemberAttributes attributes, string returnTypeName, string methodName)
+        public CodeMemberMethod genMethod(MemberAttributes attributes, string returnTypeName, string methodName)
         {
             return genMethod(_type, attributes, returnTypeName, methodName);
         }
-        protected CodeMemberEvent genEvent(string eventTypeName, string eventName, params CodeTypeReference[] typeParameters)
+        public CodeMemberEvent genEvent(string eventTypeName, string eventName, params CodeTypeReference[] typeParameters)
         {
             CodeMemberEvent Event = new CodeMemberEvent();
             _type.Members.Add(Event);
