@@ -59,6 +59,10 @@ namespace BJSYGameCore.UI {
         /// 最后一个UI物体的索引
         /// </summary>
         private int rearUIObjIndex = -1;
+        /// <summary>
+        /// 实际激活的ui物体数量
+        /// </summary>
+        private int activeUIObjCount = 0;
 
         //由于Vertical和Horizontal类型的LayoutGroup
         //没有提供UI物体的尺寸信息
@@ -274,6 +278,7 @@ namespace BJSYGameCore.UI {
                     if (!element.uiObj.gameObject.activeInHierarchy) {
                         element.uiObj.gameObject.SetActive(true);
                         onDisplayUIObj?.Invoke(++rearUIObjIndex, element.uiObj);
+                        activeUIObjCount++;
                         return element.uiObj;
                     }
                 }
@@ -292,6 +297,7 @@ namespace BJSYGameCore.UI {
                 }
 
                 uiElements.AddLast(new UIElement { uiObj = uiObj, rectTransform = objRectTransform });
+                activeUIObjCount++;
                 onDisplayUIObj?.Invoke(++rearUIObjIndex, uiObj);
                 return uiObj;
             }
@@ -299,9 +305,9 @@ namespace BJSYGameCore.UI {
         }
 
         /// <summary>
-        /// 在LayoutGruop重新激活的时候(OnEnable)，
-        /// 如果数据集没有发生变化，需要调用此方法，重新校正一下虚拟列表
-        /// 如果数据集发生变化了，直接用reset，然后重新addItem吧
+        /// 在LayoutGruop重新激活的时候(OnEnable); 
+        /// 如果数据集没有发生变化，需要调用此方法，重新校正一下虚拟列表; 
+        /// 如果数据集发生变化了，直接用reset，然后重新addItem吧; 
         /// </summary>
         public void reShow() {
             //重置部分成员
@@ -356,6 +362,7 @@ namespace BJSYGameCore.UI {
                 element.uiObj.gameObject.SetActive(false);
                 uiElements.AddLast(element);
             }
+            activeUIObjCount = 0;
         }
 
         /// <summary>
@@ -424,10 +431,16 @@ namespace BJSYGameCore.UI {
         /// <param name="index">数据索引</param>
         public void ReloadElementAt(int index) {
             var delta = rearUIObjIndex - index;
-            if (delta < 0 || delta >= uiElements.Count) { return; }
-
-            var ele = uiElements.Last;
-            for (int i = 0; i <delta; i++, ele = ele.Previous) ;
+            if (delta < 0 || delta >= TotalElementCount) { return; }
+            LinkedListNode<UIElement> ele;
+            if(activeUIObjCount<TotalElementCount) {
+                ele = uiElements.First;
+                for (int i = 1; i <= index; i++, ele = ele.Next);
+            }
+            else {
+                ele = uiElements.Last;
+                for (int i = 0; i < delta; i++, ele = ele.Previous);
+            }
             onDisplayUIObj?.Invoke(index, ele.Value.uiObj);
         }
 
