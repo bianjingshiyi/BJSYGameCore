@@ -56,7 +56,7 @@ namespace BJSYGameCore.UI {
         /// </summary>
         private int lastLineCount = 0;
         /// <summary>
-        /// 最后一个UI物体的索引
+        /// 记录了最后一行或最后一列的最后一个ui物体的索引，可能会越界
         /// </summary>
         private int rearUIObjIndex = -1;
         /// <summary>
@@ -370,7 +370,7 @@ namespace BJSYGameCore.UI {
         /// </summary>
         /// <param name="_"></param>
         void updateVirtualList(Vector2 _) {
-            int lastRearUIObjIndex = rearUIObjIndex;//记录上一次最后一个ui物体的索引
+            int lastRearUIObjIndex = rearUIObjIndex;//记录上一次
             int lineCount = 0;                      //当前滚动过的横行或纵行的行数
             int deltaLineCount = 0;                 //行号差
             Vector2 deltaPos = Vector2.zero;        //位置差
@@ -430,7 +430,9 @@ namespace BJSYGameCore.UI {
         /// </summary>
         /// <param name="index">数据索引</param>
         public void ReloadElementAt(int index) {
-            var delta = rearUIObjIndex - index;
+            int delta;
+            if (rearUIObjIndex < TotalDataCount) { delta = rearUIObjIndex - index; }
+            else { delta = TotalDataCount-1 - index; }
             if (delta < 0 || delta >= TotalElementCount) { return; }
             LinkedListNode<UIElement> ele;
             if(activeUIObjCount<TotalElementCount) {
