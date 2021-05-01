@@ -45,13 +45,16 @@ namespace BJSYGameCore.UI
         {
             get { return getItems().Length; }
         }
-        public bool removeItem(UIObject item)
+        public bool removeItem(UIObject item, bool Immediate = false)
         {
             if (item == null)
                 return false;
             if (item.transform.parent == transform)
             {
-                Destroy(item.gameObject);
+                if (Immediate)
+                    DestroyImmediate(item.gameObject);
+                else
+                    Destroy(item.gameObject);
                 return true;
             }
             else
