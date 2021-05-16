@@ -10,6 +10,7 @@ using UnityEngine.UI;
 namespace BJSYGameCore.UI {
     /// <summary>
     /// 虚拟列表（暂时只支持从上到下和从左到右的排序）
+    /// 相对比较静态，如果要增删元素，得reset重建一下列表....
     /// </summary>
     /// <typeparam name="T"> UI物体的类型 </typeparam>
     public class VirtualList<T> where T : MonoBehaviour {
@@ -28,6 +29,8 @@ namespace BJSYGameCore.UI {
         private LayoutGroupType layoutGroupType;
         private RectTransform layoutGroupRectTrans;
         private ScrollRect scrollRect;
+        private LayoutGroup layoutGroup;
+        private Vector2 lastScreenSize = Vector2.zero;
 
         /// <summary>
         /// 刷新列表中UI物体时，需要触发此事件
@@ -38,6 +41,10 @@ namespace BJSYGameCore.UI {
         /// 实际显示的UI物体和它的RectTransform
         /// </summary>
         private LinkedList<UIElement> uiElements = new LinkedList<UIElement>();
+        /// <summary>
+        /// ui物体缓存池
+        /// </summary>
+        private List<UIElement> uiElementPool = new List<UIElement>();
 
         /// <summary>
         /// UI物体生成器，UI物体生成方法需要由外面指定
@@ -59,10 +66,6 @@ namespace BJSYGameCore.UI {
         /// 记录了最后一行或最后一列的最后一个ui物体的索引，可能会越界
         /// </summary>
         private int rearUIObjIndex = -1;
-        /// <summary>
-        /// 实际激活的ui物体数量
-        /// </summary>
-        private int activeUIObjCount = 0;
 
         //由于Vertical和Horizontal类型的LayoutGroup
         //没有提供UI物体的尺寸信息
@@ -84,56 +87,14 @@ namespace BJSYGameCore.UI {
         /// </summary>
         public int VerticalCount { get; private set; }
         /// <summary>
-        /// 总共创建的UI物体的个数
+        /// 创建的UI物体的最大个数
         /// </summary>
-        public int TotalElementCount { get { return HorizontalCount * VerticalCount; } }
+        public int MaxElementCount { get { return HorizontalCount * VerticalCount; } }
         public int TotalDataCount {
             get { return totalDataCount; }
             set {
                 totalDataCount = value;
-
-                // 对ContentSizeFitter做一下容错
-                //强行将ContentSizeFitter的所有选项设为Unconstrained模式，以便能调整LayoutGroup的大小
-                ContentSizeFitter csf = layoutGroupRectTrans.GetComponent<ContentSizeFitter>();
-                if (csf) {
-                    csf.verticalFit = ContentSizeFitter.FitMode.Unconstrained;
-                    csf.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-                }
-
-
-                // 判断LayoutGroup的类型，然后计算LayoutGroup的尺寸
-                switch (layoutGroupType) {
-                    case LayoutGroupType.Horizontal:
-                        //锚点设在左侧
-                        layoutGroupRectTrans.anchorMin = Vector2.zero;
-                        layoutGroupRectTrans.anchorMax = Vector2.up;
-
-                        layoutGroupRectTrans.setWidth(value * realCellSize.x);
-                        break;
-                    case LayoutGroupType.Vertical:
-                        //锚点设在顶端
-                        layoutGroupRectTrans.anchorMin = Vector2.up;
-                        layoutGroupRectTrans.anchorMax = Vector2.one;
-
-                        layoutGroupRectTrans.setHeight(value * realCellSize.y);
-                        break;
-                    case LayoutGroupType.Gird:
-                        //锚点设在左上角
-                        layoutGroupRectTrans.anchorMin = layoutGroupRectTrans.anchorMax = Vector2.up;
-
-                        if (scrollRect.horizontal && !scrollRect.vertical) {
-                            int colCount = Mathf.CeilToInt((float)value / VerticalCount);
-                            layoutGroupRectTrans.setWidth(colCount * realCellSize.x);
-                            layoutGroupRectTrans.setHeight(scrollRect.GetComponent<RectTransform>().rect.height);
-                        }
-                        else if (scrollRect.vertical && !scrollRect.horizontal) {
-                            int rowCount = Mathf.CeilToInt((float)value / HorizontalCount);
-                            layoutGroupRectTrans.setWidth(scrollRect.GetComponent<RectTransform>().rect.width);
-                            layoutGroupRectTrans.setHeight(rowCount * realCellSize.y);
-                        }
-                        break;
-                }
-                layoutGroupRectTrans.anchoredPosition = Vector2.zero;
+                resetLayoutGroupRect();
             }
         }
 
@@ -145,9 +106,21 @@ namespace BJSYGameCore.UI {
         /// </summary>
         /// <param name="itemGernerator">ui物体生成器</param>
         /// <param name="layoutGroup">layoutGroup</param>
-        public VirtualList(Func<T> itemGernerator, LayoutGroup layoutGroup) {
+        public VirtualList(Func<T> uiObjGernerator, LayoutGroup layoutGroup) {
             layoutGroupRectTrans = layoutGroup.GetComponent<RectTransform>();
             scrollRect = layoutGroupRectTrans.GetComponentInParent<ScrollRect>();
+            this.uiObjGernerator = uiObjGernerator;
+            this.layoutGroup = layoutGroup;
+            uiElementPool = new List<UIElement>();
+            uiElements = new LinkedList<UIElement>();
+            checkGameWndChange();
+        }
+        
+        /// <summary>
+        /// 初始化虚拟列表
+        /// </summary>
+        private void init() {
+            
             if (scrollRect == null) {
                 Debug.LogError("ScrollRect should not be null in parent obj!!! \n (父物体里ScrollRect不能为空)");
                 return;
@@ -260,10 +233,73 @@ namespace BJSYGameCore.UI {
             }
 
             scrollRect.onValueChanged.AddListener(updateVirtualList);
-            this.uiObjGernerator = itemGernerator;
+            
+        }
 
-            //这里调一下reset，做个容错
-            reset();
+        /// <summary>
+        /// 重新计算layoutGroup的尺寸
+        /// </summary>
+        private void resetLayoutGroupRect() {
+            // 对ContentSizeFitter做一下容错
+            //强行将ContentSizeFitter的所有选项设为Unconstrained模式，以便能调整LayoutGroup的大小
+            ContentSizeFitter csf = layoutGroupRectTrans.GetComponent<ContentSizeFitter>();
+            if (csf) {
+                csf.verticalFit = ContentSizeFitter.FitMode.Unconstrained;
+                csf.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            }
+
+
+            // 判断LayoutGroup的类型，然后计算LayoutGroup的尺寸
+            switch (layoutGroupType) {
+                case LayoutGroupType.Horizontal:
+                    //锚点设在左侧
+                    layoutGroupRectTrans.anchorMin = Vector2.zero;
+                    layoutGroupRectTrans.anchorMax = Vector2.up;
+
+                    layoutGroupRectTrans.setWidth(totalDataCount * realCellSize.x);
+                    break;
+                case LayoutGroupType.Vertical:
+                    //锚点设在顶端
+                    layoutGroupRectTrans.anchorMin = Vector2.up;
+                    layoutGroupRectTrans.anchorMax = Vector2.one;
+
+                    layoutGroupRectTrans.setHeight(totalDataCount * realCellSize.y);
+                    break;
+                case LayoutGroupType.Gird:
+
+
+                    if (scrollRect.horizontal && !scrollRect.vertical) {
+                        //锚点设在左侧
+                        layoutGroupRectTrans.anchorMin = Vector2.zero;
+                        layoutGroupRectTrans.anchorMax = Vector2.up;
+                        int colCount = Mathf.CeilToInt((float)totalDataCount / VerticalCount);
+                        layoutGroupRectTrans.setWidth(colCount * realCellSize.x);
+                        //layoutGroupRectTrans.setHeight(scrollRect.GetComponent<RectTransform>().rect.height);
+                    }
+                    else if (scrollRect.vertical && !scrollRect.horizontal) {
+                        //锚点设在顶端
+                        layoutGroupRectTrans.anchorMin = Vector2.up;
+                        layoutGroupRectTrans.anchorMax = Vector2.one;
+                        int rowCount = Mathf.CeilToInt((float)totalDataCount / HorizontalCount);
+                        //layoutGroupRectTrans.setWidth(scrollRect.GetComponent<RectTransform>().rect.width);
+                        layoutGroupRectTrans.setHeight(rowCount * realCellSize.y);
+                    }
+                    break;
+            }
+            layoutGroupRectTrans.anchoredPosition = Vector2.zero;
+        }
+
+        /// <summary>
+        /// 当窗口尺寸发生变化，重新初始化虚拟列表
+        /// </summary>
+        public void checkGameWndChange() {
+            if(lastScreenSize.x != Screen.width || lastScreenSize.y != Screen.height) {
+                init();
+                reset();
+                resetLayoutGroupRect();
+                for (int i = 0; i < totalDataCount; i++) { addItem();}
+                lastScreenSize = new Vector2(Screen.width, Screen.height);
+            }
         }
 
         /// <summary>
@@ -272,18 +308,19 @@ namespace BJSYGameCore.UI {
         /// </summary>
         /// <returns>UI物体实例</returns>
         public T addItem() {
-            //如果uiElements里面有现成的可用，就不必创建新的
-            if (uiElements.Count > 0) {
-                foreach (UIElement element in uiElements) {
+            //如果uiElementPool里面有现成的可用，就不必创建新的
+            if (uiElementPool.Count > 0) {
+                foreach (UIElement element in uiElementPool) {
                     if (!element.uiObj.gameObject.activeInHierarchy) {
                         element.uiObj.gameObject.SetActive(true);
-                        onDisplayUIObj?.Invoke(++rearUIObjIndex, element.uiObj);
-                        activeUIObjCount++;
+                        rearUIObjIndex +=1 ;
+                        onDisplayUIObj?.Invoke(rearUIObjIndex, element.uiObj);
+                        uiElements.AddLast(element);
                         return element.uiObj;
                     }
                 }
             }
-            if (uiElements.Count < TotalElementCount) {
+            if (uiElements.Count < MaxElementCount) {
                 T uiObj = uiObjGernerator?.Invoke();
                 if (uiObjGernerator == null) {
                     Debug.LogError("UIObjGernerator should not be null!!! \n UIObjGernerator 不应该为空");
@@ -296,45 +333,13 @@ namespace BJSYGameCore.UI {
                     return null;
                 }
 
-                uiElements.AddLast(new UIElement { uiObj = uiObj, rectTransform = objRectTransform });
-                activeUIObjCount++;
+                var element = new UIElement { uiObj = uiObj, rectTransform = objRectTransform };
+                uiElements.AddLast(element);
+                uiElementPool.Add(element);
                 onDisplayUIObj?.Invoke(++rearUIObjIndex, uiObj);
                 return uiObj;
             }
             return null;
-        }
-
-        /// <summary>
-        /// 在LayoutGruop重新激活的时候(OnEnable); 
-        /// 如果数据集没有发生变化，需要调用此方法，重新校正一下虚拟列表; 
-        /// 如果数据集发生变化了，直接用reset，然后重新addItem吧; 
-        /// </summary>
-        public void reShow() {
-            //重置部分成员
-            layoutGroupRectTrans.anchoredPosition = Vector2.zero;
-            rearUIObjIndex = TotalElementCount - 1;
-            lastLineCount = 0;
-            uiElements.Clear();
-
-            // 有坑！LayoutGroup的元素顺序是根据Transfrom的顺序去排列的
-            // 所以我们要获取一下LayoutGroup里ui列表元素的Transform
-            // 用它的顺序来重置uiElements
-            List<RectTransform> tempList = new List<RectTransform>();
-            foreach (RectTransform childTrans in layoutGroupRectTrans) {
-                if (!childTrans.gameObject.activeInHierarchy) { continue; }
-                tempList.Add(childTrans);
-            }
-
-            for (int elementIndex = 0; elementIndex < tempList.Count; elementIndex++) {
-                UIElement element = new UIElement { rectTransform = tempList[elementIndex], uiObj = null };
-                element.uiObj = element.rectTransform.gameObject as T;
-                if (element.uiObj == null) { element.uiObj = element.rectTransform.GetComponent<T>(); }
-
-                element.rectTransform.anchoredPosition = Vector2.zero;
-
-                uiElements.AddLast(element);
-                onDisplayUIObj?.Invoke(elementIndex, element.uiObj);
-            }
         }
 
         /// <summary>
@@ -347,22 +352,10 @@ namespace BJSYGameCore.UI {
             lastLineCount = 0;
             uiElements.Clear();
 
-            // 有坑！LayoutGroup的元素顺序是根据Transfrom的顺序去排列的
-            // 所以我们要获取一下LayoutGroup里ui列表元素的Transform，
-            // 用它的顺序来重置uiElements
-            List<RectTransform> tempList = new List<RectTransform>();
-            foreach (RectTransform childTrans in layoutGroupRectTrans) {
-                tempList.Add(childTrans);
-            }
-            for (int elementIndex = 0; elementIndex < tempList.Count; elementIndex++) {
-                UIElement element = new UIElement { rectTransform = tempList[elementIndex], uiObj = null };
-                element.uiObj = element.rectTransform.gameObject as T;
-                if (element.uiObj == null) { element.uiObj = element.rectTransform.GetComponent<T>(); }
-
+            for (int elementIndex = 0; elementIndex < uiElementPool.Count; elementIndex++) {
+                UIElement element = uiElementPool[elementIndex];
                 element.uiObj.gameObject.SetActive(false);
-                uiElements.AddLast(element);
             }
-            activeUIObjCount = 0;
         }
 
         /// <summary>
@@ -394,7 +387,7 @@ namespace BJSYGameCore.UI {
             if (deltaLineCount > 0) {
                 for (int uiObjIndex = lastRearUIObjIndex + 1; uiObjIndex <= rearUIObjIndex; uiObjIndex++) {
                     //防止数组越界
-                    if (uiObjIndex >= TotalDataCount || uiObjIndex < TotalElementCount) { continue; }
+                    if (uiObjIndex >= TotalDataCount || uiObjIndex < MaxElementCount) { continue; }
 
                     //刷新位置和数据
                     var elementNode = uiElements.First;
@@ -410,7 +403,7 @@ namespace BJSYGameCore.UI {
             else if (deltaLineCount < 0) {
                 for (int uiObjIndex = lastRearUIObjIndex; uiObjIndex > rearUIObjIndex; uiObjIndex--) {
                     //防止数组越界
-                    if (uiObjIndex >= TotalDataCount || uiObjIndex < TotalElementCount) { continue; }
+                    if (uiObjIndex >= TotalDataCount || uiObjIndex < MaxElementCount) { continue; }
 
                     //刷新位置和数据
                     var elementNode = uiElements.Last;
@@ -418,7 +411,7 @@ namespace BJSYGameCore.UI {
                     element.rectTransform.anchoredPosition += deltaPos;
                     uiElements.RemoveLast();
                     uiElements.AddFirst(elementNode);
-                    onDisplayUIObj?.Invoke(uiObjIndex - TotalElementCount, element.uiObj);
+                    onDisplayUIObj?.Invoke(uiObjIndex - MaxElementCount, element.uiObj);
                 }
             }
 
@@ -433,9 +426,9 @@ namespace BJSYGameCore.UI {
             int delta;
             if (rearUIObjIndex < TotalDataCount) { delta = rearUIObjIndex - index; }
             else { delta = TotalDataCount-1 - index; }
-            if (delta < 0 || delta >= TotalElementCount) { return; }
+            if (delta < 0 || delta >= MaxElementCount) { return; }
             LinkedListNode<UIElement> ele;
-            if(activeUIObjCount<TotalElementCount) {
+            if(uiElements.Count<MaxElementCount) {
                 ele = uiElements.First;
                 for (int i = 1; i <= index; i++, ele = ele.Next);
             }
@@ -451,6 +444,7 @@ namespace BJSYGameCore.UI {
         /// 第一个元素最开始的位置，用来做reset
         /// </summary>
         //private Vector2 originPos = Vector2.zero;
+
         /// <summary>
         /// 尝试初始化originPos
         /// </summary>
@@ -463,6 +457,39 @@ namespace BJSYGameCore.UI {
         //        return true;
         //    }
         //    return false;
+        //}
+
+        /// <summary>
+        /// 在LayoutGruop重新激活的时候(OnEnable); 
+        /// 如果数据集没有发生变化，需要调用此方法，重新校正一下虚拟列表; 
+        /// 如果数据集发生变化了，直接用reset，然后重新addItem吧; 
+        /// </summary>
+        //public void reShow() {
+        //    //重置部分成员
+        //    layoutGroupRectTrans.anchoredPosition = Vector2.zero;
+        //    rearUIObjIndex = MaxElementCount - 1;
+        //    lastLineCount = 0;
+        //    uiElements.Clear();
+
+        //    // 有坑！LayoutGroup的元素顺序是根据Transfrom的顺序去排列的
+        //    // 所以我们要获取一下LayoutGroup里ui列表元素的Transform
+        //    // 用它的顺序来重置uiElements
+        //    List<RectTransform> tempList = new List<RectTransform>();
+        //    foreach (RectTransform childTrans in layoutGroupRectTrans) {
+        //        if (!childTrans.gameObject.activeInHierarchy) { continue; }
+        //        tempList.Add(childTrans);
+        //    }
+
+        //    for (int elementIndex = 0; elementIndex < tempList.Count; elementIndex++) {
+        //        UIElement element = new UIElement { rectTransform = tempList[elementIndex], uiObj = null };
+        //        element.uiObj = element.rectTransform.gameObject as T;
+        //        if (element.uiObj == null) { element.uiObj = element.rectTransform.GetComponent<T>(); }
+
+        //        element.rectTransform.anchoredPosition = Vector2.zero;
+
+        //        //uiElements.AddLast(element);
+        //        onDisplayUIObj?.Invoke(elementIndex, element.uiObj);
+        //    }
         //}
         #endregion
     }

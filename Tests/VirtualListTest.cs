@@ -36,7 +36,7 @@ public class VirtualListTest : MonoBehaviour
     }
 
     private void OnEnable() {
-        if (virtualList != null) { virtualList.reShow(); }
+        //if (virtualList != null) { virtualList.reShow(); }
     }
 
     private void Start()
