@@ -28,12 +28,25 @@ namespace BJSYGameCore.UI {
         }
 
         private class UIElementCache {
+            /// <summary>
+            /// ui物体缓存
+            /// </summary>
             private List<UIElement> cache = new List<UIElement>();
+            /// <summary>
+            /// 可用的索引
+            /// </summary>
             int availiableIndex = 0;
+            /// <summary>
+            /// 缓存新产生的UI物体
+            /// </summary>
+            /// <param name="element">new</param>
             public void cacheUIElement(UIElement element) {
                 cache.Add(element);
                 availiableIndex = cache.Count;
             }
+            /// <summary>
+            /// 让缓存生效
+            /// </summary>
             public void makeCacheAvailiable() {
                 for (int elementIndex = 0; elementIndex < cache.Count; elementIndex++) {
                     UIElement element = cache[elementIndex];
@@ -41,6 +54,10 @@ namespace BJSYGameCore.UI {
                 }
                 availiableIndex = 0;
             }
+            /// <summary>
+            /// 从缓存中获取可用的UI物体
+            /// </summary>
+            /// <returns></returns>
             public UIElement getAvailiableUIElement() {
                 if (availiableIndex < cache.Count) {
                     var element = cache[availiableIndex];
@@ -50,6 +67,9 @@ namespace BJSYGameCore.UI {
                 }
                 return null;
             }
+            /// <summary>
+            /// 象征性的clear
+            /// </summary>
             public void clear() {
                 cache.Clear();
                 availiableIndex = 0;
@@ -62,7 +82,7 @@ namespace BJSYGameCore.UI {
         private ScrollRect scrollRect;
         private RectTransform scrollRectTrans;
         private LayoutGroup layoutGroup;
-        private Rect lastLayoutGroupRect = Rect.zero;
+        private Rect currViewPortRect = Rect.zero;
 
         /// <summary>
         /// 刷新列表中UI物体时，需要触发此事件
@@ -70,7 +90,7 @@ namespace BJSYGameCore.UI {
         public event Action<int, T> onDisplayUIObj;
 
         /// <summary>
-        /// 实际显示的UI物体和它的RectTransform
+        /// 实际显示的UI物体
         /// </summary>
         private LinkedList<UIElement> uiElements = new LinkedList<UIElement>();
         /// <summary>
@@ -116,8 +136,8 @@ namespace BJSYGameCore.UI {
                         listUIObjRectTrans = listUIObjTrans.GetComponent<RectTransform>();
                     }
                     else {
-                        Debug.LogError("There is not templete uiObject exist in LayoutGroup!!\n" +
-                            "（LayoutGroup里面没有模板UI物体!!）");
+                        Debug.LogError("There is not templete uiObject exist in layoutGroup!!\n" +
+                            "（layoutGroup里面没有模板UI物体!!）");
                         return null;
                     }
                 }
@@ -153,20 +173,22 @@ namespace BJSYGameCore.UI {
         /// <param name="itemGernerator">ui物体生成器</param>
         /// <param name="layoutGroup">layoutGroup</param>
         public VirtualList(Func<T> uiObjGernerator, LayoutGroup layoutGroup) {
-            layoutGroupRectTrans = layoutGroup.GetComponent<RectTransform>();
-            scrollRect = layoutGroupRectTrans.GetComponentInParent<ScrollRect>();
-            scrollRectTrans = scrollRect.GetComponent<RectTransform>();
             this.uiObjGernerator = uiObjGernerator;
             this.layoutGroup = layoutGroup;
+            layoutGroupRectTrans = layoutGroup.GetComponent<RectTransform>();
+            scrollRect = layoutGroupRectTrans.GetComponentInParent<ScrollRect>();
+            if (scrollRect == null) {
+                Debug.LogError("ScrollRect should not be null in parent obj of layoutGroup!!! \n (layoutGroup父物体里ScrollRect不能为空)");
+                return;
+            }
+            scrollRectTrans = scrollRect.GetComponent<RectTransform>();
             uiElementCache = new UIElementCache();
             uiElements = new LinkedList<UIElement>();
             initStrategyDict = new Dictionary<LayoutGroupType, UnityAction<float, float>>();
             initStrategyDict.Add(LayoutGroupType.Gird, initForGridLayoutGroup);
             initStrategyDict.Add(LayoutGroupType.Vertical, initForVerticalLayoutGroup);
             initStrategyDict.Add(LayoutGroupType.Horizontal, initForHorizontalLayoutGroup);
-            layoutGroupType = LayoutGroupType.None;
             init();
-            lastLayoutGroupRect = scrollRectTrans.rect;
         }
         
         private void initForGridLayoutGroup(float realWidth, float realHeight) {
@@ -269,16 +291,10 @@ namespace BJSYGameCore.UI {
         /// 初始化虚拟列表
         /// </summary>
         private void init() {
-            
-            if (scrollRect == null) {
-                Debug.LogError("ScrollRect should not be null in parent obj!!! \n (父物体里ScrollRect不能为空)");
-                return;
-            }
-
-            Rect viewPortRect = scrollRect.GetComponent<RectTransform>().rect;
+            currViewPortRect = scrollRectTrans.rect;
             //考虑了padding在内计算出的实际视口的宽和高
-            float realHeight = viewPortRect.height - layoutGroup.padding.top - layoutGroup.padding.bottom;
-            float realWidth = viewPortRect.width - layoutGroup.padding.left - layoutGroup.padding.right;
+            float realHeight = currViewPortRect.height - layoutGroup.padding.top - layoutGroup.padding.bottom;
+            float realWidth = currViewPortRect.width - layoutGroup.padding.left - layoutGroup.padding.right;
 
             // 对ContentSizeFitter做一下容错
             //强行将ContentSizeFitter的所有选项设为Unconstrained模式，以便能调整LayoutGroup的大小
@@ -288,6 +304,7 @@ namespace BJSYGameCore.UI {
                 csf.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
             }
 
+            layoutGroupType = LayoutGroupType.None;
             if (layoutGroup is GridLayoutGroup) {layoutGroupType = LayoutGroupType.Gird; }
             else if (layoutGroup is VerticalLayoutGroup) {layoutGroupType = LayoutGroupType.Vertical; }
             else if (layoutGroup is HorizontalLayoutGroup) {  layoutGroupType = LayoutGroupType.Horizontal;}
@@ -296,8 +313,8 @@ namespace BJSYGameCore.UI {
                 initFunc?.Invoke(realWidth, realHeight); 
             }
             else {
-                Debug.LogError("The param of layoutGroup must be a subclass object of LayoutGroup \n" +
-                    "参数layoutGroup必须是LayoutGroup的子类对象");
+                Debug.LogError("layoutGroup must be a subclass object that inherits from the LayoutGroup(class) \n" +
+                    "layoutGroup必须是继承自LayoutGroup(类)的子类对象");
                 return;
             }
             scrollRect.onValueChanged.AddListener(updateVirtualList); 
@@ -346,13 +363,13 @@ namespace BJSYGameCore.UI {
         /// <summary>
         /// 当ScrollRect尺寸发生变化，重新初始化虚拟列表
         /// </summary>
-        public void checkScrollRectChange() {
-            if(lastLayoutGroupRect != scrollRectTrans.rect) {
+        public void checkViewPortChange() {
+            if(currViewPortRect != scrollRectTrans.rect) {
                 init();
                 reset();
                 resetLayoutGroupRect();
                 for (int i = 0; i < totalDataCount; i++) { addItem();}
-                lastLayoutGroupRect = scrollRectTrans.rect;
+                currViewPortRect = scrollRectTrans.rect;
             }
         }
 
@@ -478,6 +495,9 @@ namespace BJSYGameCore.UI {
             onDisplayUIObj?.Invoke(index, ele.Value.uiObj);
         }
 
+        /// <summary>
+        /// 象征性的clear
+        /// </summary>
         public void clear() {
             reset();
             uiElements.Clear();
