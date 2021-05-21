@@ -60,8 +60,9 @@ namespace BJSYGameCore.UI {
         private LayoutGroupType layoutGroupType;
         private RectTransform layoutGroupRectTrans;
         private ScrollRect scrollRect;
+        private RectTransform scrollRectTrans;
         private LayoutGroup layoutGroup;
-        private Vector2 lastScreenSize = Vector2.zero;
+        private Rect lastLayoutGroupRect = Rect.zero;
 
         /// <summary>
         /// 刷新列表中UI物体时，需要触发此事件
@@ -109,7 +110,16 @@ namespace BJSYGameCore.UI {
         public RectTransform ListUIObjRectTrans {
             get {
                 if (listUIObjRectTrans == null) {
-                    listUIObjRectTrans = layoutGroupRectTrans.GetChild(0).GetComponent<RectTransform>();
+                    if(layoutGroupRectTrans.childCount > 0) {
+                        Transform listUIObjTrans = layoutGroupRectTrans.GetChild(0);
+                        listUIObjTrans.gameObject.SetActive(false);
+                        listUIObjRectTrans = listUIObjTrans.GetComponent<RectTransform>();
+                    }
+                    else {
+                        Debug.LogError("There is not templete uiObject exist in LayoutGroup!!\n" +
+                            "（LayoutGroup里面没有模板UI物体!!）");
+                        return null;
+                    }
                 }
                 return listUIObjRectTrans;
             }
@@ -145,6 +155,7 @@ namespace BJSYGameCore.UI {
         public VirtualList(Func<T> uiObjGernerator, LayoutGroup layoutGroup) {
             layoutGroupRectTrans = layoutGroup.GetComponent<RectTransform>();
             scrollRect = layoutGroupRectTrans.GetComponentInParent<ScrollRect>();
+            scrollRectTrans = scrollRect.GetComponent<RectTransform>();
             this.uiObjGernerator = uiObjGernerator;
             this.layoutGroup = layoutGroup;
             uiElementCache = new UIElementCache();
@@ -154,7 +165,8 @@ namespace BJSYGameCore.UI {
             initStrategyDict.Add(LayoutGroupType.Vertical, initForVerticalLayoutGroup);
             initStrategyDict.Add(LayoutGroupType.Horizontal, initForHorizontalLayoutGroup);
             layoutGroupType = LayoutGroupType.None;
-            checkGameWndChange();
+            init();
+            lastLayoutGroupRect = scrollRectTrans.rect;
         }
         
         private void initForGridLayoutGroup(float realWidth, float realHeight) {
@@ -191,7 +203,7 @@ namespace BJSYGameCore.UI {
 
         private void initForVerticalLayoutGroup(float realWidth, float realHeight) {
             VerticalLayoutGroup verticalLayoutGroup = layoutGroup as VerticalLayoutGroup;
-
+            if (ListUIObjRectTrans == null) { return; }
             // 考虑spacing计算列表中UI物体尺寸
             float cellWidth = ListUIObjRectTrans.rect.width * (verticalLayoutGroup.childScaleWidth ? ListUIObjRectTrans.localScale.x : 1);
             float cellHeight = ListUIObjRectTrans.rect.height * (verticalLayoutGroup.childScaleHeight ? listUIObjRectTrans.localScale.y : 1);
@@ -223,7 +235,7 @@ namespace BJSYGameCore.UI {
 
         private void  initForHorizontalLayoutGroup(float realWidth, float realHeight) {
             HorizontalLayoutGroup horizontalLayoutGroup = layoutGroup as HorizontalLayoutGroup;
-
+            if (ListUIObjRectTrans == null) { return; }
             // 考虑spacing计算列表中UI物体尺寸
             float cellWidth = ListUIObjRectTrans.rect.width * (horizontalLayoutGroup.childScaleWidth ? ListUIObjRectTrans.localScale.x : 1) + horizontalLayoutGroup.spacing;
             float cellHeight = ListUIObjRectTrans.rect.height * (horizontalLayoutGroup.childScaleHeight ? listUIObjRectTrans.localScale.y : 1);
@@ -338,12 +350,12 @@ namespace BJSYGameCore.UI {
         /// 当窗口尺寸发生变化，重新初始化虚拟列表
         /// </summary>
         public void checkGameWndChange() {
-            if(lastScreenSize.x != Screen.width || lastScreenSize.y != Screen.height) {
+            if(lastLayoutGroupRect != scrollRectTrans.rect) {
                 init();
                 reset();
                 resetLayoutGroupRect();
                 for (int i = 0; i < totalDataCount; i++) { addItem();}
-                lastScreenSize = new Vector2(Screen.width, Screen.height);
+                lastLayoutGroupRect = scrollRectTrans.rect;
             }
         }
 
