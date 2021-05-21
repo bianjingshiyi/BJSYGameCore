@@ -301,9 +301,7 @@ namespace BJSYGameCore.UI {
                     "参数layoutGroup必须是LayoutGroup的子类对象");
                 return;
             }
-
-            scrollRect.onValueChanged.AddListener(updateVirtualList);
-            
+            scrollRect.onValueChanged.AddListener(updateVirtualList); 
         }
 
         /// <summary>
@@ -347,9 +345,9 @@ namespace BJSYGameCore.UI {
         }
 
         /// <summary>
-        /// 当窗口尺寸发生变化，重新初始化虚拟列表
+        /// 当ScrollRect尺寸发生变化，重新初始化虚拟列表
         /// </summary>
-        public void checkGameWndChange() {
+        public void checkScrollRectChange() {
             if(lastLayoutGroupRect != scrollRectTrans.rect) {
                 init();
                 reset();
