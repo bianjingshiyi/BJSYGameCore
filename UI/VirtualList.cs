@@ -292,8 +292,7 @@ namespace BJSYGameCore.UI {
             else if (layoutGroup is VerticalLayoutGroup) {layoutGroupType = LayoutGroupType.Vertical; }
             else if (layoutGroup is HorizontalLayoutGroup) {  layoutGroupType = LayoutGroupType.Horizontal;}
 
-            bool isInitFuncValid = initStrategyDict.TryGetValue(layoutGroupType, out var initFunc);
-            if (isInitFuncValid) { 
+            if (initStrategyDict.TryGetValue(layoutGroupType, out var initFunc)) { 
                 initFunc?.Invoke(realWidth, realHeight); 
             }
             else {
