@@ -24,7 +24,11 @@ namespace BJSYGameCore
         /// <param name="path">文件保存根目录下的相对路径</param>
         /// <param name="text">文本内容</param>
         /// <returns>当文件写入完毕时返回</returns>
-        public async Task saveFile(string path, string text)
+        public Task saveFile(string path, string text)
+        {
+            return saveFile(path, new string[] { text });
+        }
+        public async Task saveFile(string path, string[] lines)
         {
             path = processPath(path);
             string dir = Path.GetDirectoryName(path);
@@ -32,7 +36,10 @@ namespace BJSYGameCore
                 Directory.CreateDirectory(dir);
             using (StreamWriter sw = new StreamWriter(path))
             {
-                await sw.WriteAsync(text);
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    await sw.WriteAsync(lines[i]);
+                }
             }
         }
         /// <summary>
