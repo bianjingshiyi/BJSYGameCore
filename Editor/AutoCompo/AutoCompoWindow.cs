@@ -127,15 +127,15 @@ namespace BJSYGameCore.AutoCompo
                 EditorGUILayout.LabelField("目标GameObject可能未被加载或者已被销毁");
                 return;
             }
+            //初始化
+            if (_serializedObject == null)
+                _serializedObject = new SerializedObject(this);//序列化对象
             if (_generator == null)
             {
-                //初始化
-                _generator = createGenerator();
-                if (_serializedObject == null)
-                    _serializedObject = new SerializedObject(this);
-                loadEditorSettings();
+                _generator = createGenerator();//生成器
+                loadEditorSettings();//编辑器设置
                 _objGenDict = new Dictionary<Object, AutoBindFieldInfo>();
-                if (script == null)
+                if (script == null)//已存在类型，脚本，自动生成脚本
                 {
                     bool willBeOverride;
                     MonoScript script;
@@ -167,10 +167,9 @@ namespace BJSYGameCore.AutoCompo
                     _autoScripts = tryFindAllAutoScript(script);
                     resetGenDictByType(_type);
                 }
+                initCtrl();//初始化控制器相关
                 onInitByCtrlType();
             }
-            if (_serializedObject == null)
-                _serializedObject = new SerializedObject(this);
             onGUISetting();
             _serializedObject.ApplyModifiedProperties();
             onGUICtrlSettting();
@@ -229,7 +228,7 @@ namespace BJSYGameCore.AutoCompo
                 {
                     string typeName = _type != null ? _type.Name : _gameObject.name;
                     savePath = EditorUtility.SaveFilePanel("另存为脚本",
-                        Path.GetDirectoryName(getSaveFilePath(typeName)),typeName, "cs");
+                        Path.GetDirectoryName(getSaveFilePath(typeName)), typeName, "cs");
                     if (!string.IsNullOrEmpty(savePath) && Directory.Exists(Path.GetDirectoryName(savePath)))
                         confirmGen = true;
                 }
@@ -290,6 +289,14 @@ namespace BJSYGameCore.AutoCompo
             }
             if (_type == null)
                 EditorGUILayout.PropertyField(_serializedObject.FindProperty(NAME_OF_SETTING), new GUIContent("设置"), true);
+            else
+            {
+                //主控制器类型
+                if (_mainCtrlTypeNames.Length > 0)
+                {
+                    _selectedMainCtrlTypeIndex = EditorGUILayout.Popup(_selectedMainCtrlTypeIndex, _mainCtrlTypeNames);
+                }
+            }
             //if (_ctrlTypes == null || _ctrlTypes.Length < 1)
             //    _ctrlTypes = new string[] { "none" }.Concat(_generator.ctrlTypes).ToArray();
             //SerializedProperty ctrlTypeProp = _serializedObject.FindProperty(NAME_OF_CTRL_TYPE);
@@ -438,6 +445,8 @@ namespace BJSYGameCore.AutoCompo
                 _serializedObject.Dispose();
             _serializedObject = null;
         }
+        string[] _mainCtrlTypeNames;
+        int _selectedMainCtrlTypeIndex;
         Vector2 _onGUIGameObjectScrollPos;
         AutoBindFieldInfo _removeField = null;
         KeyValuePair<Object, AutoBindFieldInfo> _redirObjField = default(KeyValuePair<Object, AutoBindFieldInfo>);

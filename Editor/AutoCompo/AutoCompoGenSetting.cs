@@ -26,6 +26,7 @@ namespace BJSYGameCore.AutoCompo
             {
                 fieldAttributes[i] = EditorPrefs.GetString(name + ":" + FIELDATTRIBUTES + i);
             }
+            ctrlNamespace = EditorPrefs.GetString(name + ":" + CTRLNAMESPACE);
         }
         public void saveToPrefs(string name)
         {
@@ -45,11 +46,13 @@ namespace BJSYGameCore.AutoCompo
             {
                 EditorPrefs.SetString(name + ":" + FIELDATTRIBUTES + i, fieldAttributes[i]);
             }
+            EditorPrefs.SetString(name + ":" + CTRLNAMESPACE, ctrlNamespace);
         }
         public string[] usings = new string[0];
         public string Namespace = "UI";
         public string[] baseTypes = new string[0];
         public string[] fieldAttributes = new string[0];
+        public string ctrlNamespace = "Controllers";
         const string USINGS = "AutoCompoGenSetting.usings";
         const string USINGS_LENGTH = "AutoCompoGenSetting.usings.Length";
         const string NAMESPACE = "AutoCompoGenSetting.Namespace";
@@ -57,5 +60,6 @@ namespace BJSYGameCore.AutoCompo
         const string BASETYPES_LENGTH = "AutoCompoGenSetting.baseTypes.Length";
         const string FIELDATTRIBUTES = "AutoCompoGenSetting.fieldAttributes";
         const string FIELDATTRIBUTES_LENGTH = "AutoCompoGenSetting.fieldAttributes.Length";
+        const string CTRLNAMESPACE = "AutoCompoGenSetting.ctrlNamespace";
     }
 }

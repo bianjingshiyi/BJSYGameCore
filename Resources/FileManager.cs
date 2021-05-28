@@ -13,7 +13,12 @@ namespace BJSYGameCore
     /// </summary>
     public class FileManager
     {
-        string processPath(string path)
+        /// <summary>
+        /// 获取相对路径的绝对路径
+        /// </summary>
+        /// <param name="path">相对路径</param>
+        /// <returns>绝对路径</returns>
+        string getFullPath(string path)
         {
             return Path.Combine(Application.persistentDataPath, path);
         }
@@ -30,7 +35,7 @@ namespace BJSYGameCore
         }
         public async Task saveFile(string path, string[] lines)
         {
-            path = processPath(path);
+            path = getFullPath(path);
             string dir = Path.GetDirectoryName(path);
             if (!Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
@@ -38,7 +43,7 @@ namespace BJSYGameCore
             {
                 for (int i = 0; i < lines.Length; i++)
                 {
-                    await sw.WriteAsync(lines[i]);
+                    await sw.WriteLineAsync(lines[i]);
                 }
             }
         }
@@ -50,7 +55,7 @@ namespace BJSYGameCore
         /// <returns>当文件写入完毕时返回</returns>
         public Task saveFile(string path, byte[] bytes)
         {
-            path = processPath(path);
+            path = getFullPath(path);
             FileStream fs = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write);
             return fs.WriteAsync(bytes, 0, bytes.Length);
         }
@@ -61,7 +66,7 @@ namespace BJSYGameCore
         /// <returns>是否存在？</returns>
         public bool isFileExist(string path)
         {
-            path = processPath(path);
+            path = getFullPath(path);
             if (File.Exists(path)) { return true; }
             else { return false; }
         }
@@ -72,7 +77,7 @@ namespace BJSYGameCore
         /// <returns>是否存在文件被删除了？</returns>
         public bool deleteFile(string path)
         {
-            path = processPath(path);
+            path = getFullPath(path);
             bool res = isFileExist(path);
             if (res)
             {
@@ -90,7 +95,7 @@ namespace BJSYGameCore
         /// <returns>所有符合条件的文件路径</returns>
         public string[] getFiles(string dir, string filter, bool includeChildDir)
         {
-            dir = processPath(dir);
+            dir = getFullPath(dir);
             if (!Directory.Exists(dir))
                 return new string[0];
             if (includeChildDir)
@@ -110,7 +115,7 @@ namespace BJSYGameCore
         /// <exception cref="FileLoadException">当目标文件不是文本文件的时候抛出该异常。</exception>
         public Task<string> readTextFile(string path)
         {
-            path = processPath(path);
+            path = getFullPath(path);
             try
             {
                 using (StreamReader sw = new StreamReader(path))
@@ -123,9 +128,9 @@ namespace BJSYGameCore
                 throw new FileLoadException("Invalid Text File!!");
             }
         }
-        public async Task<string[]> readTextFileHead(string path, int startLine = 0, int lineCount = 1, CancellationToken? cancelToken = null)
+        public async Task<string[]> readTextFile(string path, int startLine = 0, int lineCount = 1, CancellationToken? cancelToken = null)
         {
-            path = processPath(path);
+            path = getFullPath(path);
             try
             {
                 string[] headLines = new string[lineCount];
@@ -158,14 +163,14 @@ namespace BJSYGameCore
         /// <param name="lineCount"></param>
         /// <param name="cancelToken"></param>
         /// <returns></returns>
-        public Task<string[][]> readTextFilesHead(string[] paths, int startLine = 0, int lineCount = 1, CancellationToken? cancelToken = null)
+        public Task<string[][]> readTextFiles(string[] paths, int startLine = 0, int lineCount = 1, CancellationToken? cancelToken = null)
         {
             Task<string[]>[] tasks = new Task<string[]>[paths.Length];
             for (int i = 0; i < paths.Length; i++)
             {
                 if (cancelToken != null && cancelToken.Value.IsCancellationRequested)
                     return Task.WhenAll(tasks.Take(i));
-                tasks[i] = readTextFileHead(paths[i], startLine, lineCount, cancelToken);
+                tasks[i] = readTextFile(paths[i], startLine, lineCount, cancelToken);
             }
             return Task.WhenAll(tasks);
         }
@@ -177,7 +182,7 @@ namespace BJSYGameCore
         /// <exception cref="FileLoadException">当目标文件不是二进制文件的时候抛出该异常。</exception>
         public Task<byte[]> readBinaryFile(string path)
         {
-            path = processPath(path);
+            path = getFullPath(path);
             try
             {
                 TaskCompletionSource<byte[]> tcs = new TaskCompletionSource<byte[]>();

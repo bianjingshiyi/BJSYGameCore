@@ -24,7 +24,16 @@ namespace BJSYGameCore
                 }
             }
         }
-
+        public static void addTypeUsing(this CodeNamespace nameSpace, Type type)
+        {
+            if (type.IsPrimitive)
+                return;
+            if (string.IsNullOrEmpty(type.Namespace))
+                return;
+            if (nameSpace.Name == type.Namespace && nameSpace.Imports.OfType<CodeNamespaceImport>().Any(n => n.Namespace == type.Namespace))
+                return;
+            nameSpace.Imports.Add(new CodeNamespaceImport(type.Namespace));
+        }
         public static CodeFieldReferenceExpression getField(string fieldName)
         {
             return new CodeFieldReferenceExpression(null, fieldName);
@@ -69,9 +78,9 @@ namespace BJSYGameCore
         {
             return new CodeExpressionStatement(expr);
         }
-        public static CodeTypeReference type(string typeName)
+        public static CodeTypeReference type(string typeName, params CodeTypeReference[] typeArgs)
         {
-            return new CodeTypeReference(typeName);
+            return new CodeTypeReference(typeName, typeArgs);
         }
         public static CodeTypeReferenceExpression expr(this CodeTypeReference type)
         {

@@ -181,6 +181,23 @@ namespace BJSYGameCore.AutoCompo
         }
 #endif
         /// <summary>
+        /// 进行控制器相关初始化
+        /// </summary>
+        protected void initCtrl()
+        {
+            List<Type> typeList = new List<Type>();
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                foreach (var type in assembly.GetTypes())
+                {
+                    if (type.IsClass && !type.IsAbstract && typeof(IController<>).MakeGenericType(type).IsAssignableFrom(type))
+                        typeList.Add(type);
+                }
+            }
+            _mainCtrlTypes = typeList.ToArray();
+            _mainCtrlTypeNames = _mainCtrlTypes.Select(t => t.Name).ToArray();
+        }
+        /// <summary>
         /// 尝试查找当前生成物体上已经存在的自动生成脚本。
         /// </summary>
         /// <param name="gameObject"></param>
@@ -585,6 +602,11 @@ namespace BJSYGameCore.AutoCompo
             _autoAddList.Add(new AutoAddCompoInfo(_gameObject, unit.Namespaces[0].Name + "." + unit.Namespaces[0].Types[0].Name));
             return unit;
         }
+        protected virtual void onGenerateCtrl(string path)
+        {
+            //MainCtrl类型需要指定，CompoType必须事先存在，子控制器要用一个额外的字典保存。
+            CodeCompileUnit unit = new AutoCtrlGenerator().genCtrlUnit(_setting.ctrlNamespace, (string)(_type.Name + "Ctrl"),);
+        }
         /// <summary>
         /// 如果已经存在自动生成脚本，则覆盖自动生成的脚本
         /// 如果已经存在脚本，则保存在同一目录下
@@ -619,6 +641,7 @@ namespace BJSYGameCore.AutoCompo
                 _serializedObject.ApplyModifiedPropertiesWithoutUndo();
             }
         }
+        Type[] _mainCtrlTypes = null;
         [SerializeField]
         private MonoScript _script;
         [SerializeField]
