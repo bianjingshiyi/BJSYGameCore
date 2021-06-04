@@ -346,6 +346,8 @@ namespace BJSYGameCore.AutoCompo
             if (obj is RectTransform)
                 onGUIGenRectTransform(obj as RectTransform, field);
             EditorGUILayout.Space();
+            //子控件
+            //删除组件
             if (GUILayout.Button("-", GUILayout.Width(25)))
                 _removeField = field;
             EditorGUI.EndDisabledGroup();

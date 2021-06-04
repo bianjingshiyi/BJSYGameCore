@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Linq;
 using System.CodeDom;
+using System.Reflection;
 using System.Collections.Generic;
 using Codo = BJSYGameCore.CodeDOMHelper;
 // ReSharper disable SuggestVarOrType_SimpleTypes
@@ -24,7 +26,12 @@ namespace BJSYGameCore.AutoCompo
             nameSpace.addTypeUsing(mainCtrlType);
             type.BaseTypes.Add(Codo.type("IController", Codo.type(mainCtrlType.Name)));
             //成员
+            //无参构造器
             CodeConstructor constructor = new CodeConstructor();
+            type.Members.Add(constructor);
+            constructor.Attributes = MemberAttributes.Public;
+            //有参构造器
+            constructor = new CodeConstructor();
             type.Members.Add(constructor);
             constructor.Attributes = MemberAttributes.Public;
             nameSpace.addTypeUsing(typeof(IAppManager));
@@ -94,6 +101,31 @@ namespace BJSYGameCore.AutoCompo
                     .append(Codo.Return(Codo.getField(ctrlField.Name)));
             }
             return unit;
+        }
+        public KeyValuePair<string, Type>[] getChildCtrlInfosFromType(Type ctrlType)
+        {
+            //获取类型IController接口的总控泛型类型
+            Type interfaceType = ctrlType.GetInterfaces().First(i => i.GetGenericTypeDefinition() == typeof(IController<>));
+            Type mainCtrlType = interfaceType.GetGenericArguments()[0];
+            //通过无参构造器创建类型实例
+            ConstructorInfo constructor = ctrlType.GetConstructors(BindingFlags.Public).First(c =>
+                c.GetParameters().Length == 0);
+            object obj = constructor.Invoke(new object[0]);
+            //查找路径字段
+            List<KeyValuePair<string, Type>> ctrlInfoList = new List<KeyValuePair<string, Type>>();
+            foreach (var field in ctrlType.GetFields(BindingFlags.Public | BindingFlags.Instance))
+            {
+                if (field.FieldType == typeof(string) && field.Name.StartsWith("PATH_"))
+                {
+                    string childCtrlName = field.Name.Substring(5, field.Name.Length - 5);
+                    string path = (string)field.GetValue(obj);
+                    //得到对应控件字段生成信息
+                    var ctrlField = ctrlType.GetFields(BindingFlags.NonPublic | BindingFlags.Instance)
+                        .FirstOrDefault(f => f.Name.ToUpper().EndsWith(childCtrlName));
+                    ctrlInfoList.Add(new KeyValuePair<string, Type>(path, ctrlField.FieldType));
+                }
+            }
+            return ctrlInfoList.ToArray();
         }
     }
 }

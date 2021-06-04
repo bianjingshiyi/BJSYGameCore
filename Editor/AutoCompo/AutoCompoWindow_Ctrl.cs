@@ -185,17 +185,52 @@ namespace BJSYGameCore.AutoCompo
         /// </summary>
         protected void initCtrl()
         {
-            List<Type> typeList = new List<Type>();
+            _ctrlGenerator = new AutoCtrlGenerator();//控制器生成器
+            //加载所有可能是主控制器的类型
+            Type ctrlType = null;
+            List<Type> mainCtrlTypeList = new List<Type>();
             foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
                 foreach (var type in assembly.GetTypes())
                 {
-                    if (type.IsClass && !type.IsAbstract && typeof(IController<>).MakeGenericType(type).IsAssignableFrom(type))
-                        typeList.Add(type);
+                    if (!type.IsClass)
+                        continue;
+                    if (type.IsAbstract)
+                        continue;
+                    var Interface = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IController<>));
+                    if (Interface == null)
+                        continue;
+                    Type[] interfaceArgs = Interface.GetGenericArguments();
+                    if (interfaceArgs == null || interfaceArgs.Length < 1)
+                        continue;
+                    if (interfaceArgs[0] == type)
+                    {
+                        //是主控类型
+                        mainCtrlTypeList.Add(type);
+                        continue;
+                    }
+                    if (_type != null)
+                    {
+                        ConstructorInfo constructor = type.GetConstructors().FirstOrDefault(c =>
+                            c.GetParameters() is ParameterInfo[] ps &&
+                            ps.Length > 2 &&
+                            ps[0].ParameterType == typeof(IAppManager) &&
+                            ps[1].ParameterType == interfaceArgs[0] &&
+                            ps.Any(p => p.ParameterType == _type));
+                        if (constructor != null)
+                        {
+                            //获取到组件类型
+                            ctrlType = type;
+                        }
+                    }
                 }
             }
-            _mainCtrlTypes = typeList.ToArray();
+            _mainCtrlTypes = mainCtrlTypeList.ToArray();
             _mainCtrlTypeNames = _mainCtrlTypes.Select(t => t.Name).ToArray();
+            _childCtrlList.Clear();
+            //已经存在Ctrl的类型
+            if (ctrlType != null)
+                _childCtrlList.AddRange(_ctrlGenerator.getChildCtrlInfosFromType(ctrlType));
         }
         /// <summary>
         /// 尝试查找当前生成物体上已经存在的自动生成脚本。
@@ -571,6 +606,15 @@ namespace BJSYGameCore.AutoCompo
                 }
             }
         }
+        protected void addChildCtrl(string path, Type type)
+        {
+            if (!_childCtrlList.Any(p => p.Key == path && p.Value == type))
+                _childCtrlList.Add(new KeyValuePair<string, Type>(path, type));
+        }
+        protected void removeChildCtrl(string path, Type type)
+        {
+            _childCtrlList.RemoveAll(p => p.Key == path && p.Value == type);
+        }
         /// <summary>
         /// 如果已经存在类型，那么重新生成该类型，如果不存在则生成和GameObject同名的脚本。
         /// </summary>
@@ -605,7 +649,8 @@ namespace BJSYGameCore.AutoCompo
         protected virtual void onGenerateCtrl(string path)
         {
             //MainCtrl类型需要指定，CompoType必须事先存在，子控制器要用一个额外的字典保存。
-            CodeCompileUnit unit = new AutoCtrlGenerator().genCtrlUnit(_setting.ctrlNamespace, (string)(_type.Name + "Ctrl"),);
+            var mainCtrlType = _mainCtrlTypes[_selectedMainCtrlTypeIndex];
+            CodeCompileUnit unit = _ctrlGenerator.genCtrlUnit(_setting.ctrlNamespace, _type.Name + "Ctrl", mainCtrlType, _type, _childCtrlList.ToArray());
         }
         /// <summary>
         /// 如果已经存在自动生成脚本，则覆盖自动生成的脚本
@@ -648,8 +693,10 @@ namespace BJSYGameCore.AutoCompo
         protected MonoScript[] _autoScripts;
         protected Type _type;
         protected AutoCompoGenerator _generator;
+        protected AutoCtrlGenerator _ctrlGenerator;
         protected Dictionary<Object, AutoBindFieldInfo> _objGenDict;
         protected readonly List<AutoBindFieldInfo> _missingObjGenList = new List<AutoBindFieldInfo>();
+        protected readonly List<KeyValuePair<string, Type>> _childCtrlList = new List<KeyValuePair<string, Type>>();
         string[] _ctrlTypes;
         [SerializeField]
         protected string _controllerType;
