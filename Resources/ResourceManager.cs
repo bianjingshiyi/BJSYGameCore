@@ -28,41 +28,43 @@ namespace BJSYGameCore
         /// <returns>加载的资源</returns>
         public T load<T>(ResourceInfo info) where T : UnityEngine.Object
         {
-            switch (typeof(T).Name)
+            if (typeof(T) == typeof(ResourcesInfo))
             {
-                case nameof(ResourcesInfo):
-                    if (resourcesInfo.resourceList.Contains(info))
-                        return resourcesInfo as T;
-                    else
-                    {
-                        Debug.LogError($"ResourceManager::resoucesInfo里面没有{info.path}");
-                        return null;
-                    }
-                case nameof(AssetBundleManifest):
-                    return loadAssetBundleManifest(info) as T;
-                default:
-                    switch (info.type)
-                    {
-                        case ResourceType.Assetbundle:
-                            if (typeof(T).Name == nameof(AssetBundle))
-                            {
-                                return loadAssetBundle(info) as T;
-                            }
-                            else return loadFromAssetBundle(info.path) as T;
-                        case ResourceType.Resources:
-                            return loadFromResources(info.path) as T;
-                        case ResourceType.File:
-                            //using (UnityWebRequest req = UnityWebRequest.Get(Application.streamingAssetsPath + info.path)) {
-                            //    req.SendWebRequest();
-                            //    while (!req.isDone) {Debug.Log("loading"); }
-                            //    req.downloadHandler.data;
-                            //}
-                            //todo  : 不知道该如何处理，先放着.....
-                            return null;
-                    }
+                if (resourcesInfo.resourceList.Contains(info))
+                    return resourcesInfo as T;
+                else
+                {
+                    Debug.LogError($"ResourceManager::resoucesInfo里面没有{info.path}");
                     return null;
+                }
             }
-
+            else if (typeof(T) == typeof(AssetBundleManifest))
+            {
+                return loadAssetBundleManifest(info) as T;
+            }
+            else
+            {
+                switch (info.type)
+                {
+                    case ResourceType.Assetbundle:
+                        if (typeof(T) == typeof(AssetBundle))
+                        {
+                            return loadAssetBundle(info) as T;
+                        }
+                        else return loadFromAssetBundle(info.path) as T;
+                    case ResourceType.Resources:
+                        return loadFromResources(info.path) as T;
+                    case ResourceType.File:
+                        //using (UnityWebRequest req = UnityWebRequest.Get(Application.streamingAssetsPath + info.path)) {
+                        //    req.SendWebRequest();
+                        //    while (!req.isDone) {Debug.Log("loading"); }
+                        //    req.downloadHandler.data;
+                        //}
+                        //todo  : 不知道该如何处理，先放着.....
+                        return null;
+                }
+                return null;
+            }
         }
         /// <summary>
         /// 异步的加载一个资源。

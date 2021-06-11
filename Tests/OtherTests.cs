@@ -39,5 +39,11 @@ namespace BJSYGameCore.Tests
                 flag = true;
             }
         }
+        [Test]
+        public void stringFormatArgsTest()
+        {
+            string s = string.Format("Arg1:{1},Arg1:{1},Arg0:{0},Arg2:{2}", new object[] { 0, 1, 2, 3 });
+            Debug.Log(s);
+        }
     }
 }
