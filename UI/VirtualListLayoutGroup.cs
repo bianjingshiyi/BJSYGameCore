@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Linq;
 using static UnityEngine.UI.GridLayoutGroup;
+using System;
 
 namespace BJSYGameCore.UI
 {
@@ -16,6 +17,11 @@ namespace BJSYGameCore.UI
     public class VirtualListLayoutGroup : LayoutGroup
     {
         #region 公有方法
+        public void setCount(int count)
+        {
+            _totalCount = count;
+            LayoutRebuilder.MarkLayoutForRebuild(rectTransform);
+        }
         /// <summary>
         /// 调用布局系统来计算横向布局大小。
         /// </summary>
@@ -228,7 +234,6 @@ namespace BJSYGameCore.UI
                 GetStartOffset(0, requiredSpace.x),
                 GetStartOffset(1, requiredSpace.y));
             int viewportStartIndex = -1;
-            int viewportEndIndex = -1;
             for (int i = 0; i < totalCount; i++)
             {
                 int positionX;
@@ -257,7 +262,6 @@ namespace BJSYGameCore.UI
                 //判断当前位置是否在视口中
                 if (_scrollRect.viewport.rect.Overlaps(rect))
                 {
-                    //记录视口开始的索引
                     if (viewportStartIndex < 0)
                         viewportStartIndex = i;
                     //尝试获取当前索引的单元的物体，如果不存在则新建
@@ -274,101 +278,65 @@ namespace BJSYGameCore.UI
                                 _poolList.RemoveAt(0);
                             }
                             _childList[i - _startIndex] = child;
-                            //child.gameObject.SetActive(true);
+                            onEnableItem?.Invoke(i, child);
                         }
+                    }
+                    else if (i < _startIndex)//创建分为两种情况，后面缺和前面缺
+                    {
+                        //前面缺，需要改索引然后更改列表长度
+                        RectTransform[] newChilds = new RectTransform[_startIndex - i];
+                        if (_poolList.Count < 1)
+                            child = Instantiate(cellPrefab, transform);
+                        else
+                        {
+                            child = _poolList[0];
+                            _poolList.RemoveAt(0);
+                        }
+                        newChilds[0] = child;
+                        _childList.InsertRange(0, newChilds);
+                        _startIndex = i;
+                        onEnableItem?.Invoke(i, child);
                     }
                     else
                     {
-                        //创建分为两种情况，后面缺和前面缺
-                        if (i < _startIndex)
-                        {
-                            //前面缺，需要改索引然后更改列表长度
-                            RectTransform[] newChilds = new RectTransform[_startIndex - i];
-                            if (_poolList.Count < 1)
-                                child = Instantiate(cellPrefab, transform);
-                            else
-                            {
-                                child = _poolList[0];
-                                _poolList.RemoveAt(0);
-                            }
-                            newChilds[0] = child;
-                            _childList.InsertRange(0, newChilds);
-                            _startIndex = i;
-                            //child.gameObject.SetActive(true);
-                        }
+                        //后面缺，不需要改索引，直接往后面加
+                        if (_poolList.Count < 1)
+                            child = Instantiate(cellPrefab, transform);
                         else
                         {
-                            //后面缺，不需要改索引，直接往后面加
-                            if (_poolList.Count < 1)
-                                child = Instantiate(cellPrefab, transform);
-                            else
-                            {
-                                child = _poolList[0];
-                                _poolList.RemoveAt(0);
-                            }
-                            _childList.Add(child);
-                            //child.gameObject.SetActive(true);
+                            child = _poolList[0];
+                            _poolList.RemoveAt(0);
                         }
+                        _childList.Add(child);
+                        onEnableItem?.Invoke(i, child);
                     }
                     SetChildAlongAxis(child, 0, posX, cellSize[0]);
                     SetChildAlongAxis(child, 1, posY, cellSize[1]);
                 }
                 else
                 {
-                    //记录视口结束的索引
-                    if (viewportStartIndex >= 0 && viewportEndIndex < 0)
-                        viewportEndIndex = i;
-                    //不在视口中，分为在索引前面和后面，不存在就什么都不做
-                    if (i <= _startIndex)
+                    //不在视口中，尝试获取当前索引的单元物体
+                    if (0 <= i - _startIndex && i - _startIndex < _childList.Count)
                     {
-                        if (i == _startIndex)
+                        if (viewportStartIndex < 0)
                         {
-                            //在前面，回收并把索引往后挪一位
+                            //在视口前方，先往后挪
                             child = _childList[0];
+                            _poolList.Insert(0, child);
                             _childList.RemoveAt(0);
-                            if (child != null)
-                            {
-                                //child.gameObject.SetActive(false);
-                                _poolList.Insert(0, child);
-                            }
                             _startIndex++;
+                            onDisableItem?.Invoke(i, child);
                         }
-                    }
-                    else if (i < _startIndex + _childList.Count)
-                    {
-                        //在后面，不用改索引但是要把后面的全给回收掉
-                        for (int j = i - _startIndex; j < _childList.Count; j++)
+                        else
                         {
-                            child = _childList[j];
-                            if (child != null)
-                            {
-                                //child.gameObject.SetActive(false);
-                                _poolList.Insert(0, child);
-                            }
+                            //在视口后方
+                            child = _childList[i - _startIndex];
+                            _poolList.Insert(0, child);
+                            _childList.RemoveAt(i - _startIndex);
+                            i--;
+                            onDisableItem?.Invoke(i, child);
                         }
-                        _childList.RemoveRange(i - _startIndex, _childList.Count - i);
-                        //while (_startIndex + _childList.Count >= i)
-                        //{
-                        //    child = _childList[_childList.Count - 1];
-                        //    _childList.RemoveAt(_childList.Count - 1);
-                        //    if (child != null)
-                        //    {
-                        //        _poolList.Insert(0, child);
-                        //    }
-                        //}
                     }
-                }
-                if (viewportStartIndex < 0)
-                {
-                    //在视口前方看不见
-                }
-                else if (viewportEndIndex < 0)
-                {
-                    //在视口中看得见
-                }
-                else
-                {
-                    //在视口后方看不见
                 }
             }
 
@@ -381,6 +349,7 @@ namespace BJSYGameCore.UI
                 {
                     //child.gameObject.SetActive(false);
                     _poolList.Insert(0, child);
+                    onDisableItem?.Invoke(_startIndex + _childList.Count, child);
                 }
             }
         }
@@ -389,6 +358,8 @@ namespace BJSYGameCore.UI
             LayoutRebuilder.MarkLayoutForRebuild(rectTransform);
         }
         #endregion
+        public event Action<int, RectTransform> onEnableItem;
+        public event Action<int, RectTransform> onDisableItem;
         /// <summary>
         /// 单元应该被首先放在哪个角落？
         /// </summary>
