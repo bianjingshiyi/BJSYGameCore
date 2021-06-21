@@ -17,10 +17,33 @@ namespace BJSYGameCore.UI
     public class VirtualListLayoutGroup : LayoutGroup
     {
         #region 公有方法
+        /// <summary>
+        /// 设置虚拟列表显示的单元格总数量，但是只有能被看到的单元格会被创建和显示。
+        /// 会在下一次LateUpdate的时候触发onEnableItem和DisableItem事件。
+        /// </summary>
+        /// <param name="count"></param>
         public void setCount(int count)
         {
-            _totalCount = count;
+            if (count < 0)
+                throw new ArgumentException("Param count can not be less than zero", nameof(count));
+            totalCount = count;
             LayoutRebuilder.MarkLayoutForRebuild(rectTransform);
+        }
+        /// <summary>
+        /// 获取一个单元格RectTransform对应的索引。这个索引是相对总体数量而言的。
+        /// 这个RectTransform必须是当前正在显示的单元格，由于单元格会被回收和重新初始化，所以一个RectTransform对应的索引并不是不变的。
+        /// 如果该物体当前并未被显示，返回的索引为-1。
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns></returns>
+        public int getItemIndex(RectTransform item)
+        {
+            if (_startIndex < 0)
+                return -1;
+            int index = _childList.IndexOf(item);
+            if (index < 0)
+                return -1;
+            return _startIndex + index;
         }
         /// <summary>
         /// 调用布局系统来计算横向布局大小。
@@ -99,8 +122,15 @@ namespace BJSYGameCore.UI
                 _scrollRect.horizontalScrollbar.onValueChanged.RemoveListener(onBarScroll);
                 _scrollRect.horizontalScrollbar.onValueChanged.AddListener(onBarScroll);
             }
+            if (_startIndex >= 0)
+            {
+                for (int i = 0; i < _childList.Count; i++)
+                {
+                    onEnableItem?.Invoke(_startIndex + i, _childList[i]);
+                }
+            }
         }
-        protected void Update()
+        protected void LateUpdate()
         {
             for (int i = 0; i < _poolList.Count; i++)
             {
@@ -271,7 +301,9 @@ namespace BJSYGameCore.UI
                         if (child == null)
                         {
                             if (_poolList.Count < 1)
+                            {
                                 child = Instantiate(cellPrefab, transform);
+                            }
                             else
                             {
                                 child = _poolList[0];
@@ -286,7 +318,9 @@ namespace BJSYGameCore.UI
                         //前面缺，需要改索引然后更改列表长度
                         RectTransform[] newChilds = new RectTransform[_startIndex - i];
                         if (_poolList.Count < 1)
+                        {
                             child = Instantiate(cellPrefab, transform);
+                        }
                         else
                         {
                             child = _poolList[0];
@@ -301,7 +335,9 @@ namespace BJSYGameCore.UI
                     {
                         //后面缺，不需要改索引，直接往后面加
                         if (_poolList.Count < 1)
+                        {
                             child = Instantiate(cellPrefab, transform);
+                        }
                         else
                         {
                             child = _poolList[0];
@@ -312,6 +348,7 @@ namespace BJSYGameCore.UI
                     }
                     SetChildAlongAxis(child, 0, posX, cellSize[0]);
                     SetChildAlongAxis(child, 1, posY, cellSize[1]);
+                    onUpdateItem?.Invoke(i, child);
                 }
                 else
                 {
@@ -322,34 +359,54 @@ namespace BJSYGameCore.UI
                         {
                             //在视口前方，先往后挪
                             child = _childList[0];
-                            _poolList.Insert(0, child);
                             _childList.RemoveAt(0);
                             _startIndex++;
-                            onDisableItem?.Invoke(i, child);
+                            if (child != null)
+                            {
+                                _poolList.Insert(0, child);
+                                onDisableItem?.Invoke(i, child);
+                            }
                         }
                         else
                         {
                             //在视口后方
                             child = _childList[i - _startIndex];
-                            _poolList.Insert(0, child);
                             _childList.RemoveAt(i - _startIndex);
+                            if (child != null)
+                            {
+                                _poolList.Insert(0, child);
+                                onDisableItem?.Invoke(i, child);
+                            }
                             i--;
-                            onDisableItem?.Invoke(i, child);
                         }
                     }
                 }
             }
 
-            //回收超出当前数量的单元物体
-            while (_startIndex + _childList.Count > totalCount)
+            if (viewportStartIndex < 0)
             {
-                RectTransform child = _childList[_childList.Count - 1];
-                _childList.RemoveAt(_childList.Count - 1);
-                if (child != null)
+                //视口中没有任何可见单元，全部回收
+                while (_childList.Count > 0)
                 {
-                    //child.gameObject.SetActive(false);
+                    RectTransform child = _childList[_childList.Count - 1];
+                    _childList.RemoveAt(_childList.Count - 1);
                     _poolList.Insert(0, child);
                     onDisableItem?.Invoke(_startIndex + _childList.Count, child);
+                }
+            }
+            else
+            {
+                //回收超出当前数量的单元物体
+                while (_startIndex + _childList.Count > totalCount)
+                {
+                    RectTransform child = _childList[_childList.Count - 1];
+                    _childList.RemoveAt(_childList.Count - 1);
+                    if (child != null)
+                    {
+                        //child.gameObject.SetActive(false);
+                        _poolList.Insert(0, child);
+                        onDisableItem?.Invoke(_startIndex + _childList.Count, child);
+                    }
                 }
             }
         }
@@ -358,7 +415,17 @@ namespace BJSYGameCore.UI
             LayoutRebuilder.MarkLayoutForRebuild(rectTransform);
         }
         #endregion
+        /// <summary>
+        /// 当单元格显示的时候触发，参数是显示单元格对应索引和单元格
+        /// </summary>
         public event Action<int, RectTransform> onEnableItem;
+        /// <summary>
+        /// 当单元格需要更新的时候触发，参数是更新单元格对应索引和单元格
+        /// </summary>
+        public event Action<int, RectTransform> onUpdateItem;
+        /// <summary>
+        /// 当单元格隐藏的时候触发，参数是隐藏单元格对应索引和单元格。注意被回收的物体对应的索引是可能超出当前数量上限的。
+        /// </summary>
         public event Action<int, RectTransform> onDisableItem;
         /// <summary>
         /// 单元应该被首先放在哪个角落？
@@ -430,10 +497,7 @@ namespace BJSYGameCore.UI
         /// <summary>
         /// 虚拟列表布局中物体的总数量，区别于实际上能看见的数量。
         /// </summary>
-        public int totalCount
-        {
-            get { return _totalCount; }
-        }
+        public int totalCount { get; private set; }
         /// <summary>
         /// 单元预制件
         /// </summary>
@@ -444,13 +508,8 @@ namespace BJSYGameCore.UI
         }
         [SerializeField]
         RectTransform _cellPrefab;
-        [SerializeField]
-        int _totalCount;
-        [SerializeField]
         int _startIndex = 0;
-        [SerializeField]
         List<RectTransform> _childList = new List<RectTransform>();
-        [SerializeField]
         List<RectTransform> _poolList = new List<RectTransform>();
         ScrollRect _scrollRect;
     }
