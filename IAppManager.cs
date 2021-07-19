@@ -1,36 +1,16 @@
-﻿namespace BJSYGameCore
+﻿using System.Threading.Tasks;
+
+namespace BJSYGameCore
 {
-    public interface ILanguageManager
+    public interface IResourceManager
     {
-        /// <summary>
-        /// 获取所有语言对应的名称
-        /// </summary>
-        /// <returns></returns>
-        string[] getLanguages();
-        /// <summary>
-        /// 获取默认语言名称
-        /// </summary>
-        /// <returns></returns>
-        string getDefaultLanguage();
-        /// <summary>
-        /// 获取当前语言名称
-        /// </summary>
-        /// <returns></returns>
-        string getLanguage();
-        /// <summary>
-        /// 设置当前语言名称
-        /// </summary>
-        void setLanguage(string cultureName);
-        /// <summary>
-        /// 获取对应语言的字符串
-        /// </summary>
-        /// <param name="str"></param>
-        /// <returns></returns>
-        string getString(string str);
+        T load<T>(string resPath, string dir);
+        Task<T> loadAsync<T>(string resPath, string dir);
     }
     public interface IAppManager
     {
         ILanguageManager langManager { get; }
+        IResourceManager resourceManager { get; }
         FileManager fileManager { get; }
     }
 }

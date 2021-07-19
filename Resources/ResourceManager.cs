@@ -4,22 +4,13 @@ using System.Threading.Tasks;
 using BJSYGameCore.UI;
 using System.CodeDom;
 using UnityEngine.Networking;
+using System.Collections.Generic;
 
 namespace BJSYGameCore
 {
-    public partial class ResourceManager : Manager, IDisposable
+    public partial class ResourceManager : Manager, IDisposable, IResourceManager
     {
-        #region 字段
-        [SerializeField]
-        ResourcesInfo _resourcesInfo;
-        public ResourcesInfo resourcesInfo
-        {
-            get { return _resourcesInfo; }
-            set { _resourcesInfo = value; }
-        }
-        #endregion
-
-        #region 公开接口
+        #region 公有方法
         /// <summary>
         /// 同步的加载一个资源
         /// </summary>
@@ -72,12 +63,76 @@ namespace BJSYGameCore
         /// <typeparam name="T"></typeparam>
         /// <param name="path"></param>
         /// <returns></returns>
-        public async Task<T> loadAsync<T>(string path)
+        public virtual async Task<T> loadAsync<T>(string path, string dir)
         {
-            throw new NotImplementedException();
+            T res;
+            if (string.IsNullOrEmpty(path))
+                throw new ArgumentException("路径不能为空", nameof(path));
+            if (loadFromCache<T>(path, out var cachedRes))
+            {
+                //有缓存资源，直接返回缓存资源
+                return cachedRes;
+            }
+            else if (tryGetLoadOperation(path, typeof(T), out LoadResourceOperationBase operation))
+            {
+                //正在加载这个资源，等待加载过程完成并返回，避免重复加载
+                await operation.task;
+                res = (T)operation.resource;
+            }
+            else if (path.StartsWith(PATH_RES_PREFIX))
+            {
+                //从资源中加载
+                ResourceRequest request = Resources.LoadAsync(path.Substring(PATH_RES_PREFIX.Length, path.Length - PATH_RES_PREFIX.Length), typeof(T));
+                operation = new LoadResourceOperation(path, typeof(T), request);
+                addLoadOperation(operation);
+                await operation.task;
+                res = (T)operation.resource;
+            }
+            else
+            {
+                throw new InvalidOperationException("无法加载资源" + path);
+            }
+            saveToCache(path, res);
+            return res;
         }
         #endregion
-
+        #region 私有方法
+        protected void addLoadOperation(LoadResourceOperationBase operation)
+        {
+            if (!_loadOpDict.ContainsKey(operation.path))
+                _loadOpDict[operation.path] = operation;
+            else
+            {
+                List<LoadResourceOperationBase> list = _loadOpDict[operation.path] as List<LoadResourceOperationBase>;
+                if (list == null)
+                {
+                    list = new List<LoadResourceOperationBase>();
+                    list.Add(_loadOpDict[operation.path] as LoadResourceOperationBase);
+                    _loadOpDict[operation.path] = list;
+                }
+                list.Add(operation);
+            }
+        }
+        protected bool tryGetLoadOperation(string path, Type type, out LoadResourceOperationBase operation)
+        {
+            if (!_loadOpDict.ContainsKey(path))
+            {
+                operation = null;
+                return false;
+            }
+            if (_loadOpDict[path] is LoadResourceOperationBase)
+            {
+                operation = _loadOpDict[path] as LoadResourceOperationBase;
+                return true;
+            }
+            else
+            {
+                List<LoadResourceOperationBase> list = _loadOpDict[path] as List<LoadResourceOperationBase>;
+                operation = list.Find(o => type.IsAssignableFrom(o.type));
+                return operation != null;
+            }
+        }
+        #endregion
 
         #region 废弃方法，不知道还用不用得着，先留着
         /// <summary>
@@ -86,8 +141,7 @@ namespace BJSYGameCore
         /// <typeparam name="T"></typeparam>
         /// <param name="path"></param>
         /// <returns></returns>
-        [Obsolete]
-        public T load<T>(string path)
+        public T load<T>(string path, string dir = null)
         {
             T res;
             if (string.IsNullOrEmpty(path))
@@ -137,6 +191,50 @@ namespace BJSYGameCore
             Destroy(gameObject);
 #endif
         }
-
+        #region 字段
+        /// <summary>
+        /// 正在加载资源的LoadResourceOperation字典，值可能是LoadResouceOperation，也可能是一个List。
+        /// 之所以只用object是因为大部分情况下同一个路径下不会有多个有不同类型的资源，在这种情况下不使用List。
+        /// </summary>
+        Dictionary<string, object> _loadOpDict = new Dictionary<string, object>();
+        [SerializeField]
+        ResourcesInfo _resourcesInfo;
+        public ResourcesInfo resourcesInfo
+        {
+            get { return _resourcesInfo; }
+            set { _resourcesInfo = value; }
+        }
+        protected const string PATH_RES_PREFIX = "res:";
+        #endregion
+    }
+    public class LoadResourceOperation : LoadResourceOperationBase
+    {
+        public LoadResourceOperation(string path, Type type, ResourceRequest request)
+        {
+            _path = path;
+            _type = type;
+            _request = request;
+            _tcs = new TaskCompletionSource<object>();
+            _request.completed += onComplete;
+        }
+        private void onComplete(AsyncOperation op)
+        {
+            _tcs.SetResult(null);
+        }
+        public override string path => _path;
+        public override Type type => _type;
+        public override Task task => _tcs.Task;
+        public override object resource => _request.asset;
+        string _path;
+        Type _type;
+        ResourceRequest _request;
+        TaskCompletionSource<object> _tcs;
+    }
+    public abstract class LoadResourceOperationBase
+    {
+        public abstract string path { get; }
+        public abstract Type type { get; }
+        public abstract Task task { get; }
+        public abstract object resource { get; }
     }
 }

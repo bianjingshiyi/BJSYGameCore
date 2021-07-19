@@ -45,7 +45,7 @@ namespace BJSYGameCore
         }
         #endregion
         #region 私有成员
-        void saveToCache(string path, object res)
+        protected void saveToCache(string path, object res)
         {
             if (cacheDic.TryGetValue(path, out var item) && ReferenceEquals(item.wref.Target, res))
             {

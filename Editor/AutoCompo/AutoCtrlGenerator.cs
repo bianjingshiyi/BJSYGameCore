@@ -108,8 +108,9 @@ namespace BJSYGameCore.AutoCompo
             Type interfaceType = ctrlType.GetInterfaces().First(i => i.GetGenericTypeDefinition() == typeof(IController<>));
             Type mainCtrlType = interfaceType.GetGenericArguments()[0];
             //通过无参构造器创建类型实例
-            ConstructorInfo constructor = ctrlType.GetConstructors(BindingFlags.Public).First(c =>
-                c.GetParameters().Length == 0);
+            ConstructorInfo constructor = ctrlType.GetConstructor(new Type[0]);
+            if (constructor == null)
+                throw new InvalidOperationException("无法创建" + ctrlType.Name + "的实例，因为它不具有一个无参的构造函数");
             object obj = constructor.Invoke(new object[0]);
             //查找路径字段
             List<KeyValuePair<string, Type>> ctrlInfoList = new List<KeyValuePair<string, Type>>();

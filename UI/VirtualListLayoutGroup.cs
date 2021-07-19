@@ -117,10 +117,16 @@ namespace BJSYGameCore.UI
             base.OnEnable();
             if (_scrollRect != null)
             {
-                _scrollRect.verticalScrollbar.onValueChanged.RemoveListener(onBarScroll);
-                _scrollRect.verticalScrollbar.onValueChanged.AddListener(onBarScroll);
-                _scrollRect.horizontalScrollbar.onValueChanged.RemoveListener(onBarScroll);
-                _scrollRect.horizontalScrollbar.onValueChanged.AddListener(onBarScroll);
+                if (_scrollRect.verticalScrollbar != null)
+                {
+                    _scrollRect.verticalScrollbar.onValueChanged.RemoveListener(onBarScroll);
+                    _scrollRect.verticalScrollbar.onValueChanged.AddListener(onBarScroll);
+                }
+                if (_scrollRect.horizontalScrollbar != null)
+                {
+                    _scrollRect.horizontalScrollbar.onValueChanged.RemoveListener(onBarScroll);
+                    _scrollRect.horizontalScrollbar.onValueChanged.AddListener(onBarScroll);
+                }
             }
             if (_startIndex >= 0)
             {
@@ -132,30 +138,29 @@ namespace BJSYGameCore.UI
         }
         protected void LateUpdate()
         {
-            for (int i = 0; i < _poolList.Count; i++)
+            if (_disableChildList.Count > 0)
             {
-                if (_poolList[i] == null)
+                for (int i = 0; i < _disableChildList.Count; i++)
                 {
-                    _poolList.RemoveAt(i);
-                    i--;
-                    continue;
+                    onDisableItem?.Invoke(_disableChildList[i].Item1, _disableChildList[i].Item2);
+                    _disableChildList[i].Item2.gameObject.SetActive(false);
                 }
-                else if (_poolList[i].gameObject.activeSelf)
-                {
-                    _poolList[i].gameObject.SetActive(false);
-                }
+                _disableChildList.Clear();
             }
-            for (int i = 0; i < _childList.Count; i++)
+            if (_enableChildList.Count > 0)
             {
-                if (_childList[i] == null)
+                for (int i = 0; i < _enableChildList.Count; i++)
                 {
-                    _childList.RemoveAt(i);
-                    i--;
-                    continue;
+                    onEnableItem?.Invoke(_enableChildList[i].Item1, _enableChildList[i].Item2);
+                    _enableChildList[i].Item2.gameObject.SetActive(true);
                 }
-                else if (!_childList[i].gameObject.activeSelf)
+                _enableChildList.Clear();
+            }
+            if (_updateChildList.Count > 0)
+            {
+                for (int i = 0; i < _updateChildList.Count; i++)
                 {
-                    _childList[i].gameObject.SetActive(true);
+                    onUpdateItem?.Invoke(_updateChildList[i].Item1, _updateChildList[i].Item2);
                 }
             }
         }
@@ -310,7 +315,7 @@ namespace BJSYGameCore.UI
                                 _poolList.RemoveAt(0);
                             }
                             _childList[i - _startIndex] = child;
-                            onEnableItem?.Invoke(i, child);
+                            _enableChildList.Add(new Tuple<int, RectTransform>(i, child));
                         }
                     }
                     else if (i < _startIndex)//创建分为两种情况，后面缺和前面缺
@@ -329,7 +334,7 @@ namespace BJSYGameCore.UI
                         newChilds[0] = child;
                         _childList.InsertRange(0, newChilds);
                         _startIndex = i;
-                        onEnableItem?.Invoke(i, child);
+                        _enableChildList.Add(new Tuple<int, RectTransform>(i, child));
                     }
                     else
                     {
@@ -344,11 +349,11 @@ namespace BJSYGameCore.UI
                             _poolList.RemoveAt(0);
                         }
                         _childList.Add(child);
-                        onEnableItem?.Invoke(i, child);
+                        _enableChildList.Add(new Tuple<int, RectTransform>(i, child));
                     }
                     SetChildAlongAxis(child, 0, posX, cellSize[0]);
                     SetChildAlongAxis(child, 1, posY, cellSize[1]);
-                    onUpdateItem?.Invoke(i, child);
+                    _updateChildList.Add(new Tuple<int, RectTransform>(i, child));
                 }
                 else
                 {
@@ -364,7 +369,7 @@ namespace BJSYGameCore.UI
                             if (child != null)
                             {
                                 _poolList.Insert(0, child);
-                                onDisableItem?.Invoke(i, child);
+                                _disableChildList.Add(new Tuple<int, RectTransform>(i, child));
                             }
                         }
                         else
@@ -375,7 +380,7 @@ namespace BJSYGameCore.UI
                             if (child != null)
                             {
                                 _poolList.Insert(0, child);
-                                onDisableItem?.Invoke(i, child);
+                                _disableChildList.Add(new Tuple<int, RectTransform>(i, child));
                             }
                             i--;
                         }
@@ -391,7 +396,7 @@ namespace BJSYGameCore.UI
                     RectTransform child = _childList[_childList.Count - 1];
                     _childList.RemoveAt(_childList.Count - 1);
                     _poolList.Insert(0, child);
-                    onDisableItem?.Invoke(_startIndex + _childList.Count, child);
+                    _disableChildList.Add(new Tuple<int, RectTransform>(_startIndex + _childList.Count, child));
                 }
             }
             else
@@ -405,7 +410,7 @@ namespace BJSYGameCore.UI
                     {
                         //child.gameObject.SetActive(false);
                         _poolList.Insert(0, child);
-                        onDisableItem?.Invoke(_startIndex + _childList.Count, child);
+                        _disableChildList.Add(new Tuple<int, RectTransform>(_startIndex + _childList.Count, child));
                     }
                 }
             }
@@ -508,9 +513,21 @@ namespace BJSYGameCore.UI
         }
         [SerializeField]
         RectTransform _cellPrefab;
+        /// <summary>
+        /// 当前显示的单元格的起始索引
+        /// </summary>
         int _startIndex = 0;
+        /// <summary>
+        /// 当前显示的所有单元格
+        /// </summary>
         List<RectTransform> _childList = new List<RectTransform>();
         List<RectTransform> _poolList = new List<RectTransform>();
+        /// <summary>
+        /// 要激活的单元格列表，字段为单元格索引与单元格
+        /// </summary>
+        List<Tuple<int, RectTransform>> _enableChildList = new List<Tuple<int, RectTransform>>();
+        List<Tuple<int, RectTransform>> _updateChildList = new List<Tuple<int, RectTransform>>();
+        List<Tuple<int, RectTransform>> _disableChildList = new List<Tuple<int, RectTransform>>();
         ScrollRect _scrollRect;
     }
 }

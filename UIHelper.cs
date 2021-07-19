@@ -2,67 +2,57 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Object = UnityEngine.Object;
-namespace BJSYGameCore
+namespace BJSYGameCore.UI
 {
     public static class UIHelper
     {
         /// <summary>
-        /// 刷新列表
+        /// 刷新列表，在根节点下创建或销毁列表项直到指定数量，然后调用回调来进行更新。
+        /// 这个方法不会回收列表项，如果你需要大量或者频繁的创建列表项，请使用VirtualListLayoutGroup。
         /// </summary>
-        /// <typeparam name="T">列表控件类型</typeparam>
-        /// <param name="template">列表项模板，用于实例化新项</param>
-        /// <param name="itemRoot">列表项所处根节点</param>
-        /// <param name="itemList">控件列表</param>
-        /// <param name="itemCount">要刷新的控件数量</param>
-        /// <param name="onCreate">当实例化新项时调用，需要对新项进行初始化并返回控件</param>
-        /// <param name="onUpdate">当刷新项目时调用，可以对项目进行刷新</param>
-        public static void updateList<T>(this List<T> itemList, GameObject template, Transform itemRoot, int itemCount, Func<GameObject, T> onCreate, Action<T, int> onUpdate) where T : Component
+        /// <param name="listRoot"></param>
+        /// <param name="listItemTemplate"></param>
+        /// <param name="itemList"></param>
+        /// <param name="count"></param>
+        /// <param name="onUpdate"></param>
+        /// <param name="onCreate"></param>
+        /// <param name="onDestroy"></param>
+        public static void updateList(RectTransform listRoot, RectTransform listItemTemplate, List<RectTransform> itemList, int count, Action<int, RectTransform> onUpdate,
+            Action<RectTransform> onCreate = null,
+            Action<RectTransform> onDestroy = null)
         {
-            for (int i = 0; i < itemCount; i++)
+            if (itemList.Count < count)
             {
-                if (i >= itemList.Count)
+                //创建列表项，使用for循环避免死循环
+                int n = count - itemList.Count;
+                for (int i = 0; i < n; i++)
                 {
-                    GameObject item = Object.Instantiate(template);
-                    item.transform.SetParent(itemRoot, false);
-                    itemList.Add(onCreate(item));
+                    RectTransform item = UnityEngine.Object.Instantiate(listItemTemplate, listRoot);
+                    item.gameObject.SetActive(true);
+                    itemList.Add(item);
+                    if (onCreate != null)
+                        onCreate(item);
                 }
-                itemList[i].gameObject.SetActive(true);
-                if (onUpdate != null)
-                    onUpdate(itemList[i], i);
             }
-            for (int i = itemCount; i < itemList.Count; i++)
+            else if (itemList.Count > count)
             {
-                itemList[i].gameObject.SetActive(false);
-            }
-        }
-        /// <summary>
-        /// 刷新列表
-        /// </summary>
-        /// <typeparam name="T">列表控件类型</typeparam>
-        /// <param name="template">列表项模板，用于实例化新项</param>
-        /// <param name="itemRoot">列表项所处根节点</param>
-        /// <param name="itemList">控件列表</param>
-        /// <param name="itemCount">要刷新的控件数量</param>
-        /// <param name="onCreate">当实例化新项时调用，需要对新项进行初始化并返回控件</param>
-        /// <param name="onUpdate">当刷新项目时调用，可以对项目进行刷新</param>
-        public static void updateList<TCtrl, TViewData>(this List<TCtrl> itemList, GameObject template, Transform itemRoot, TViewData[] viewDatas, Func<GameObject, TCtrl> onCreate, Action<TCtrl, TViewData> onUpdate, Action<TCtrl> onRecycle) where TCtrl : Component
-        {
-            for (int i = 0; i < viewDatas.Length; i++)
-            {
-                if (i >= itemList.Count)
+                //销毁列表项
+                int n = itemList.Count - count;
+                for (int i = 0; i < n; i++)
                 {
-                    GameObject item = Object.Instantiate(template);
-                    item.transform.SetParent(itemRoot, false);
-                    itemList.Add(onCreate(item));
+                    RectTransform item = itemList[itemList.Count - 1];
+                    UnityEngine.Object.Destroy(item.gameObject);
+                    itemList.RemoveAt(itemList.Count - 1);
+                    if (onDestroy != null)
+                        onDestroy(item);
                 }
-                itemList[i].gameObject.SetActive(true);
-                if (onUpdate != null)
-                    onUpdate(itemList[i], viewDatas[i]);
             }
-            for (int i = viewDatas.Length; i < itemList.Count; i++)
+            //更新列表项
+            for (int i = 0; i < count; i++)
             {
-                onRecycle(itemList[i]);
-                itemList[i].gameObject.SetActive(false);
+                RectTransform item = itemList[i];
+                if (onUpdate != null)
+                    onUpdate(i, item);
             }
         }
     }
