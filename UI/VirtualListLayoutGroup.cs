@@ -162,6 +162,7 @@ namespace BJSYGameCore.UI
                 {
                     onUpdateItem?.Invoke(_updateChildList[i].Item1, _updateChildList[i].Item2);
                 }
+                _updateChildList.Clear();
             }
         }
         #endregion

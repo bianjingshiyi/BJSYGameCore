@@ -1,5 +1,7 @@
 ﻿using System;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+
 namespace BJSYGameCore
 {
     public static class TransformHelper
@@ -127,6 +129,27 @@ namespace BJSYGameCore
             if (transform.parent == parent)
                 return true;
             return isChildOf(transform.parent, parent);
+        }
+        public static T findComponentInScene<T>(Scene scene) where T : Component
+        {
+            foreach (var root in scene.GetRootGameObjects())
+            {
+                T compo = root.GetComponentInChildren<T>(true);
+                if (compo != null)
+                    return compo;
+            }
+            return default;
+        }
+        public static T findComponentInAllScenes<T>() where T : Component
+        {
+            for (int i = 0; i < SceneManager.sceneCount; i++)
+            {
+                Scene scene = SceneManager.GetSceneAt(i);
+                T compo = findComponentInScene<T>(scene);
+                if (compo != null)
+                    return compo;
+            }
+            return default;
         }
     }
 }

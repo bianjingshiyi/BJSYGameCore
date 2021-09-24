@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Object = UnityEngine.Object;
+using UnityEngine.UI;
 namespace BJSYGameCore.UI
 {
     public static class UIHelper
@@ -54,6 +55,7 @@ namespace BJSYGameCore.UI
                 if (onUpdate != null)
                     onUpdate(i, item);
             }
+            LayoutRebuilder.ForceRebuildLayoutImmediate(listRoot);
         }
     }
 }

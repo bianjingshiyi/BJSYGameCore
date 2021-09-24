@@ -33,12 +33,20 @@ namespace BJSYGameCore
         {
             return saveFile(path, new string[] { text });
         }
+        /// <summary>
+        /// 将文本保存为文件到相对路径
+        /// </summary>
+        /// <param name="path">相对路径</param>
+        /// <param name="lines">文件内容</param>
+        /// <returns></returns>
         public async Task saveFile(string path, string[] lines)
         {
             path = getFullPath(path);
             string dir = Path.GetDirectoryName(path);
             if (!Directory.Exists(dir))
+            {
                 Directory.CreateDirectory(dir);
+            }
             using (StreamWriter sw = new StreamWriter(path))
             {
                 for (int i = 0; i < lines.Length; i++)
@@ -53,11 +61,18 @@ namespace BJSYGameCore
         /// <param name="path">文件保存根目录下的相对路径</param>
         /// <param name="bytes">二进制数据</param>
         /// <returns>当文件写入完毕时返回</returns>
-        public Task saveFile(string path, byte[] bytes)
+        public async Task saveFile(string path, byte[] bytes)
         {
             path = getFullPath(path);
-            FileStream fs = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write);
-            return fs.WriteAsync(bytes, 0, bytes.Length);
+            string dir = Path.GetDirectoryName(path);
+            if (!Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+            using (FileStream fs = new FileStream(path, FileMode.Create))
+            {
+                await fs.WriteAsync(bytes, 0, bytes.Length);
+            }
         }
         /// <summary>
         /// 是否存在指定文件？
@@ -180,16 +195,17 @@ namespace BJSYGameCore
         /// <param name="path">文件相对路径</param>
         /// <returns>当文件读取完毕时返回其二进制数据</returns>
         /// <exception cref="FileLoadException">当目标文件不是二进制文件的时候抛出该异常。</exception>
-        public Task<byte[]> readBinaryFile(string path)
+        public async Task<byte[]> readBinaryFile(string path)
         {
             path = getFullPath(path);
             try
             {
-                TaskCompletionSource<byte[]> tcs = new TaskCompletionSource<byte[]>();
-                FileStream fs = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Read);
-                byte[] buffer = new byte[fs.Length];
-                fs.ReadAsync(buffer, 0, (int)fs.Length).GetAwaiter().OnCompleted(() => tcs.SetResult(buffer));
-                return tcs.Task;
+                using (FileStream fs = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Read))
+                {
+                    byte[] buffer = new byte[fs.Length];
+                    await fs.ReadAsync(buffer, 0, (int)fs.Length);
+                    return buffer;
+                }
             }
             catch (FileLoadException)
             {
