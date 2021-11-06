@@ -5,7 +5,7 @@ using System.Text;
 using UnityEngine;
 using System.Linq;
 using System.Threading;
-
+using UnityEngine.Networking;
 namespace BJSYGameCore
 {
     /// <summary>
@@ -211,6 +211,42 @@ namespace BJSYGameCore
             {
                 throw new FileLoadException("Invalid Binary File!!");
             }
+        }
+        /// <summary>
+        /// 从StreamingAssets中读取二进制文件的数据
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns></returns>
+        public Task<byte[]> readStreamingBinaryFile(string path)
+        {
+            TaskCompletionSource<byte[]> tcs = new TaskCompletionSource<byte[]>();
+            UnityWebRequest.Get(Application.streamingAssetsPath + "/" + path).SendWebRequest().completed += op =>
+            {
+                UnityWebRequestAsyncOperation operation = op as UnityWebRequestAsyncOperation;
+                if (operation.webRequest.isHttpError)
+                {
+                    if (operation.webRequest.responseCode == 404)
+                    {
+                        //发生错误，没有找到文件
+                        tcs.SetException(new FileNotFoundException($"Unable to load file {path}", path));
+                    }
+                    else
+                    {
+                        //发生错误
+                        tcs.SetException(new IOException("读取文件" + path + "失败，错误信息：" + operation.webRequest.error));
+                    }
+                    return;
+                }
+                else if (operation.webRequest.isNetworkError)
+                {
+                    //发生错误
+                    tcs.SetException(new IOException("读取文件" + path + "失败，错误信息：" + operation.webRequest.error));
+                    return;
+                }
+                byte[] bytes = operation.webRequest.downloadHandler.data;
+                tcs.SetResult(bytes);
+            };
+            return tcs.Task;
         }
     }
 }
