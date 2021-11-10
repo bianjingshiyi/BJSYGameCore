@@ -42,9 +42,15 @@ namespace BJSYGameCore.UI
                     if (_value[i])
                     {
                         if (data == _noOption)
+                        {
                             data = options[i];
-                        else if (data != _mixOption)
+                            continue;
+                        }
+                        else
+                        {
+                            _mixOption.text = data.text + "," + options[i].text;
                             data = _mixOption;
+                        }
                     }
                 }
             }
@@ -1004,7 +1010,7 @@ namespace BJSYGameCore.UI
         [SerializeField]
         private OptionDataList _optionList = new OptionDataList();
         [SerializeField]
-        private OptionData _noOption = new OptionData() { text = "None" };
+        private OptionData _noOption = new OptionData() { text = string.Empty };
         [SerializeField]
         private OptionData _mixOption = new OptionData() { text = "..." };
         [Space]
