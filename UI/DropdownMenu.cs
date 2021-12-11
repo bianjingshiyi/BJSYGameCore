@@ -9,70 +9,14 @@ using OptionDataList = UnityEngine.UI.Dropdown.OptionDataList;
 using OptionData = UnityEngine.UI.Dropdown.OptionData;
 namespace BJSYGameCore.UI
 {
-    [AddComponentMenu("UI/Multi Select Dropdown", 36)]
+    [AddComponentMenu("UI/Dropdown Menu", 37)]
     [RequireComponent(typeof(RectTransform))]
     /// <summary>
     /// 可以选中多个选项的下拉菜单
     /// </summary>
-    public class MultiSelectDropdown : Selectable, IPointerClickHandler, ISubmitHandler, ICancelHandler
+    public class DropdownMenu : Selectable, IPointerClickHandler, ISubmitHandler, ICancelHandler
     {
         #region 公有方法
-        /// <summary>
-        /// Set index number of the current selection in the Dropdown without invoking onValueChanged callback.
-        /// </summary>
-        /// <param name="input"> The new index for the current selection. </param>
-        public void SetValueWithoutNotify(bool[] input)
-        {
-            Set(input, false);
-        }
-        /// <summary>
-        /// Refreshes the text and image (if available) of the currently selected option.
-        /// </summary>
-        /// <remarks>
-        /// If you have modified the list of options, you should call this method afterwards to ensure that the visual state of the dropdown corresponds to the updated options.
-        /// </remarks>
-        public void RefreshShownValue()
-        {
-            OptionData data = _noOption;
-
-            if (options.Count > 0)
-            {
-                for (int i = 0; i < _value.Length; i++)
-                {
-                    if (_value[i])
-                    {
-                        if (data == _noOption)
-                        {
-                            data = options[i];
-                            continue;
-                        }
-                        else
-                        {
-                            _mixOption.text = data.text + "," + options[i].text;
-                            data = _mixOption;
-                        }
-                    }
-                }
-            }
-
-            if (_captionText)
-            {
-                if (data != null && data.text != null)
-                    _captionText.text = data.text;
-                else
-                    _captionText.text = "";
-            }
-
-            if (_captionImage)
-            {
-                if (data != null)
-                    _captionImage.sprite = data.image;
-                else
-                    _captionImage.sprite = null;
-                _captionImage.enabled = (_captionImage.sprite != null);
-            }
-        }
-
         /// <summary>
         /// Add multiple options to the options of the Dropdown based on a list of OptionData objects.
         /// </summary>
@@ -83,9 +27,7 @@ namespace BJSYGameCore.UI
         public void AddOptions(List<OptionData> options)
         {
             this.options.AddRange(options);
-            RefreshShownValue();
         }
-
         /// <summary>
         /// Add multiple text-only options to the options of the Dropdown based on a list of strings.
         /// </summary>
@@ -124,9 +66,7 @@ namespace BJSYGameCore.UI
         {
             for (int i = 0; i < options.Count; i++)
                 this.options.Add(new OptionData(options[i]));
-            RefreshShownValue();
         }
-
         /// <summary>
         /// Add multiple image-only options to the options of the Dropdown based on a list of Sprites.
         /// </summary>
@@ -138,17 +78,13 @@ namespace BJSYGameCore.UI
         {
             for (int i = 0; i < options.Count; i++)
                 this.options.Add(new OptionData(options[i]));
-            RefreshShownValue();
         }
-
         /// <summary>
         /// Clear the list of options in the Dropdown.
         /// </summary>
         public void ClearOptions()
         {
             options.Clear();
-            _value = new bool[0];
-            RefreshShownValue();
         }
         /// <summary>
         /// Show the dropdown.
@@ -208,7 +144,7 @@ namespace BJSYGameCore.UI
             // Instantiate the drop-down list items
 
             // Find the dropdown item and disable it.
-            MultiSelectDropdownItem itemTemplate = _dropdown.GetComponentInChildren<MultiSelectDropdownItem>();
+            DropdownMenuItem itemTemplate = _dropdown.GetComponentInChildren<DropdownMenuItem>();
 
             GameObject content = itemTemplate.rectTransform.parent.gameObject;
             RectTransform contentRectTransform = content.transform as RectTransform;
@@ -225,40 +161,34 @@ namespace BJSYGameCore.UI
 
             _itemList.Clear();
 
-            Toggle prev = null;
+            Button prev = null;
             for (int i = 0; i < options.Count; ++i)
             {
                 OptionData data = options[i];
-                bool isOn = i < value.Length ? value[i] : false;
-                MultiSelectDropdownItem item = AddItem(data, isOn, itemTemplate, _itemList);
+                DropdownMenuItem item = AddItem(data, itemTemplate, _itemList);
                 if (item == null)
                     continue;
 
                 // Automatically set up a toggle state change listener
-                item.toggle.isOn = isOn;
-                item.toggle.onValueChanged.AddListener(x => OnSelectItem(item.toggle));
-
-                // Select current option
-                if (item.toggle.isOn)
-                    item.toggle.Select();
+                item.button.onClick.AddListener(() => OnSelectItem(item.button));
 
                 // Automatically set up explicit navigation
                 if (prev != null)
                 {
                     Navigation prevNav = prev.navigation;
-                    Navigation toggleNav = item.toggle.navigation;
+                    Navigation toggleNav = item.button.navigation;
                     prevNav.mode = Navigation.Mode.Explicit;
                     toggleNav.mode = Navigation.Mode.Explicit;
 
-                    prevNav.selectOnDown = item.toggle;
-                    prevNav.selectOnRight = item.toggle;
+                    prevNav.selectOnDown = item.button;
+                    prevNav.selectOnRight = item.button;
                     toggleNav.selectOnLeft = prev;
                     toggleNav.selectOnUp = prev;
 
                     prev.navigation = prevNav;
-                    item.toggle.navigation = toggleNav;
+                    item.button.navigation = toggleNav;
                 }
-                prev = item.toggle;
+                prev = item.button;
             }
 
             // Reposition all items now that all of them have been added
@@ -364,7 +294,7 @@ namespace BJSYGameCore.UI
         #endregion
         #endregion
         #region 私有方法
-        protected MultiSelectDropdown()
+        protected DropdownMenu()
         { }
         #region 生命周期
         protected override void Awake()
@@ -377,9 +307,6 @@ namespace BJSYGameCore.UI
             m_AlphaTweenRunner = new TweenRunner<FloatTween>();
             m_AlphaTweenRunner.Init(this);
 
-            if (_captionImage)
-                _captionImage.enabled = (_captionImage.sprite != null);
-
             if (_template)
                 _template.gameObject.SetActive(false);
         }
@@ -389,8 +316,6 @@ namespace BJSYGameCore.UI
             m_AlphaTweenRunner = new TweenRunner<FloatTween>();
             m_AlphaTweenRunner.Init(this);
             base.Start();
-
-            RefreshShownValue();
         }
 
 #if UNITY_EDITOR
@@ -400,10 +325,7 @@ namespace BJSYGameCore.UI
 
             if (!IsActive())
                 return;
-
-            RefreshShownValue();
         }
-
 #endif
         protected override void OnDisable()
         {
@@ -417,41 +339,6 @@ namespace BJSYGameCore.UI
             base.OnDisable();
         }
         #endregion
-        void Set(bool[] value, bool sendCallback = true, bool forceUpdate = false)
-        {
-            if (Application.isPlaying && (CompareValue(value, _value) || options.Count == 0) && !forceUpdate)
-                return;
-
-            _value = new bool[options.Count];
-            for (int i = 0; i < _value.Length; i++)
-            {
-                if (i < value.Length)
-                    _value[i] = value[i];
-                else
-                    _value[i] = default;
-            }
-            RefreshShownValue();
-
-            if (sendCallback)
-            {
-                // Notify all listeners
-                UISystemProfilerApi.AddMarker("Dropdown.value", this);
-                _onValueChanged.Invoke(_value);
-            }
-        }
-        bool CompareValue(bool[] valueA, bool[] valueB)
-        {
-            if (valueA == null || valueB == null)
-                return false;
-            if (valueA.Length != valueB.Length)
-                return false;
-            for (int i = 0; i < valueA.Length; i++)
-            {
-                if (valueA[i] != valueB[i])
-                    return false;
-            }
-            return true;
-        }
         private void SetupTemplate()
         {
             validTemplate = false;
@@ -464,25 +351,25 @@ namespace BJSYGameCore.UI
 
             GameObject templateGo = _template.gameObject;
             templateGo.SetActive(true);
-            Toggle itemToggle = _template.GetComponentInChildren<Toggle>();
+            Button itemButton = _template.GetComponentInChildren<Button>();
 
             validTemplate = true;
-            if (!itemToggle || itemToggle.transform == template)
+            if (!itemButton || itemButton.transform == template)
             {
                 validTemplate = false;
                 Debug.LogError("The dropdown template is not valid. The template must have a child GameObject with a Toggle component serving as the item.", template);
             }
-            else if (!(itemToggle.transform.parent is RectTransform))
+            else if (!(itemButton.transform.parent is RectTransform))
             {
                 validTemplate = false;
                 Debug.LogError("The dropdown template is not valid. The child GameObject with a Toggle component (the item) must have a RectTransform on its parent.", template);
             }
-            else if (itemText != null && !itemText.transform.IsChildOf(itemToggle.transform))
+            else if (itemText != null && !itemText.transform.IsChildOf(itemButton.transform))
             {
                 validTemplate = false;
                 Debug.LogError("The dropdown template is not valid. The Item Text must be on the item GameObject or children of it.", template);
             }
-            else if (itemImage != null && !itemImage.transform.IsChildOf(itemToggle.transform))
+            else if (itemImage != null && !itemImage.transform.IsChildOf(itemButton.transform))
             {
                 validTemplate = false;
                 Debug.LogError("The dropdown template is not valid. The Item Image must be on the item GameObject or children of it.", template);
@@ -494,11 +381,11 @@ namespace BJSYGameCore.UI
                 return;
             }
 
-            MultiSelectDropdownItem item = itemToggle.gameObject.AddComponent<MultiSelectDropdownItem>();
+            DropdownMenuItem item = itemButton.gameObject.AddComponent<DropdownMenuItem>();
             item.text = _itemText;
             item.image = _itemImage;
-            item.toggle = itemToggle;
-            item.rectTransform = (RectTransform)itemToggle.transform;
+            item.button = itemButton;
+            item.rectTransform = (RectTransform)itemButton.transform;
 
             // Find the Canvas that this dropdown is a part of
             Canvas parentCanvas = null;
@@ -663,7 +550,7 @@ namespace BJSYGameCore.UI
         /// </remarks>
         /// <param name="itemTemplate">e template to create the option item from.</param>
         /// <returns>The created dropdown item component</returns>
-        protected virtual MultiSelectDropdownItem CreateItem(MultiSelectDropdownItem itemTemplate)
+        protected virtual DropdownMenuItem CreateItem(DropdownMenuItem itemTemplate)
         {
             return Instantiate(itemTemplate);
         }
@@ -676,23 +563,18 @@ namespace BJSYGameCore.UI
         /// Likely no action needed since destroying the dropdown list destroys all contained items as well.
         /// </remarks>
         /// <param name="item">The Item to destroy.</param>
-        protected virtual void DestroyItem(MultiSelectDropdownItem item)
+        protected virtual void DestroyItem(DropdownMenuItem item)
         { }
 
         // Add a new drop-down list item with the specified values.
-        private MultiSelectDropdownItem AddItem(OptionData data, bool selected, MultiSelectDropdownItem itemTemplate, List<MultiSelectDropdownItem> items)
+        private DropdownMenuItem AddItem(OptionData data, DropdownMenuItem itemTemplate, List<DropdownMenuItem> items)
         {
             // Add a new item to the dropdown.
-            MultiSelectDropdownItem item = CreateItem(itemTemplate);
+            DropdownMenuItem item = CreateItem(itemTemplate);
             item.rectTransform.SetParent(itemTemplate.rectTransform.parent, false);
 
             item.gameObject.SetActive(true);
             item.gameObject.name = "Item " + items.Count + (data.text != null ? ": " + data.text : "");
-
-            if (item.toggle != null)
-            {
-                item.toggle.isOn = false;
-            }
 
             // Set the item's data
             if (item.text)
@@ -751,10 +633,10 @@ namespace BJSYGameCore.UI
         }
 
         // Change the value and hide the dropdown.
-        private void OnSelectItem(Toggle toggle)
+        private void OnSelectItem(Button button)
         {
             int selectedIndex = -1;
-            Transform tr = toggle.transform;
+            Transform tr = button.transform;
             Transform parent = tr.parent;
             for (int i = 0; i < parent.childCount; i++)
             {
@@ -765,42 +647,25 @@ namespace BJSYGameCore.UI
                     break;
                 }
             }
-
             if (selectedIndex < 0)
                 return;
-
-            if (selectedIndex >= value.Length)
-            {
-                bool[] newValue = new bool[selectedIndex + 1];
-                value.CopyTo(newValue, 0);
-                value = newValue;
-            }
-            value[selectedIndex] = !value[selectedIndex];
-            Set(value, forceUpdate: true);
-            toggle.SetIsOnWithoutNotify(value[selectedIndex]);
+            onClickItem.Invoke(selectedIndex);
+            Hide();
         }
         #endregion
         #region 属性字段
         /// <summary>
         /// The Rect Transform of the template for the dropdown list.
         /// </summary>
-        public RectTransform template { get { return _template; } set { _template = value; RefreshShownValue(); } }
-        /// <summary>
-        /// The Text component to hold the text of the currently selected option.
-        /// </summary>
-        public Text captionText { get { return _captionText; } set { _captionText = value; RefreshShownValue(); } }
-        /// <summary>
-        /// The Image component to hold the image of the currently selected option.
-        /// </summary>
-        public Image captionImage { get { return _captionImage; } set { _captionImage = value; RefreshShownValue(); } }
+        public RectTransform template { get { return _template; } set { _template = value; } }
         /// <summary>
         /// The Text component to hold the text of the item.
         /// </summary>
-        public Text itemText { get { return _itemText; } set { _itemText = value; RefreshShownValue(); } }
+        public Text itemText { get { return _itemText; } set { _itemText = value; } }
         /// <summary>
         /// The Image component to hold the image of the item
         /// </summary>
-        public Image itemImage { get { return _itemImage; } set { _itemImage = value; RefreshShownValue(); } }
+        public Image itemImage { get { return _itemImage; } set { _itemImage = value; } }
         /// <summary>
         /// The list of possible options. A text string and an image can be specified for each option.
         /// </summary>
@@ -894,7 +759,7 @@ namespace BJSYGameCore.UI
         public List<OptionData> options
         {
             get { return _optionList.options; }
-            set { _optionList.options = value; RefreshShownValue(); }
+            set { _optionList.options = value; }
         }
         /// <summary>
         /// A UnityEvent that is invoked when when a user has clicked one of the options in the dropdown list.
@@ -936,97 +801,38 @@ namespace BJSYGameCore.UI
         /// }
         /// </code>
         /// </example>
-        public MultiSelectDropdownEvent onValueChanged { get { return _onValueChanged; } set { _onValueChanged = value; } }
+        public DropdownMenuEvent onClickItem { get { return _onClickItem; } set { _onClickItem = value; } }
         /// <summary>
         /// The time interval at which a drop down will appear and disappear
         /// </summary>
         public float alphaFadeSpeed { get { return _alphaFadeSpeed; } set { _alphaFadeSpeed = value; } }
-        /// <summary>
-        /// The Value is the index number of the current selection in the Dropdown. 0 is the first option in the Dropdown, 1 is the second, and so on.
-        /// </summary>
-        /// <example>
-        /// <code>
-        /// //Create a new Dropdown GameObject by going to the Hierarchy and clicking __Create__>__UI__>__Dropdown__. Attach this script to the Dropdown GameObject.
-        /// //Set your own Text in the Inspector window
-        ///
-        /// using UnityEngine;
-        /// using UnityEngine.UI;
-        ///
-        /// public class Example : MonoBehaviour
-        /// {
-        ///     //Attach this script to a Dropdown GameObject
-        ///     Dropdown m_Dropdown;
-        ///     //This is the string that stores the current selection m_Text of the Dropdown
-        ///     string m_Message;
-        ///     //This Text outputs the current selection to the screen
-        ///     public Text m_Text;
-        ///     //This is the index value of the Dropdown
-        ///     int m_DropdownValue;
-        ///
-        ///     void Start()
-        ///     {
-        ///         //Fetch the DropDown component from the GameObject
-        ///         m_Dropdown = GetComponent<Dropdown>();
-        ///         //Output the first Dropdown index value
-        ///         Debug.Log("Starting Dropdown Value : " + m_Dropdown.value);
-        ///     }
-        ///
-        ///     void Update()
-        ///     {
-        ///         //Keep the current index of the Dropdown in a variable
-        ///         m_DropdownValue = m_Dropdown.value;
-        ///         //Change the message to say the name of the current Dropdown selection using the value
-        ///         m_Message = m_Dropdown.options[m_DropdownValue].text;
-        ///         //Change the onscreen Text to reflect the current Dropdown selection
-        ///         m_Text.text = m_Message;
-        ///     }
-        /// }
-        /// </code>
-        /// </example>
-        public bool[] value
-        {
-            get { return _value; }
-            set { Set(value); }
-        }
         // Template used to create the dropdown.
         [SerializeField]
         private RectTransform _template;
-        // Text to be used as a caption for the current value. It's not required, but it's kept here for convenience.
-        [SerializeField]
-        private Text _captionText;
-        [SerializeField]
-        private Image _captionImage;
         [Space]
         [SerializeField]
         private Text _itemText;
         [SerializeField]
         private Image _itemImage;
         [Space]
-        [SerializeField]
-        private bool[] _value;
-        [Space]
         // Items that will be visible when the dropdown is shown.
         // We box this into its own class so we can use a Property Drawer for it.
         [SerializeField]
         private OptionDataList _optionList = new OptionDataList();
-        [SerializeField]
-        private OptionData _noOption = new OptionData() { text = string.Empty };
-        [SerializeField]
-        private OptionData _mixOption = new OptionData() { text = "..." };
         [Space]
         // Notification triggered when the dropdown changes.
         [SerializeField]
-        private MultiSelectDropdownEvent _onValueChanged = new MultiSelectDropdownEvent();
+        private DropdownMenuEvent _onClickItem = new DropdownMenuEvent();
         [SerializeField]
         private float _alphaFadeSpeed = 0.15f;
         private GameObject _dropdown;
         private GameObject _blocker;
-        private List<MultiSelectDropdownItem> _itemList = new List<MultiSelectDropdownItem>();
+        private List<DropdownMenuItem> _itemList = new List<DropdownMenuItem>();
         private TweenRunner<FloatTween> m_AlphaTweenRunner;
         private bool validTemplate = false;
         #endregion
         #region 嵌套类型
-        protected internal class MultiSelectDropdownItem : MonoBehaviour, IPointerEnterHandler, ICancelHandler
+        protected internal class DropdownMenuItem : MonoBehaviour, IPointerEnterHandler, ICancelHandler
         {
             public virtual void OnPointerEnter(PointerEventData eventData)
             {
@@ -1034,22 +840,22 @@ namespace BJSYGameCore.UI
             }
             public virtual void OnCancel(BaseEventData eventData)
             {
-                MultiSelectDropdown dropdown = GetComponentInParent<MultiSelectDropdown>();
+                DropdownMenu dropdown = GetComponentInParent<DropdownMenu>();
                 if (dropdown)
                     dropdown.Hide();
             }
             public Text text { get { return _text; } set { _text = value; } }
             public Image image { get { return _image; } set { _image = value; } }
+            public Button button { get { return _button; } set { _button = value; } }
             public RectTransform rectTransform { get { return _rectTransform; } set { _rectTransform = value; } }
-            public Toggle toggle { get { return _toggle; } set { _toggle = value; } }
             [SerializeField]
             private Text _text;
             [SerializeField]
             private Image _image;
             [SerializeField]
-            private RectTransform _rectTransform;
+            private Button _button;
             [SerializeField]
-            private Toggle _toggle;
+            private RectTransform _rectTransform;
         }
         //[Serializable]
         ///// <summary>
@@ -1104,212 +910,7 @@ namespace BJSYGameCore.UI
         /// <summary>
         /// UnityEvent callback for when a dropdown current option is changed.
         /// </summary>
-        public class MultiSelectDropdownEvent : UnityEvent<bool[]> { }
+        public class DropdownMenuEvent : UnityEvent<int> { }
         #endregion
-    }
-    /// <summary>
-    /// Base interface for tweeners,
-    /// using an interface instead of
-    /// an abstract class as we want the
-    /// tweens to be structs.
-    /// </summary>
-    internal interface ITweenValue
-    {
-        void TweenValue(float floatPercentage);
-        bool ignoreTimeScale { get; }
-        float duration { get; }
-        bool ValidTarget();
-    }
-    /// <summary>
-    /// Tween runner, executes the given tween.
-    /// The coroutine will live within the given
-    /// behaviour container.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    internal class TweenRunner<T> where T : struct, ITweenValue
-    {
-        protected MonoBehaviour m_CoroutineContainer;
-        protected IEnumerator m_Tween;
-
-        // utility function for starting the tween
-        private static IEnumerator Start(T tweenInfo)
-        {
-            if (!tweenInfo.ValidTarget())
-                yield break;
-
-            var elapsedTime = 0.0f;
-            while (elapsedTime < tweenInfo.duration)
-            {
-                elapsedTime += tweenInfo.ignoreTimeScale ? Time.unscaledDeltaTime : Time.deltaTime;
-                var percentage = Mathf.Clamp01(elapsedTime / tweenInfo.duration);
-                tweenInfo.TweenValue(percentage);
-                yield return null;
-            }
-            tweenInfo.TweenValue(1.0f);
-        }
-
-        public void Init(MonoBehaviour coroutineContainer)
-        {
-            m_CoroutineContainer = coroutineContainer;
-        }
-
-        public void StartTween(T info)
-        {
-            if (m_CoroutineContainer == null)
-            {
-                Debug.LogWarning("Coroutine container not configured... did you forget to call Init?");
-                return;
-            }
-
-            StopTween();
-
-            if (!m_CoroutineContainer.gameObject.activeInHierarchy)
-            {
-                info.TweenValue(1.0f);
-                return;
-            }
-
-            m_Tween = Start(info);
-            m_CoroutineContainer.StartCoroutine(m_Tween);
-        }
-
-        public void StopTween()
-        {
-            if (m_Tween != null)
-            {
-                m_CoroutineContainer.StopCoroutine(m_Tween);
-                m_Tween = null;
-            }
-        }
-    }
-    /// <summary>
-    /// Float tween class, receives the
-    /// TweenValue callback and then sets
-    /// the value on the target.
-    /// </summary>
-    internal struct FloatTween : ITweenValue
-    {
-        public class FloatTweenCallback : UnityEvent<float> { }
-
-        private FloatTweenCallback m_Target;
-        private float m_StartValue;
-        private float m_TargetValue;
-
-        private float m_Duration;
-        private bool m_IgnoreTimeScale;
-
-        public float startValue
-        {
-            get { return m_StartValue; }
-            set { m_StartValue = value; }
-        }
-
-        public float targetValue
-        {
-            get { return m_TargetValue; }
-            set { m_TargetValue = value; }
-        }
-
-        public float duration
-        {
-            get { return m_Duration; }
-            set { m_Duration = value; }
-        }
-
-        public bool ignoreTimeScale
-        {
-            get { return m_IgnoreTimeScale; }
-            set { m_IgnoreTimeScale = value; }
-        }
-
-        public void TweenValue(float floatPercentage)
-        {
-            if (!ValidTarget())
-                return;
-
-            var newValue = Mathf.Lerp(m_StartValue, m_TargetValue, floatPercentage);
-            m_Target.Invoke(newValue);
-        }
-
-        public void AddOnChangedCallback(UnityAction<float> callback)
-        {
-            if (m_Target == null)
-                m_Target = new FloatTweenCallback();
-
-            m_Target.AddListener(callback);
-        }
-
-        public bool GetIgnoreTimescale()
-        {
-            return m_IgnoreTimeScale;
-        }
-
-        public float GetDuration()
-        {
-            return m_Duration;
-        }
-
-        public bool ValidTarget()
-        {
-            return m_Target != null;
-        }
-    }
-    internal static class ListPool<T>
-    {
-        // Object pool to avoid allocations.
-        private static readonly ObjectPool<List<T>> s_ListPool = new ObjectPool<List<T>>(null, Clear);
-        static void Clear(List<T> l) { l.Clear(); }
-
-        public static List<T> Get()
-        {
-            return s_ListPool.Get();
-        }
-
-        public static void Release(List<T> toRelease)
-        {
-            s_ListPool.Release(toRelease);
-        }
-    }
-    internal class ObjectPool<T> where T : new()
-    {
-        private readonly Stack<T> m_Stack = new Stack<T>();
-        private readonly UnityAction<T> m_ActionOnGet;
-        private readonly UnityAction<T> m_ActionOnRelease;
-
-        public int countAll { get; private set; }
-        public int countActive { get { return countAll - countInactive; } }
-        public int countInactive { get { return m_Stack.Count; } }
-
-        public ObjectPool(UnityAction<T> actionOnGet, UnityAction<T> actionOnRelease)
-        {
-            m_ActionOnGet = actionOnGet;
-            m_ActionOnRelease = actionOnRelease;
-        }
-
-        public T Get()
-        {
-            T element;
-            if (m_Stack.Count == 0)
-            {
-                element = new T();
-                countAll++;
-            }
-            else
-            {
-                element = m_Stack.Pop();
-            }
-            if (m_ActionOnGet != null)
-                m_ActionOnGet(element);
-            return element;
-        }
-
-        public void Release(T element)
-        {
-            if (m_Stack.Count > 0 && ReferenceEquals(m_Stack.Peek(), element))
-                Debug.LogError("Internal error. Trying to destroy object that is already released to pool.");
-            if (m_ActionOnRelease != null)
-                m_ActionOnRelease(element);
-            m_Stack.Push(element);
-        }
     }
 }

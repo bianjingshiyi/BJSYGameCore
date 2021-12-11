@@ -22,6 +22,10 @@ namespace BJSYGameCore.UI
             Action<RectTransform> onCreate = null,
             Action<RectTransform> onDestroy = null)
         {
+            if (listItemTemplate.transform.parent == listRoot)
+            {
+                listItemTemplate.gameObject.SetActive(false);
+            }
             if (itemList.Count < count)
             {
                 //创建列表项，使用for循环避免死循环
@@ -42,6 +46,7 @@ namespace BJSYGameCore.UI
                 for (int i = 0; i < n; i++)
                 {
                     RectTransform item = itemList[itemList.Count - 1];
+                    item.SetParent(null);
                     UnityEngine.Object.Destroy(item.gameObject);
                     itemList.RemoveAt(itemList.Count - 1);
                     if (onDestroy != null)
@@ -55,7 +60,19 @@ namespace BJSYGameCore.UI
                 if (onUpdate != null)
                     onUpdate(i, item);
             }
+            foreach (var layoutGroup in listRoot.GetComponentsInChildren<LayoutGroup>())
+            {
+                if (layoutGroup.transform == listRoot)
+                    continue;
+                LayoutRebuilder.ForceRebuildLayoutImmediate(layoutGroup.transform as RectTransform);
+            }
             LayoutRebuilder.ForceRebuildLayoutImmediate(listRoot);
+            foreach (var layoutGroup in listRoot.GetComponentsInParent<LayoutGroup>())
+            {
+                if (layoutGroup.transform == listRoot)
+                    continue;
+                LayoutRebuilder.ForceRebuildLayoutImmediate(layoutGroup.transform as RectTransform);
+            }
         }
     }
 }
