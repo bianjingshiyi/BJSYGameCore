@@ -1,9 +1,11 @@
 ﻿using UnityEngine;
 using System.Threading.Tasks;
 using UnityEngine.Networking;
+using System;
 using System.IO;
 using System.Text;
-
+using System.Linq;
+using System.Threading;
 namespace BJSYGameCore
 {
     partial class FileManager
@@ -49,10 +51,12 @@ namespace BJSYGameCore
         /// </summary>
         /// <param name="path"></param>
         /// <returns></returns>
-        public Task<string> readStreamingTextFile(string path)
+        public Task<string[]> readStreamingTextFile(string path, int startLine = 0, int lineCount = 1, CancellationToken? cancelToken = null)
         {
-            TaskCompletionSource<string> tcs = new TaskCompletionSource<string>();
-            UnityWebRequest.Get(Application.streamingAssetsPath + "/" + path).SendWebRequest().completed += op =>
+            if (path.StartsWith("sa:"))
+                path = path.Substring(3, path.Length - 3);
+            TaskCompletionSource<string[]> tcs = new TaskCompletionSource<string[]>();
+            UnityWebRequest.Get(Path.Combine(Application.streamingAssetsPath, path)).SendWebRequest().completed += op =>
             {
                 UnityWebRequestAsyncOperation operation = op as UnityWebRequestAsyncOperation;
                 if (operation.webRequest.isHttpError)
@@ -77,9 +81,38 @@ namespace BJSYGameCore
                 }
                 //返回的是UTF8
                 string text = operation.webRequest.downloadHandler.text;
-                tcs.SetResult(text);
+                string[] headLines = new string[lineCount];
+                using (StringReader reader = new StringReader(text))
+                {
+                    for (int i = 0; i < startLine; i++)
+                    {
+                        if (cancelToken != null && cancelToken.Value.IsCancellationRequested)
+                        {
+                            tcs.SetResult(headLines);
+                            return;
+                        }
+                        reader.ReadLine();
+                    }
+                    for (int i = 0; i < lineCount; i++)
+                    {
+                        if (cancelToken != null && cancelToken.Value.IsCancellationRequested)
+                        {
+                            tcs.SetResult(headLines);
+                            return;
+                        }
+                        headLines[i] = reader.ReadLine();
+                    }
+                    tcs.SetResult(headLines);
+                }
             };
             return tcs.Task;
+        }
+        public string[] getStreamingFiles(string dirName, string searchPattern)
+        {
+            StreamingAssetsInfo streamingAssetsInfo = Resources.LoadAll<StreamingAssetsInfo>("").FirstOrDefault();
+            if (streamingAssetsInfo == null)
+                throw new NullReferenceException("Resources中无法找到StreamingAssetsInfo");
+            return streamingAssetsInfo.getFiles(dirName, searchPattern);
         }
     }
 }
