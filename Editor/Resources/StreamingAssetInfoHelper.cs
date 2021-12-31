@@ -32,7 +32,9 @@ namespace BJSYGameCore
             {
                 if (files[i].EndsWith(".meta"))
                     continue;//忽略meta文件
-                string path = files[i].Substring(Application.streamingAssetsPath.Length + 1, files[i].Length - Application.streamingAssetsPath.Length - 1);
+                string path = files[i]
+                    .Substring(Application.streamingAssetsPath.Length + 1, files[i].Length - Application.streamingAssetsPath.Length - 1)
+                    .Replace('\\', '/');
                 streamingAssetsInfo.addFile(path);
                 Debug.Log("添加流文件信息" + path, streamingAssetsInfo);
             }

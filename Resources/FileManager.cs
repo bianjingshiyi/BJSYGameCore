@@ -1,6 +1,8 @@
 ﻿using System.Threading.Tasks;
 using System.IO;
 using System.Threading;
+using System;
+
 namespace BJSYGameCore
 {
     partial class FileManager
@@ -87,7 +89,14 @@ namespace BJSYGameCore
             string dir = Path.GetDirectoryName(path);
             if (!Directory.Exists(dir))
             {
-                Directory.CreateDirectory(dir);
+                try
+                {
+                    Directory.CreateDirectory(dir);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    throw new UnauthorizedAccessException("无法创建文件夹" + dir + "，因为没有访问权限");
+                }
             }
             using (StreamWriter sw = new StreamWriter(path))
             {
