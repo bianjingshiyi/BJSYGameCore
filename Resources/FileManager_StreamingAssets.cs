@@ -18,7 +18,7 @@ namespace BJSYGameCore
         public Task<byte[]> readStreamingBinaryFile(string path)
         {
             TaskCompletionSource<byte[]> tcs = new TaskCompletionSource<byte[]>();
-            UnityWebRequest.Get(Application.streamingAssetsPath + "/" + path).SendWebRequest().completed += op =>
+            UnityWebRequest.Get(Path.Combine(Application.streamingAssetsPath, path)).SendWebRequest().completed += op =>
             {
                 UnityWebRequestAsyncOperation operation = op as UnityWebRequestAsyncOperation;
                 if (operation.webRequest.isHttpError)
