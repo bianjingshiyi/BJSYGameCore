@@ -38,6 +38,28 @@ namespace BJSYGameCore
                 throw new FileLoadException("Invalid Text File!!", e);
             }
         }
+        public async Task<string> readTextFileToEnd(string path, int startLine = 0, CancellationToken? cancelToken = null)
+        {
+            try
+            {
+                string line = null;
+                using (StreamReader reader = new StreamReader(path))
+                {
+                    for (int i = 0; i < startLine; i++)
+                    {
+                        if (cancelToken != null && cancelToken.Value.IsCancellationRequested)
+                            return line;
+                        await reader.ReadLineAsync();
+                    }
+                    line = await reader.ReadToEndAsync();
+                }
+                return line;
+            }
+            catch (FileLoadException e)
+            {
+                throw new FileLoadException("Invalid Text File!!", e);
+            }
+        }
         /// <summary>
         /// 读取某个二进制文件的数据
         /// </summary>

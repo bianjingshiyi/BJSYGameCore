@@ -107,6 +107,54 @@ namespace BJSYGameCore
             };
             return tcs.Task;
         }
+        public Task<string> readStreamingTextFileToEnd(string path, int startLine = 0, CancellationToken? cancelToken = null)
+        {
+            if (path.StartsWith("sa:"))
+                path = path.Substring(3, path.Length - 3);
+            TaskCompletionSource<string> tcs = new TaskCompletionSource<string>();
+            UnityWebRequest.Get(Path.Combine(Application.streamingAssetsPath, path)).SendWebRequest().completed += op =>
+            {
+                UnityWebRequestAsyncOperation operation = op as UnityWebRequestAsyncOperation;
+                if (operation.webRequest.isHttpError)
+                {
+                    if (operation.webRequest.responseCode == 404)
+                    {
+                        //发生错误，没有找到文件
+                        tcs.SetException(new FileNotFoundException($"Unable to load file {path}", path));
+                    }
+                    else
+                    {
+                        //发生错误
+                        tcs.SetException(new IOException("读取文件" + path + "失败，错误信息：" + operation.webRequest.error));
+                    }
+                    return;
+                }
+                else if (operation.webRequest.isNetworkError)
+                {
+                    //发生错误
+                    tcs.SetException(new IOException("读取文件" + path + "失败，错误信息：" + operation.webRequest.error));
+                    return;
+                }
+                //返回的是UTF8
+                string text = operation.webRequest.downloadHandler.text;
+                string line = null;
+                using (StringReader reader = new StringReader(text))
+                {
+                    for (int i = 0; i < startLine; i++)
+                    {
+                        if (cancelToken != null && cancelToken.Value.IsCancellationRequested)
+                        {
+                            tcs.SetResult(line);
+                            return;
+                        }
+                        reader.ReadLine();
+                    }
+                    line = reader.ReadToEnd();
+                    tcs.SetResult(line);
+                }
+            };
+            return tcs.Task;
+        }
         public string[] getStreamingFiles(string dirName, string searchPattern)
         {
             StreamingAssetsInfo streamingAssetsInfo = Resources.LoadAll<StreamingAssetsInfo>("").FirstOrDefault();
