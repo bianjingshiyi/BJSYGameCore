@@ -12,11 +12,13 @@ namespace Tests
     {
         const string PATH_BUILD_OUTPUT = "Tests/AssetBundles";
         const string PATH_ASSET_TO_PACK = "Assets/Plugins/BJSYGameCore/Tests/AssetToPack.prefab";
-        const string BUNDLE_NAME_TEST_VARIANT = "test.varaint";
+        const string BUNDLE_NAME_TEST_VARIANT = "test.variant";
         const string BUNDLE_NAME_DEPENDENT = "dependent";
         [Test]
         public void buildTest()
         {
+            if (!Directory.Exists(PATH_BUILD_OUTPUT))
+                Directory.CreateDirectory(PATH_BUILD_OUTPUT);
             BuildPipeline.BuildAssetBundles(PATH_BUILD_OUTPUT, BuildAssetBundleOptions.None, BuildTarget.StandaloneWindows);
             AssetImporter importer = AssetImporter.GetAtPath(PATH_ASSET_TO_PACK);
             string path = PATH_BUILD_OUTPUT + "/" + importer.assetBundleName + "." + importer.assetBundleVariant;
@@ -55,7 +57,8 @@ namespace Tests
             BuildPipeline.BuildAssetBundles(PATH_BUILD_OUTPUT, BuildAssetBundleOptions.None, BuildTarget.StandaloneWindows);
             AssetBundle bundle = AssetBundle.LoadFromFile(PATH_BUILD_OUTPUT + "/" + Path.GetFileNameWithoutExtension(PATH_BUILD_OUTPUT));
             AssetBundleManifest manifest = bundle.LoadAsset<AssetBundleManifest>(bundle.GetAllAssetNames()[0]);
-            Assert.True(manifest.GetAllDependencies(BUNDLE_NAME_DEPENDENT).Contains(BUNDLE_NAME_TEST_VARIANT));
+            string[] dependencies = manifest.GetAllDependencies(BUNDLE_NAME_DEPENDENT);
+            Assert.True(dependencies.Contains(BUNDLE_NAME_TEST_VARIANT));
         }
         const string PATH_AUTOUI = "Assets/Plugins/BJSYGameCore/Tests/Editor/AutoUI.RectTransform,Animator.prefab";
         [Test]

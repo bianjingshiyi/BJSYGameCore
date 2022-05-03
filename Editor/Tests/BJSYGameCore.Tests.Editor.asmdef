@@ -1,11 +1,12 @@
 {
-    "name": "BJSYGameCoreEditorTests",
+    "name": "BJSYGameCore.Tests.Editor",
+    "rootNamespace": "",
     "references": [
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
         "BJSYGameCore",
         "BJSYGameCore.Editor",
-        "BJSYGameCoreTests"
+        "BJSYGameCore.Tests"
     ],
     "includePlatforms": [
         "Editor"

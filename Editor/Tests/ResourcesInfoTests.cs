@@ -62,21 +62,6 @@ namespace Tests
                 });
             }
         }
-        void usingTempFile(Action action)
-        {
-            //文件
-            bool isFileTemp = false;
-            if (!Directory.Exists(Path.GetDirectoryName(PATH_FILE_TO_READ)))
-                Directory.CreateDirectory(Path.GetDirectoryName(PATH_FILE_TO_READ));
-            if (!File.Exists(PATH_FILE_TO_READ))
-            {
-                isFileTemp = true;
-                File.Create(PATH_FILE_TO_READ).Close();
-            }
-            action?.Invoke();
-            if (isFileTemp)
-                File.Delete(PATH_FILE_TO_READ);
-        }
         /// <summary>
         /// build可以在打包的时候指定资源打包进的Bundle和路径，
         /// 资源加载可以通过"ab:包名/指定路径"来进行加载。
@@ -84,31 +69,29 @@ namespace Tests
         [Test]
         public void buildSelectedAndLoadTest()
         {
-            using (ResourceManager manager = ResourceManagerTests.createManager())
+            ResourceManager manager = ResourceManagerTests.createManager();
+            using (ResourcesInfo info = ScriptableObject.CreateInstance<ResourcesInfo>())
             {
-                using (ResourcesInfo info = ScriptableObject.CreateInstance<ResourcesInfo>())
+                usingTempFile(() =>
                 {
-                    usingTempFile(() =>
+                    ResourcesInfoEditor.build(info, PATH_BUILD_OUTPUT, new ResourceInfo()
                     {
-                        ResourcesInfoEditor.build(info, PATH_BUILD_OUTPUT, new ResourceInfo()
-                        {
-                            type = ResourceType.Resources,
-                            path = PATH_RESOURCE_TO_LOAD
-                        },
-                        new ResourceInfo()
-                        {
-                            type = ResourceType.Assetbundle,
-                            path = PATH_ASSET_TO_PACK,
-                        },
-                        new ResourceInfo()
-                        {
-                            type = ResourceType.File,
-                            path = PATH_FILE_TO_READ
-                        });
-                        manager.resourcesInfo = info;
-                        loadAllKindResAssert(manager);
+                        type = ResourceType.Resources,
+                        path = PATH_RESOURCE_TO_LOAD
+                    },
+                    new ResourceInfo()
+                    {
+                        type = ResourceType.Assetbundle,
+                        path = PATH_ASSET_TO_PACK,
+                    },
+                    new ResourceInfo()
+                    {
+                        type = ResourceType.File,
+                        path = PATH_FILE_TO_READ
                     });
-                }
+                    manager.resourcesInfo = info;
+                    loadAllKindResAssert(manager);
+                });
             }
         }
         /// <summary>
@@ -129,17 +112,15 @@ namespace Tests
                 });
                 return;
             }
-            using (manager = ResourceManagerTests.createManager())
+            manager = ResourceManagerTests.createManager();
+            using (ResourcesInfo info = ScriptableObject.CreateInstance<ResourcesInfo>())
             {
-                using (ResourcesInfo info = ScriptableObject.CreateInstance<ResourcesInfo>())
+                usingTempFile(() =>
                 {
-                    usingTempFile(() =>
-                    {
-                        ResourcesInfoEditor.build(info, PATH_BUILD_OUTPUT);
-                        manager.resourcesInfo = info;
-                        onAssert?.Invoke(manager);
-                    });
-                }
+                    ResourcesInfoEditor.build(info, PATH_BUILD_OUTPUT);
+                    manager.resourcesInfo = info;
+                    onAssert?.Invoke(manager);
+                });
             }
             manager = null;
         }
@@ -311,24 +292,22 @@ namespace Tests
                     File.Delete(PATH_FILE_TO_READ);
                 yield break;
             }
-            using (manager = ResourceManagerTests.createManager())
+            manager = ResourceManagerTests.createManager();
+            using (ResourcesInfo info = ScriptableObject.CreateInstance<ResourcesInfo>())
             {
-                using (ResourcesInfo info = ScriptableObject.CreateInstance<ResourcesInfo>())
+                bool isFileTemp = false;
+                if (!Directory.Exists(Path.GetDirectoryName(PATH_FILE_TO_READ)))
+                    Directory.CreateDirectory(Path.GetDirectoryName(PATH_FILE_TO_READ));
+                if (!File.Exists(PATH_FILE_TO_READ))
                 {
-                    bool isFileTemp = false;
-                    if (!Directory.Exists(Path.GetDirectoryName(PATH_FILE_TO_READ)))
-                        Directory.CreateDirectory(Path.GetDirectoryName(PATH_FILE_TO_READ));
-                    if (!File.Exists(PATH_FILE_TO_READ))
-                    {
-                        isFileTemp = true;
-                        File.Create(PATH_FILE_TO_READ).Close();
-                    }
-                    ResourcesInfoEditor.build(info, PATH_BUILD_OUTPUT);
-                    manager.resourcesInfo = info;
-                    yield return onAssert?.Invoke(manager);
-                    if (isFileTemp)
-                        File.Delete(PATH_FILE_TO_READ);
+                    isFileTemp = true;
+                    File.Create(PATH_FILE_TO_READ).Close();
                 }
+                ResourcesInfoEditor.build(info, PATH_BUILD_OUTPUT);
+                manager.resourcesInfo = info;
+                yield return onAssert?.Invoke(manager);
+                if (isFileTemp)
+                    File.Delete(PATH_FILE_TO_READ);
             }
             manager = null;
         }
@@ -369,6 +348,21 @@ namespace Tests
                    manager.resourcesInfo.getInfoByPath("ab:" + PATH_DEPENDENT_ASSET).bundleName)).wait();
             Assert.True(manager.loadAssetBundleFromCache(manager.resourcesInfo.getInfoByPath("ab:" + PATH_ASSET_TO_PACK).bundleName, out _));
             Assert.True(manager.loadAssetBundleFromCache(manager.resourcesInfo.getInfoByPath("ab:" + PATH_ASSET_TO_PACK).bundleName, out _));
+        }
+        void usingTempFile(Action action)
+        {
+            //文件
+            bool isFileTemp = false;
+            if (!Directory.Exists(Path.GetDirectoryName(PATH_FILE_TO_READ)))
+                Directory.CreateDirectory(Path.GetDirectoryName(PATH_FILE_TO_READ));
+            if (!File.Exists(PATH_FILE_TO_READ))
+            {
+                isFileTemp = true;
+                File.Create(PATH_FILE_TO_READ).Close();
+            }
+            action?.Invoke();
+            if (isFileTemp)
+                File.Delete(PATH_FILE_TO_READ);
         }
     }
 }

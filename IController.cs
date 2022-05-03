@@ -2,7 +2,7 @@
 {
     public interface IController<TMainCtrl> where TMainCtrl : IController<TMainCtrl>
     {
-        IAppManager app { get; }
+        IGameManager app { get; }
         TMainCtrl main { get; }
     }
 }

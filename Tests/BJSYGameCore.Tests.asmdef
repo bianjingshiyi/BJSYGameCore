@@ -1,5 +1,6 @@
 {
-    "name": "BJSYGameCoreTests",
+    "name": "BJSYGameCore.Tests",
+    "rootNamespace": "",
     "references": [
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",

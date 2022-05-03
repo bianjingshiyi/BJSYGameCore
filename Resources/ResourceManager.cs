@@ -4,12 +4,18 @@ using System.Threading.Tasks;
 using BJSYGameCore.UI;
 using System.CodeDom;
 using System.Collections.Generic;
-
+using Object = UnityEngine.Object;
 namespace BJSYGameCore
 {
-    public partial class ResourceManager : Manager, IDisposable, IResourceManager
+    public partial class ResourceManager : IResourceManager
     {
         #region 公有方法
+        #region 构造函数
+        public ResourceManager(IGameManager game)
+        {
+            this.game = game;
+        }
+        #endregion
         /// <summary>
         /// 同步的加载一个资源
         /// </summary>
@@ -93,6 +99,16 @@ namespace BJSYGameCore
             }
             saveToCache(path, res);
             return res;
+        }
+        public Task<T> loadAsync<T>(string path) where T : Object
+        {
+            if (string.IsNullOrEmpty(path))
+                return null;
+            if (loadFromCache(path, out T t))
+            {
+                return Task.FromResult(t);
+            }
+            return loadFromAssetBundleAsync<T>(path);
         }
         #endregion
         #region 私有方法
@@ -178,19 +194,13 @@ namespace BJSYGameCore
         }
         #endregion
 
-        public void Dispose()
+        #region 属性字段
+        IGameManager game;
+        public ResourcesInfo resourcesInfo
         {
-            cacheDic.Clear();
-#if UNITY_EDITOR
-            if (!Application.isPlaying)
-                DestroyImmediate(gameObject);
-            else
-                Destroy(gameObject);
-#else
-            Destroy(gameObject);
-#endif
+            get { return _resourcesInfo; }
+            set { _resourcesInfo = value; }
         }
-        #region 字段
         /// <summary>
         /// 正在加载资源的LoadResourceOperation字典，值可能是LoadResouceOperation，也可能是一个List。
         /// 之所以只用object是因为大部分情况下同一个路径下不会有多个有不同类型的资源，在这种情况下不使用List。
@@ -198,11 +208,6 @@ namespace BJSYGameCore
         Dictionary<string, object> _loadOpDict = new Dictionary<string, object>();
         [SerializeField]
         ResourcesInfo _resourcesInfo;
-        public ResourcesInfo resourcesInfo
-        {
-            get { return _resourcesInfo; }
-            set { _resourcesInfo = value; }
-        }
         protected const string PATH_RES_PREFIX = "res:";
         #endregion
     }

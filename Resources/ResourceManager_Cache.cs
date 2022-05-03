@@ -5,7 +5,7 @@ namespace BJSYGameCore
 {
     public partial class ResourceManager
     {
-        #region 公共成员
+        #region 公有方法
         public bool loadFromCache<T>(string path, out T res)
         {
             if (cacheDic.TryGetValue(path, out var item))
@@ -44,7 +44,7 @@ namespace BJSYGameCore
             return false;
         }
         #endregion
-        #region 私有成员
+        #region 私有方法
         protected void saveToCache(string path, object res)
         {
             if (cacheDic.TryGetValue(path, out var item) && ReferenceEquals(item.wref.Target, res))
@@ -54,7 +54,11 @@ namespace BJSYGameCore
             }
             cacheDic[path] = new CacheItem() { wref = new WeakReference(res) };
         }
+        #endregion
+        #region 属性字段
         Dictionary<string, CacheItem> cacheDic { get; } = new Dictionary<string, CacheItem>();
+        #endregion
+        #region 内部类
         class CacheItem
         {
             /// <summary>

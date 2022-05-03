@@ -10,6 +10,9 @@ namespace BJSYGameCore
     [CreateAssetMenu(fileName = nameof(ResourcesInfo), menuName = nameof(BJSYGameCore) + "/" + nameof(ResourcesInfo))]
     public class ResourcesInfo : ScriptableObject, IDisposable
     {
+        /// <summary>
+        /// AssetBundle打包输出的文件夹路径
+        /// </summary>
         public string bundleOutputPath;
         /// <summary>
         /// AssetBundleInfo自身的版本号
@@ -26,23 +29,26 @@ namespace BJSYGameCore
         public ResourceInfo getInfoByPath(string path)
         {
             ResourceInfo res = null;
-            if (path.Contains(":")) {
+            if (path.Contains(":"))
+            {
                 string prefix = path.Split(':')[0];
                 string realPath = path.Split(':')[1];
-                switch (prefix) {
+                switch (prefix)
+                {
                     case "res":
                         res = resourceList.Find(r => r.type == ResourceType.Resources && r.path == realPath);
                         break;
                     case "ab":
-                        res =  resourceList.Find(r => r.type == ResourceType.Assetbundle && r.path == realPath.ToLower());
+                        res = resourceList.Find(r => r.type == ResourceType.Assetbundle && r.path == realPath.ToLower());
                         break;
                     default:
                         Debug.LogError($"\"{path}\" 路径的前缀不合法！！！");
                         return res;
                 }
             }
-            else {
-                res = resourceList.Find(r => r.type == ResourceType.File && r.path == path);
+            else
+            {
+                res = resourceList.Find(r => r.path == path);
             }
             if (res == null)
                 Debug.LogError($"找不到ResoucesInfo，请检查路径\"{path}\"是否错误");
@@ -82,7 +88,7 @@ namespace BJSYGameCore
         }
 #endif
     }
-    [Serializable,Obsolete("AssetBundleInfoItem即将要废弃")]
+    [Serializable, Obsolete("AssetBundleInfoItem即将要废弃")]
     public class AssetBundleInfoItem
     {
         [Obsolete("这些变量要扔进历史垃圾堆")]
@@ -149,7 +155,7 @@ namespace BJSYGameCore
     [Serializable]
     public class ResourceInfo
     {
-        
+
         /// <summary>
         /// 版本
         /// </summary>
@@ -168,7 +174,7 @@ namespace BJSYGameCore
         public string bundleName;
 
 
-        [SerializeField,Obsolete("这些变量要扔进历史垃圾堆")]
+        [SerializeField, Obsolete("这些变量要扔进历史垃圾堆")]
         string _assetPath;
         public string assetPath
         {
