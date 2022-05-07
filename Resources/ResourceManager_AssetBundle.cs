@@ -197,22 +197,35 @@ namespace BJSYGameCore
         public async Task<T> loadFromAssetBundleAsync<T>(string path) where T : Object
         {
             //先实现一个比较暴力的，穷举AssetBundle来寻找资源
-            byte[] bytes = await game.fileManager.readStreamingBinaryFile(Path.Combine(
+            string assetBundlePath = Path.Combine(
                 resourcesInfo.bundleOutputPath,
-                new DirectoryInfo(resourcesInfo.bundleOutputPath).Name));
-            AssetBundle assetBundle = await loadAssetBundleFromBytes(bytes);
+                new DirectoryInfo(resourcesInfo.bundleOutputPath).Name);
+            byte[] bytes;
+            if (!loadAssetBundleFromCache(assetBundlePath, out AssetBundle assetBundle))
+            {
+                bytes = await game.fileManager.readStreamingBinaryFile(assetBundlePath);
+                assetBundle = await loadAssetBundleFromBytes(bytes);
+                saveBundleToCache(assetBundlePath, assetBundle);
+            }
+            if (assetBundle == null)
+                throw new NullReferenceException("无法加载资源" + path + "，由于Manifest加载失败");
             AssetBundleManifest manifest = assetBundle.LoadAsset<AssetBundleManifest>(nameof(AssetBundleManifest));
             foreach (string assetBundleName in manifest.GetAllAssetBundles())
             {
-                bytes = await game.fileManager.readStreamingBinaryFile(Path.Combine(
+                assetBundlePath = Path.Combine(
                     resourcesInfo.bundleOutputPath,
-                    assetBundleName));
-                assetBundle = await loadAssetBundleFromBytes(bytes);
+                    assetBundleName);
+                if (!loadAssetBundleFromCache(assetBundlePath, out assetBundle))
+                {
+                    bytes = await game.fileManager.readStreamingBinaryFile(assetBundlePath);
+                    assetBundle = await loadAssetBundleFromBytes(bytes);
+                    saveBundleToCache(assetBundlePath, assetBundle);
+                }
                 T t = await loadFromAssetBundleAsync<T>(assetBundle, path);
                 if (t != null)
                     return t;
-                else
-                    assetBundle.Unload(false);
+                //else
+                //    assetBundle.Unload(false);
             }
             return null;
             ////上一步找不到，就加载AB包并Load出UObject
