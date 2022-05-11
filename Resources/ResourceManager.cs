@@ -108,7 +108,11 @@ namespace BJSYGameCore
             {
                 return Task.FromResult(t);
             }
+#if UNITY_EDITOR
+            return Task.FromResult(loadFromAssetDatabase<T>(path));
+#else
             return loadFromAssetBundleAsync<T>(path);
+#endif
         }
         #endregion
         #region 私有方法

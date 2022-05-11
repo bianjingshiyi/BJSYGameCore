@@ -32,6 +32,10 @@ namespace BJSYGameCore
             saveToCache(info.path, obj);
             return obj;
         }
+        public T loadFromAssetDatabase<T>(string path) where T : Object
+        {
+            return UnityEditor.AssetDatabase.LoadAssetAtPath<T>(path);
+        }
 #endif
         #endregion
 
