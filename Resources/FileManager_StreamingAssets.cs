@@ -155,6 +155,45 @@ namespace BJSYGameCore
             };
             return tcs.Task;
         }
+        public void readStreamingTextFileToEndSync(string path, int startLine, Action<string> onComplete)
+        {
+            if (path.StartsWith("sa:"))
+                path = path.Substring(3, path.Length - 3);
+            UnityWebRequest.Get(Path.Combine(Application.streamingAssetsPath, path)).SendWebRequest().completed += op =>
+            {
+                UnityWebRequestAsyncOperation operation = op as UnityWebRequestAsyncOperation;
+                if (operation.webRequest.result == UnityWebRequest.Result.ProtocolError)
+                {
+                    if (operation.webRequest.responseCode == 404)
+                    {
+                        //发生错误，没有找到文件
+                        throw new FileNotFoundException("file not found " + path);
+                    }
+                    else
+                    {
+                        //发生错误
+                        throw new IOException("read file " + path + " protocol error:" + operation.webRequest.error);
+                    }
+                }
+                else if (operation.webRequest.result == UnityWebRequest.Result.ConnectionError)
+                {
+                    //发生错误
+                    throw new IOException("read file " + path + " connection error:" + operation.webRequest.error);
+                }
+                //返回的是UTF8
+                string text = operation.webRequest.downloadHandler.text;
+                string line = null;
+                using (StringReader reader = new StringReader(text))
+                {
+                    for (int i = 0; i < startLine; i++)
+                    {
+                        reader.ReadLine();
+                    }
+                    line = reader.ReadToEnd();
+                    onComplete?.Invoke(line);
+                }
+            };
+        }
         public string[] getStreamingFiles(string dirName, string searchPattern)
         {
             StreamingAssetsInfo streamingAssetsInfo = Resources.LoadAll<StreamingAssetsInfo>("").FirstOrDefault();

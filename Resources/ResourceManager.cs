@@ -5,6 +5,8 @@ using BJSYGameCore.UI;
 using System.CodeDom;
 using System.Collections.Generic;
 using Object = UnityEngine.Object;
+using System.IO;
+
 namespace BJSYGameCore
 {
     public partial class ResourceManager : IResourceManager
@@ -99,6 +101,31 @@ namespace BJSYGameCore
             }
             saveToCache(path, res);
             return res;
+        }
+        public void load<T>(string path, Action<T> onCompleted) where T : Object
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                onCompleted?.Invoke(null);
+                return;
+            }
+            if (loadFromCache(path, out T t))
+            {
+                onCompleted?.Invoke(t);
+                return;
+            }
+            //TODO: use AssetBundle instead of Resources
+            ResourceRequest resourceRequest = Resources.LoadAsync<T>(path);
+            resourceRequest.completed += op =>
+            {
+                t = resourceRequest.asset as T;
+                if (t != null)
+                {
+                    onCompleted?.Invoke(t);
+                }
+                else
+                    throw new InvalidCastException("asset " + path + " can not cast to " + typeof(T).Name + " or it is null");
+            };
         }
         public Task<T> loadAsync<T>(string path) where T : Object
         {
