@@ -5,6 +5,7 @@ namespace BJSYGameCore
 {
     public class InputManager : Manager
     {
+        #region 公有方法
         public bool isPointerOver(RectTransform transform)
         {
             if (EventSystem.current is var eventSystem)
@@ -26,5 +27,28 @@ namespace BJSYGameCore
             else
                 return false;
         }
+        public void OnUpdate()
+        {
+            if (EventSystem.current != null)
+            {
+                EventSystem.current.RaycastAll(new PointerEventData(EventSystem.current)
+                {
+                    position = Input.mousePosition
+                }, _raycastList);
+            }
+        }
+        #endregion
+        #region 私有方法
+        #region 生命周期
+        protected void Update()
+        {
+            OnUpdate();
+        }
+        #endregion
+        #endregion
+        #region 属性字段
+        [SerializeField]
+        private List<RaycastResult> _raycastList = new List<RaycastResult>();
+        #endregion
     }
 }
