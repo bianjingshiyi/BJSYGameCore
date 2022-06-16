@@ -15,10 +15,10 @@ namespace BJSYGameCore.Animations
                 return _graphic;
             }
         }
-        public override Material material
+        public override Material[] materials
         {
-            get { return graphic.material; }
-            set { graphic.material = value; }
+            get { return new Material[] { graphic.material }; }
+            set { graphic.material = value != null && value.Length > 0 ? value[0] : null; }
         }
     }
 }

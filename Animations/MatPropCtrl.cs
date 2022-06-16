@@ -5,22 +5,29 @@ namespace BJSYGameCore.Animations
     [ExecuteInEditMode]
     public abstract class MatPropCtrl : MonoBehaviour
     {
-        Material _originMaterial;
-        Material _cloneMaterial;
-        public abstract Material material { get; set; }
+        Material[] _originMaterials;
+        Material[] _cloneMaterials;
+        public abstract Material[] materials { get; set; }
         protected void OnEnable()
         {
-            _originMaterial = material;
-            _cloneMaterial = Instantiate(_originMaterial);
-            material = _cloneMaterial;
+            _originMaterials = materials;
+            _cloneMaterials = new Material[_originMaterials.Length];
+            for (int i = 0; i < _cloneMaterials.Length; i++)
+            {
+                _cloneMaterials[i] = Instantiate(_originMaterials[i]);
+            }
+            materials = _cloneMaterials;
         }
         protected abstract void Update();
         protected void OnDisable()
         {
-            DestroyImmediate(_cloneMaterial);
-            _cloneMaterial = null;
-            material = _originMaterial;
-            _originMaterial = null;
+            for (int i = 0; i < _cloneMaterials.Length; i++)
+            {
+                DestroyImmediate(_cloneMaterials[i]);
+            }
+            _cloneMaterials = null;
+            materials = _originMaterials;
+            _originMaterials = null;
         }
         protected virtual void Reset()
         {
@@ -29,11 +36,14 @@ namespace BJSYGameCore.Animations
         [ContextMenu(nameof(showMatPropNames))]
         public void showMatPropNames()
         {
-            if (material != null)
+            if (materials != null)
             {
-                foreach (string name in material.GetTexturePropertyNames())
+                foreach (Material material in materials)
                 {
-                    Debug.Log(name);
+                    foreach (string name in material.GetTexturePropertyNames())
+                    {
+                        Debug.Log(name);
+                    }
                 }
             }
         }

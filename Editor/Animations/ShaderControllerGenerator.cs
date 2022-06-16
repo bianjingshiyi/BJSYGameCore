@@ -10,14 +10,14 @@ namespace BJSYGameCore.Animations
 {
     public class ShaderControllerGenerator
     {
-        [MenuItem("Assets/Create/Generate ShaderController", true, 410)]
+        [MenuItem("Assets/Create/Generate Shader Controller", true, 410)]
         public static bool validateGenerateScriptForShader()
         {
             if (Selection.activeObject is Shader)
                 return true;
             return false;
         }
-        [MenuItem("Assets/Create/Generate ShaderController", false, 410)]
+        [MenuItem("Assets/Create/Generate Shader Controller", false, 410)]
         public static void generateScriptForShader()
         {
             if (Selection.activeObject is Shader shader)
