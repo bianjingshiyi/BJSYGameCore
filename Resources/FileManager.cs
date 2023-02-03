@@ -70,7 +70,7 @@ namespace BJSYGameCore
         {
             try
             {
-                using (FileStream fs = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Read))
+                using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read))
                 {
                     byte[] buffer = new byte[fs.Length];
                     await fs.ReadAsync(buffer, 0, (int)fs.Length);
