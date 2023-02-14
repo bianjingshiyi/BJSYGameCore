@@ -6,6 +6,8 @@ using System.IO;
 using System.Text;
 using System.Linq;
 using System.Threading;
+using System.Collections.Generic;
+
 namespace BJSYGameCore
 {
     partial class FileManager
@@ -50,6 +52,8 @@ namespace BJSYGameCore
         /// 从StreamingAssets中读取文本文件的文本，注意返回的格式为UTF8
         /// </summary>
         /// <param name="path"></param>
+        /// <param name="startLine"></param>
+        /// <param name="lineCount">要读取的行数。若设置为0则读到最后一行</param>
         /// <returns></returns>
         public Task<string[]> readStreamingTextFile(string path, int startLine = 0, int lineCount = 1, CancellationToken? cancelToken = null)
         {
@@ -82,6 +86,7 @@ namespace BJSYGameCore
                 //返回的是UTF8
                 string text = operation.webRequest.downloadHandler.text;
                 string[] headLines = new string[lineCount];
+                List<string> lines = lineCount == 0 ? new List<string>() : null;
                 using (StringReader reader = new StringReader(text))
                 {
                     for (int i = 0; i < startLine; i++)
@@ -102,7 +107,20 @@ namespace BJSYGameCore
                         }
                         headLines[i] = reader.ReadLine();
                     }
-                    tcs.SetResult(headLines);
+                    if (lineCount == 0)
+                    {
+                        string line;
+                        while ((line = reader.ReadLine()) != null) 
+                        {
+                            if (cancelToken != null && cancelToken.Value.IsCancellationRequested)
+                            {
+                                tcs.SetResult(lines.ToArray());
+                                return;
+                            }
+                            lines.Add(line);
+                        }
+                    }
+                    tcs.SetResult(lineCount == 0 ? lines.ToArray() : headLines);
                 }
             };
             return tcs.Task;

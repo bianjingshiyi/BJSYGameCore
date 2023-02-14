@@ -2,6 +2,7 @@
 using System.IO;
 using System.Threading;
 using System;
+using System.Collections.Generic;
 
 namespace BJSYGameCore
 {
@@ -11,11 +12,21 @@ namespace BJSYGameCore
         {
             return Directory.GetFiles(dirName, searchPattern);
         }
+        /// <summary>
+        /// 读取文本文件
+        /// </summary>
+        /// <param name="path"></param>
+        /// <param name="startLine"></param>
+        /// <param name="lineCount">要读取的行数。若设置为0则读到最后一行</param>
+        /// <param name="cancelToken"></param>
+        /// <returns></returns>
+        /// <exception cref="FileLoadException"></exception>
         public async Task<string[]> readTextFile(string path, int startLine = 0, int lineCount = 1, CancellationToken? cancelToken = null)
         {
             try
             {
                 string[] headLines = new string[lineCount];
+                List<string> lines = lineCount == 0 ? new List<string>() : null;
                 using (StreamReader reader = new StreamReader(path))
                 {
                     for (int i = 0; i < startLine; i++)
@@ -30,8 +41,17 @@ namespace BJSYGameCore
                             return headLines;
                         headLines[i] = await reader.ReadLineAsync();
                     }
+                    if (lineCount == 0)
+                    {
+                        while (!reader.EndOfStream)
+                        {
+                            if (cancelToken != null && cancelToken.Value.IsCancellationRequested)
+                                return lines.ToArray();
+                            lines.Add(await reader.ReadLineAsync());
+                        }
+                    }
                 }
-                return headLines;
+                return lineCount == 0 ? lines.ToArray() : headLines;
             }
             catch (FileLoadException e)
             {
