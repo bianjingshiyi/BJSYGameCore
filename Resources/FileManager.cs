@@ -21,37 +21,17 @@ namespace BJSYGameCore
         /// <param name="cancelToken"></param>
         /// <returns></returns>
         /// <exception cref="FileLoadException"></exception>
-        public async Task<string[]> readTextFile(string path, int startLine = 0, int lineCount = 1, CancellationToken? cancelToken = null)
+        public Task<string[]> readTextFile(string path, int startLine = 0, int lineCount = 1, CancellationToken? cancelToken = null)
         {
             try
             {
-                string[] headLines = new string[lineCount];
-                List<string> lines = lineCount == 0 ? new List<string>() : null;
-                using (StreamReader reader = new StreamReader(path))
+                return Task.Run(() =>
                 {
-                    for (int i = 0; i < startLine; i++)
+                    using (StreamReader reader = new StreamReader(path))
                     {
-                        if (cancelToken != null && cancelToken.Value.IsCancellationRequested)
-                            return headLines;
-                        await reader.ReadLineAsync();
+                        return readTextLines(reader, startLine, lineCount, cancelToken);
                     }
-                    for (int i = 0; i < lineCount; i++)
-                    {
-                        if (cancelToken != null && cancelToken.Value.IsCancellationRequested)
-                            return headLines;
-                        headLines[i] = await reader.ReadLineAsync();
-                    }
-                    if (lineCount == 0)
-                    {
-                        while (!reader.EndOfStream)
-                        {
-                            if (cancelToken != null && cancelToken.Value.IsCancellationRequested)
-                                return lines.ToArray();
-                            lines.Add(await reader.ReadLineAsync());
-                        }
-                    }
-                }
-                return lineCount == 0 ? lines.ToArray() : headLines;
+                });
             }
             catch (FileLoadException e)
             {
@@ -171,6 +151,36 @@ namespace BJSYGameCore
             }
             else
                 return false;
+        }
+
+        private string[] readTextLines(TextReader reader, int startLine, int lineCount, CancellationToken? cancelToken)
+        {
+            string[] headLines = new string[lineCount];
+            List<string> lines = lineCount == 0 ? new List<string>() : null;
+
+            for (int i = 0; i < startLine; i++)
+            {
+                if (cancelToken != null && cancelToken.Value.IsCancellationRequested)
+                    return headLines;
+                reader.ReadLine();
+            }
+            for (int i = 0; i < lineCount; i++)
+            {
+                if (cancelToken != null && cancelToken.Value.IsCancellationRequested)
+                    return headLines;
+                headLines[i] = reader.ReadLine();
+            }
+            if (lineCount == 0)
+            {
+                string line;
+                while ((line = reader.ReadLine()) != null)
+                {
+                    lines.Add(line);
+                    if (cancelToken != null && cancelToken.Value.IsCancellationRequested)
+                        return lines.ToArray();
+                }
+            }
+            return lineCount == 0 ? lines.ToArray() : headLines;
         }
     }
 }

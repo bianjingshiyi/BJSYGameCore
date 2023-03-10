@@ -85,42 +85,9 @@ namespace BJSYGameCore
                 }
                 //返回的是UTF8
                 string text = operation.webRequest.downloadHandler.text;
-                string[] headLines = new string[lineCount];
-                List<string> lines = lineCount == 0 ? new List<string>() : null;
                 using (StringReader reader = new StringReader(text))
                 {
-                    for (int i = 0; i < startLine; i++)
-                    {
-                        if (cancelToken != null && cancelToken.Value.IsCancellationRequested)
-                        {
-                            tcs.SetResult(headLines);
-                            return;
-                        }
-                        reader.ReadLine();
-                    }
-                    for (int i = 0; i < lineCount; i++)
-                    {
-                        if (cancelToken != null && cancelToken.Value.IsCancellationRequested)
-                        {
-                            tcs.SetResult(headLines);
-                            return;
-                        }
-                        headLines[i] = reader.ReadLine();
-                    }
-                    if (lineCount == 0)
-                    {
-                        string line;
-                        while ((line = reader.ReadLine()) != null) 
-                        {
-                            if (cancelToken != null && cancelToken.Value.IsCancellationRequested)
-                            {
-                                tcs.SetResult(lines.ToArray());
-                                return;
-                            }
-                            lines.Add(line);
-                        }
-                    }
-                    tcs.SetResult(lineCount == 0 ? lines.ToArray() : headLines);
+                    tcs.SetResult(readTextLines(reader, startLine, lineCount, cancelToken));
                 }
             };
             return tcs.Task;
