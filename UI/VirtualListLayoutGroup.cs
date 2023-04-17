@@ -136,6 +136,28 @@ namespace BJSYGameCore.UI
                 }
             }
         }
+        protected override void OnDisable()
+        {
+            base.OnDisable();
+            if (_scrollRect != null)
+            {
+                if (_scrollRect.verticalScrollbar != null)
+                {
+                    _scrollRect.verticalScrollbar.onValueChanged.RemoveListener(onBarScroll);
+                }
+                if (_scrollRect.horizontalScrollbar != null)
+                {
+                    _scrollRect.horizontalScrollbar.onValueChanged.RemoveListener(onBarScroll);
+                }
+            }
+            if (_startIndex >= 0)
+            {
+                for (int i = 0; i < _childList.Count; i++)
+                {
+                    onDisableItem?.Invoke(_startIndex + i, _childList[i]);
+                }
+            }
+        }
         protected void LateUpdate()
         {
             if (_disableChildList.Count > 0)
