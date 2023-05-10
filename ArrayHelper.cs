@@ -7,7 +7,7 @@ namespace BJSYGameCore
         {
             for (int i = 0; i < array.Length; i++)
             {
-                if (array.GetValue(i) == obj)
+                if (array.GetValue(i).Equals(obj))
                     return i;
             }
             return -1;
