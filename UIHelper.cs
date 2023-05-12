@@ -19,69 +19,76 @@ namespace BJSYGameCore.UI
         /// <param name="onCreateOrEnable"></param>
         /// <param name="onDestroyOrDisable"></param>
         /// <param name="dontDestroy">不摧毁列表项物体，如果该值为真，则物体将不会被摧毁而是被隐藏。</param>
+        /// <param name="rebuild">是否要立即重新构建UI列表。</param>
         public static void updateList(RectTransform listRoot, RectTransform listItemTemplate, List<RectTransform> itemList, int count, Action<int, RectTransform> onUpdate,
-            Action<RectTransform> onCreateOrEnable = null, Action<RectTransform> onDestroyOrDisable = null, bool dontDestroy = false)
+            Action<RectTransform> onCreateOrEnable = null, Action<RectTransform> onDestroyOrDisable = null, bool dontDestroy = false, bool rebuild = false)
         {
             if (listItemTemplate.transform.parent == listRoot)
             {
                 listItemTemplate.gameObject.SetActive(false);
             }
-            if (itemList.Count < count)
+
+            int maxNum = Math.Max(itemList.Count, count);
+
+            for (int i = 0; i < maxNum; i++)
             {
-                //创建列表项，使用for循环避免死循环
-                int n = count - itemList.Count;
-                for (int i = 0; i < n; i++)
+                if (i < count) // 应当出现在列表中
                 {
-                    RectTransform item = UnityEngine.Object.Instantiate(listItemTemplate, listRoot);
-                    item.gameObject.SetActive(true);
-                    itemList.Add(item);
-                    if (!dontDestroy)
+                    RectTransform item;
+                    if (i >= itemList.Count) // 目前没有这个项
                     {
-                        //在摧毁物体的情况下，这个回调作为onCreate被调用。
-                        onCreateOrEnable?.Invoke(item);
-                    }
-                }
-            }
-            else if (itemList.Count > count && !dontDestroy)
-            {
-                //销毁列表项
-                int n = itemList.Count - count;
-                for (int i = 0; i < n; i++)
-                {
-                    RectTransform item = itemList[itemList.Count - 1];
-                    item.SetParent(null);
-                    UnityEngine.Object.Destroy(item.gameObject);
-                    itemList.RemoveAt(itemList.Count - 1);
-                    onDestroyOrDisable?.Invoke(item);
-                }
-            }
-            //更新列表项
-            for (int i = 0; i < itemList.Count; i++)
-            {
-                RectTransform item = itemList[i];
-                if (dontDestroy)
-                {
-                    //在不摧毁物体的情况下，要更新物体的激活状态
-                    if (i < count)
-                    {
+                        //创建列表项
+                        item = Object.Instantiate(listItemTemplate, listRoot);
+                        itemList.Add(item);
                         //激活
                         item.gameObject.SetActive(true);
                         onCreateOrEnable?.Invoke(item);
-                        //更新
-                        onUpdate?.Invoke(i, item);
                     }
-                    else
+                    else // 目前有这个项
                     {
-                        //禁用
-                        item.gameObject.SetActive(false);
-                        onDestroyOrDisable?.Invoke(item);
+                        item = itemList[i];
+                        if (!item.gameObject.activeSelf)
+                        {
+                            //激活
+                            item.gameObject.SetActive(true);
+                            onCreateOrEnable?.Invoke(item);
+                        }
                     }
-                }
-                else
-                {
+                    //更新
                     onUpdate?.Invoke(i, item);
                 }
+                else // 不应出现在列表中
+                {
+                    RectTransform item;
+                    if (!dontDestroy) // 可以销毁
+                    {
+                        if (count < itemList.Count) // 目前有这个项
+                        {
+                            // 销毁列表项
+                            item = itemList[count];
+                            item.SetParent(null);
+                            Object.Destroy(item.gameObject);
+                            itemList.RemoveAt(count);
+                            onDestroyOrDisable?.Invoke(item);
+                        }
+                    }
+                    else // 不可以销毁
+                    {
+                        if (i < itemList.Count) // 目前有这个项
+                        {
+                            item = itemList[i];
+                            if (item.gameObject.activeSelf)
+                            {
+                                // 禁用
+                                item.gameObject.SetActive(false);
+                                onDestroyOrDisable?.Invoke(item);
+                            }
+                        }
+                    }
+                }
             }
+            if (!rebuild)
+                return;
             foreach (var layoutGroup in listRoot.GetComponentsInChildren<LayoutGroup>())
             {
                 if (layoutGroup.transform == listRoot)
