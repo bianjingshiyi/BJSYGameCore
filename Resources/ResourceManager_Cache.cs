@@ -5,8 +5,17 @@ namespace BJSYGameCore
 {
     public partial class ResourceManager
     {
-        #region 公共成员
-        public bool loadFromCache<T>(string path, out T res)
+        #region 私有成员
+        protected void saveToCache(string path, object res)
+        {
+            if (cacheDic.TryGetValue(path, out var item) && ReferenceEquals(item.wref.Target, res))
+            {
+                //Debug.LogWarning("路径" + path + "已经缓存了同一个资源" + item.wref.Target + "，取消缓存" + res);
+                return;
+            }
+            cacheDic[path] = new CacheItem() { wref = new WeakReference(res) };
+        }
+        protected bool loadFromCache<T>(string path, out T res)
         {
             if (cacheDic.TryGetValue(path, out var item))
             {
@@ -33,26 +42,9 @@ namespace BJSYGameCore
                 return false;
             }
         }
-        public bool loadAssetBundleFromCache(string name, out AssetBundle bundle)
+        protected bool removeFromCache(string path)
         {
-            if (bundleCacheDic.TryGetValue(name, out var item))
-            {
-                bundle = item.bundle;
-                return true;
-            }
-            bundle = null;
-            return false;
-        }
-        #endregion
-        #region 私有成员
-        protected void saveToCache(string path, object res)
-        {
-            if (cacheDic.TryGetValue(path, out var item) && ReferenceEquals(item.wref.Target, res))
-            {
-                //Debug.LogWarning("路径" + path + "已经缓存了同一个资源" + item.wref.Target + "，取消缓存" + res);
-                return;
-            }
-            cacheDic[path] = new CacheItem() { wref = new WeakReference(res) };
+            return cacheDic.Remove(path);
         }
         Dictionary<string, CacheItem> cacheDic { get; } = new Dictionary<string, CacheItem>();
         class CacheItem

@@ -73,4 +73,7 @@ namespace BJSYGameCore
             return local.global.unloadSceneAsync(scenePath, callback);
         }
     }
+    public class Manager<T> : Manager where T : GlobalManager
+    {
+    }
 }

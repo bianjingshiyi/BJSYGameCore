@@ -10,6 +10,7 @@ namespace BJSYGameCore.Tests
     public class ResourceManagerTests
     {
         const string PATH_TEST_RESOURCE = "res:TestResource";
+#if !ADDRESSABLE_ASSETS
         /// <summary>
         /// 从Resources中加载资源
         /// </summary>
@@ -52,5 +53,6 @@ namespace BJSYGameCore.Tests
         {
             return new GameObject(nameof(ResourceManager)).AddComponent<ResourceManager>();
         }
+#endif
     }
 }

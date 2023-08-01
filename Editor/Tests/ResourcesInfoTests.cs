@@ -18,6 +18,7 @@ namespace Tests
 {
     public class ResourcesInfoTests
     {
+#if !ADDRESSABLE_ASSETS
         const string PATH_RESOURCE_TO_LOAD = "ResourceToLoad";
         const string PATH_RESOURCE_NOT_TO_LOAD = "ResourceNotToLoad";
         const string PATH_ASSET_TO_PACK = "Assets/Plugins/BJSYGameCore/Tests/AssetToPack.prefab";
@@ -370,5 +371,6 @@ namespace Tests
             Assert.True(manager.loadAssetBundleFromCache(manager.resourcesInfo.getInfoByPath("ab:" + PATH_ASSET_TO_PACK).bundleName, out _));
             Assert.True(manager.loadAssetBundleFromCache(manager.resourcesInfo.getInfoByPath("ab:" + PATH_ASSET_TO_PACK).bundleName, out _));
         }
+#endif
     }
 }

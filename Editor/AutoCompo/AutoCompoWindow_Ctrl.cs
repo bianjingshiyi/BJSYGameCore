@@ -11,6 +11,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.CodeDom;
 using System.Text.RegularExpressions;
 using System.CodeDom.Compiler;
+using UnityEditor.SceneManagement;
 // ReSharper disable InconsistentNaming
 #if UNITY_2019
 using UnityEditor.Experimental.SceneManagement;

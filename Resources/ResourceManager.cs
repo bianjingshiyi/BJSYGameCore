@@ -4,62 +4,18 @@ using System.Threading.Tasks;
 using BJSYGameCore.UI;
 using System.CodeDom;
 using System.Collections.Generic;
+using UnityEngine.SceneManagement;
+
 namespace BJSYGameCore
 {
     public partial class ResourceManager : Manager, IDisposable, IResourceManager
     {
         #region 公有方法
         /// <summary>
-        /// 同步的加载一个资源
-        /// </summary>
-        /// <typeparam name="T">资源类型</typeparam>
-        /// <param name="info">资源信息</param>
-        /// <returns>加载的资源</returns>
-        public T load<T>(ResourceInfo info) where T : UnityEngine.Object
-        {
-            if (typeof(T) == typeof(ResourcesInfo))
-            {
-                if (resourcesInfo.resourceList.Contains(info))
-                    return resourcesInfo as T;
-                else
-                {
-                    Debug.LogError($"ResourceManager::resoucesInfo里面没有{info.path}");
-                    return null;
-                }
-            }
-            else if (typeof(T) == typeof(AssetBundleManifest))
-            {
-                return loadAssetBundleManifest(info) as T;
-            }
-            else
-            {
-                switch (info.type)
-                {
-                    case ResourceType.Assetbundle:
-                        if (typeof(T) == typeof(AssetBundle))
-                        {
-                            return loadAssetBundle(info) as T;
-                        }
-                        else return loadFromAssetBundle(info.path) as T;
-                    case ResourceType.Resources:
-                        return loadFromResources(info.path) as T;
-                    case ResourceType.File:
-                        //using (UnityWebRequest req = UnityWebRequest.Get(Application.streamingAssetsPath + info.path)) {
-                        //    req.SendWebRequest();
-                        //    while (!req.isDone) {Debug.Log("loading"); }
-                        //    req.downloadHandler.data;
-                        //}
-                        //todo  : 不知道该如何处理，先放着.....
-                        return null;
-                }
-                return null;
-            }
-        }
-        /// <summary>
         /// 异步的加载一个资源。
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="path"></param>
+        /// <typeparam name="T">资源类型</typeparam>
+        /// <param name="path">资源路径</param>
         /// <returns></returns>
         public virtual async Task<T> loadAsync<T>(string path, string dir)
         {
@@ -84,32 +40,140 @@ namespace BJSYGameCore
                 operation = new LoadResourceOperation(path, typeof(T), request);
                 addLoadOperation(operation);
                 await operation.task;
+                removeLoadOperation(operation);
                 res = (T)operation.resource;
             }
             else
             {
-                throw new InvalidOperationException("无法加载资源" + path);
+                res = await loadImp<T>(path);
             }
             saveToCache(path, res);
             return res;
+        }
+        public virtual void loadAsync<T>(string path, Action<T> callback)
+        {
+            if (string.IsNullOrEmpty(path))
+                throw new ArgumentException("路径不能为空", nameof(path));
+            if (loadFromCache(path, out T cachedRes))
+            {
+                //有缓存资源，直接返回缓存资源
+                callback?.Invoke(cachedRes);
+            }
+            else if (tryGetLoadOperation(path, typeof(T), out var operation))
+            {
+                //正在加载这个资源，等待加载过程完成并返回，避免重复加载
+                operation.onCompleted += (res) => callback?.Invoke((T)res);
+            }
+            else if (path.StartsWith(PATH_RES_PREFIX))
+            {
+                //从资源中加载
+                ResourceRequest request = Resources.LoadAsync(path.Substring(PATH_RES_PREFIX.Length, path.Length - PATH_RES_PREFIX.Length), typeof(T));
+                operation = new LoadResourceOperation(path, typeof(T), request);
+                addLoadOperation(operation);
+                operation.onCompleted += (res) =>
+                {
+                    removeLoadOperation(operation);
+                    saveToCache(path, res);
+                    callback?.Invoke((T)res);
+                };
+            }
+            else
+            {
+                loadImp<T>(path, res =>
+                {
+                    saveToCache(path, res);
+                    callback?.Invoke(res);
+                });
+            }
+        }
+        public void unload(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+                throw new ArgumentException("路径不能为空", nameof(path));
+            removeFromCache(path);
+            unloadImp(path);
+        }
+        public void loadSceneAsync(string path, LoadSceneMode loadMode, Action<Scene> onComplete)
+        {
+            Scene scene = SceneManager.GetSceneByPath(path);
+            if (scene.isLoaded)
+            {
+                onComplete?.Invoke(scene);
+            }
+            else if (_loadSceneOpDict.ContainsKey(path))
+            {
+                _loadSceneOpDict[path].onCompleted += (s) => onComplete?.Invoke(s);
+            }
+            else if (scene.IsValid())
+            {
+                LoadBuiltinSceneOperation operation = new LoadBuiltinSceneOperation(path, loadMode);
+                addLoadSceneOperation(operation);
+                operation.onCompleted += (s) =>
+                {
+                    removeLoadSceneOperation(operation);
+                    onComplete?.Invoke(s);
+                };
+            }
+            else
+            {
+                loadSceneImp(path, onComplete, loadMode);
+            }
+        }
+        public new void unloadSceneAsync(string path, Action onComplete)
+        {
+            Scene scene = SceneManager.GetSceneByPath(path);
+            if (!scene.isLoaded)
+            {
+                onComplete?.Invoke();
+                return;
+            }
+            else if (_unloadSceneOpDict.ContainsKey(path))
+            {
+                _unloadSceneOpDict[path].onCompleted += _ => onComplete?.Invoke();
+            }
+            else if (scene.IsValid())
+            {
+                UnloadBuiltinSceneOperation operation = new UnloadBuiltinSceneOperation(path);
+                addUnloadSceneOperation(operation);
+                operation.onCompleted += _ =>
+                {
+                    removeUnloadSceneOperation(operation);
+                    onComplete?.Invoke();
+                };
+            }
+            else
+            {
+                unloadSceneImp(path, onComplete);
+            }
         }
         #endregion
         #region 私有方法
         protected void addLoadOperation(LoadResourceOperationBase operation)
         {
             if (!_loadOpDict.ContainsKey(operation.path))
+            {
                 _loadOpDict[operation.path] = operation;
+            }
             else
             {
-                List<LoadResourceOperationBase> list = _loadOpDict[operation.path] as List<LoadResourceOperationBase>;
-                if (list == null)
+                if (_loadOpDict[operation.path] is not List<LoadResourceOperationBase> list)
                 {
-                    list = new List<LoadResourceOperationBase>();
-                    list.Add(_loadOpDict[operation.path] as LoadResourceOperationBase);
+                    list = new List<LoadResourceOperationBase>
+                    {
+                        _loadOpDict[operation.path] as LoadResourceOperationBase
+                    };
                     _loadOpDict[operation.path] = list;
                 }
                 list.Add(operation);
             }
+        }
+        protected void addLoadSceneOperation(LoadSceneOperationBase operation)
+        {
+            _loadSceneOpDict[operation.path] = operation;
+        }
+        protected void addUnloadSceneOperation(LoadSceneOperationBase operation)
+        {
+            _unloadSceneOpDict[operation.path] = operation;
         }
         protected bool tryGetLoadOperation(string path, Type type, out LoadResourceOperationBase operation)
         {
@@ -130,56 +194,41 @@ namespace BJSYGameCore
                 return operation != null;
             }
         }
-        #endregion
-
-        #region 废弃方法，不知道还用不用得着，先留着
-        /// <summary>
-        /// 同步的加载一个资源。
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="path"></param>
-        /// <returns></returns>
-        public T load<T>(string path, string dir = null)
+        protected bool tryGetLoadSceneOperation(string path, out LoadSceneOperationBase operation)
         {
-            T res;
-            if (string.IsNullOrEmpty(path))
-                throw new ArgumentException("路径不能为空", nameof(path));
-            else if (loadFromCache<T>(path, out var cachedRes))//尝试从缓存中加载
-            {
-                return cachedRes;
-            }
-            else if (path.StartsWith("res:"))//尝试从资源中加载
-            {
-                var uRes = Resources.Load(path.Substring(4, path.Length - 4));
-                if (uRes == null)
-                    res = default;
-                else if (uRes is T t)
-                    res = t;
-                else
-                    throw new InvalidCastException("资源\"" + path + "\"" + uRes + "不是" + typeof(T).Name);
-            }
-            else if (path.StartsWith("ab:") && resourcesInfo != null)
-            {
-                res = loadFromBundle<T>(resourcesInfo, path.Substring(3, path.Length - 3));
-            }
-            else
-                throw new InvalidOperationException("无法加载类型为" + typeof(T).Name + "的资源" + path);
-            saveToCache(path, res);
-            return res;
+            return _loadSceneOpDict.TryGetValue(path, out operation);
         }
-        [Obsolete]
-        public T loadFromBundle<T>(ResourcesInfo abInfo, string path)
+        protected bool tryGetUnloadSceneOperation(string path, out LoadSceneOperationBase operation)
         {
-            if (loadFromAssetBundle(abInfo, path) is T t)
-                return t;
+            return _unloadSceneOpDict.TryGetValue(path, out operation);
+        }
+        protected bool removeLoadOperation(LoadResourceOperationBase operation)
+        {
+            if (_loadOpDict.TryGetValue(operation.path, out object obj))
+            {
+                if (obj is List<LoadResourceOperationBase> list)
+                    return list.Remove(operation);
+                else
+                    return _loadOpDict.Remove(operation.path);
+            }
             else
-                return default;
+                return false;
+        }
+        protected bool removeLoadSceneOperation(LoadSceneOperationBase operation)
+        {
+            return _loadSceneOpDict.Remove(operation.path);
+        }
+        protected bool removeUnloadSceneOperation(LoadSceneOperationBase operation)
+        {
+            return _unloadSceneOpDict.Remove(operation.path);
         }
         #endregion
 
         public void Dispose()
         {
             cacheDic.Clear();
+            _loadOpDict.Clear();
+            _loadSceneOpDict.Clear();
 #if UNITY_EDITOR
             if (!Application.isPlaying)
                 DestroyImmediate(gameObject);
@@ -189,19 +238,15 @@ namespace BJSYGameCore
             Destroy(gameObject);
 #endif
         }
-        #region 字段
+        #region 属性字段
         /// <summary>
         /// 正在加载资源的LoadResourceOperation字典，值可能是LoadResouceOperation，也可能是一个List。
         /// 之所以只用object是因为大部分情况下同一个路径下不会有多个有不同类型的资源，在这种情况下不使用List。
         /// </summary>
         Dictionary<string, object> _loadOpDict = new Dictionary<string, object>();
-        [SerializeField]
-        ResourcesInfo _resourcesInfo;
-        public ResourcesInfo resourcesInfo
-        {
-            get { return _resourcesInfo; }
-            set { _resourcesInfo = value; }
-        }
+        Dictionary<string, object> _unloadOpDict = new Dictionary<string, object>();
+        Dictionary<string, LoadSceneOperationBase> _loadSceneOpDict = new Dictionary<string, LoadSceneOperationBase>();
+        Dictionary<string, LoadSceneOperationBase> _unloadSceneOpDict = new Dictionary<string, LoadSceneOperationBase>();
         protected const string PATH_RES_PREFIX = "res:";
         #endregion
     }
@@ -218,6 +263,7 @@ namespace BJSYGameCore
         private void onComplete(AsyncOperation op)
         {
             _tcs.SetResult(null);
+            Complete();
         }
         public override string path => _path;
         public override Type type => _type;
@@ -230,9 +276,73 @@ namespace BJSYGameCore
     }
     public abstract class LoadResourceOperationBase
     {
+        protected void Complete()
+        {
+            onCompleted?.Invoke(resource);
+        }
+
         public abstract string path { get; }
         public abstract Type type { get; }
         public abstract Task task { get; }
         public abstract object resource { get; }
+        public event Action<object> onCompleted;
+    }
+    public abstract class LoadSceneOperationBase
+    {
+        protected void Complete(Scene scene)
+        {
+            onCompleted?.Invoke(scene);
+        }
+
+        public abstract string path { get; }
+        public abstract Task task { get; }
+        public event Action<Scene> onCompleted;
+    }
+    public class LoadBuiltinSceneOperation : LoadSceneOperationBase
+    {
+        public LoadBuiltinSceneOperation(string path, LoadSceneMode loadMode)
+        {
+            this.path = path;
+            _op = SceneManager.LoadSceneAsync(path, loadMode);
+            _tcs = new TaskCompletionSource<Scene>();
+            _op.completed += OnComplete;
+        }
+
+        private void OnComplete(AsyncOperation obj)
+        {
+            Scene scene = SceneManager.GetSceneByPath(path);
+            _tcs.SetResult(scene);
+            Complete(scene);
+        }
+
+        public override string path { get; }
+
+        public override Task task => _tcs.Task;
+
+        AsyncOperation _op;
+
+        TaskCompletionSource<Scene> _tcs;
+    }
+    public class UnloadBuiltinSceneOperation : LoadSceneOperationBase
+    {
+        public UnloadBuiltinSceneOperation(string path)
+        {
+            this.path = path;
+            _op = SceneManager.UnloadSceneAsync(path);
+            _tcs = new TaskCompletionSource<object>();
+            _op.completed += OnComplete;
+        }
+
+        private void OnComplete(AsyncOperation obj)
+        {
+            _tcs.SetResult(null);
+            Complete(default);
+        }
+
+        public override string path { get; }
+
+        public override Task task => _tcs.Task;
+        AsyncOperation _op;
+        TaskCompletionSource<object> _tcs;
     }
 }
