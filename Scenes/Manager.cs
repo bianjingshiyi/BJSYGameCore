@@ -25,7 +25,7 @@ namespace BJSYGameCore
                     if (_local == null)
                     {
                         _local = new GameObject("LocalManager").AddComponent<LocalManager>();
-                        SceneManager.MoveGameObjectToScene(_local.gameObject, gameObject.scene);
+                        UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(_local.gameObject, gameObject.scene);
                     }
                     _local.registerManager(this);
                 }

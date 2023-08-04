@@ -20,7 +20,7 @@ namespace BJSYGameCore.UI
                     if (_ui == null)
                     {
                         GameObject go = new GameObject("UIManager");
-                        SceneManager.MoveGameObjectToScene(go, gameObject.scene);
+                        UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(go, gameObject.scene);
                         _ui = go.AddComponent<UIManager>();
                     }
                 }

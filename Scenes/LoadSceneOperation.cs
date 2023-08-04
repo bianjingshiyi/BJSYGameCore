@@ -12,7 +12,7 @@ namespace BJSYGameCore
         public LoadSceneOperation(string scenePath, LoadSceneMode loadMode)
         {
             this.scenePath = scenePath;
-            operation = SceneManager.LoadSceneAsync(scenePath, loadMode);
+            operation = UnityEngine.SceneManagement.SceneManager.LoadSceneAsync(scenePath, loadMode);
             operation.completed += Operation_completed;
         }
         private void Operation_completed(AsyncOperation obj)

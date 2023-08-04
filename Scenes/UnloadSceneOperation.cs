@@ -12,7 +12,7 @@ namespace BJSYGameCore
         public UnloadSceneOperation(string scenePath)
         {
             this.scenePath = scenePath;
-            operation = SceneManager.UnloadSceneAsync(scenePath, UnloadSceneOptions.None);
+            operation = UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(scenePath, UnloadSceneOptions.None);
             operation.completed += Operation_completed;
         }
         private void Operation_completed(AsyncOperation obj)

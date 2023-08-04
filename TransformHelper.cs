@@ -142,9 +142,9 @@ namespace BJSYGameCore
         }
         public static T findComponentInAllScenes<T>() where T : Component
         {
-            for (int i = 0; i < SceneManager.sceneCount; i++)
+            for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
             {
-                Scene scene = SceneManager.GetSceneAt(i);
+                Scene scene = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i);
                 T compo = findComponentInScene<T>(scene);
                 if (compo != null)
                     return compo;

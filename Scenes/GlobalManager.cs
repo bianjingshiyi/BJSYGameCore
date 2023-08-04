@@ -12,6 +12,13 @@ namespace BJSYGameCore
     /// </summary>
     public class GlobalManager : MonoBehaviour
     {
+        protected void Awake()
+        {
+            if (_resourceManager == null)
+                _resourceManager = this.findInstance<ResourceManager>();
+            _resourceManager.Initialize(this);
+        }
+
         Dictionary<string, LocalManager> localDic { get; } = new Dictionary<string, LocalManager>();
         /// <summary>
         /// 根场景管理器
@@ -26,7 +33,7 @@ namespace BJSYGameCore
                     if (local == null)
                     {
                         local = new GameObject("LocalManager").AddComponent<LocalManager>();
-                        SceneManager.MoveGameObjectToScene(local.gameObject, gameObject.scene);
+                        UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(local.gameObject, gameObject.scene);
                     }
                     registerLocal(local);
                 }
@@ -131,12 +138,12 @@ namespace BJSYGameCore
         private void Operation_onSceneLoaded(LoadSceneOperation operation)
         {
             //按道理来讲场景里的东西应该都Awake过了，以防万一还是检查一下场景里的LocalManager吧。
-            Scene scene = SceneManager.GetSceneByPath(operation.scenePath);
+            Scene scene = UnityEngine.SceneManagement.SceneManager.GetSceneByPath(operation.scenePath);
             LocalManager currentLocal = scene.findInstance<LocalManager>();
             if (currentLocal == null)
             {
                 GameObject gameObject = new GameObject("LocalManager");
-                SceneManager.MoveGameObjectToScene(gameObject, scene);
+                UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(gameObject, scene);
                 currentLocal = gameObject.AddComponent<LocalManager>();
             }
             registerLocal(currentLocal);
@@ -192,5 +199,7 @@ namespace BJSYGameCore
         {
             return localDic[path];
         }
+        public ResourceManager ResourceManager => _resourceManager;
+        private ResourceManager _resourceManager;
     }
 }

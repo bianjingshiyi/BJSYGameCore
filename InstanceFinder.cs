@@ -56,9 +56,9 @@ namespace BJSYGameCore
         public static T findInstanceAllScene<T>()
         {
             T instance = default;
-            for (int i = 0; i < SceneManager.sceneCount; i++)
+            for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
             {
-                instance = SceneManager.GetSceneAt(i).findInstance<T>();
+                instance = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i).findInstance<T>();
                 if (instance != null)
                     break;
             }
@@ -67,9 +67,9 @@ namespace BJSYGameCore
         public static T[] findInstancesAllScene<T>()
         {
             List<T> instanceList = new List<T>();
-            for (int i = 0; i < SceneManager.sceneCount; i++)
+            for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
             {
-                GameObject[] roots = SceneManager.GetSceneAt(i).GetRootGameObjects();
+                GameObject[] roots = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i).GetRootGameObjects();
                 for (int j = 0; j < roots.Length; j++)
                 {
                     instanceList.AddRange(roots[j].GetComponentsInChildren<T>(true));

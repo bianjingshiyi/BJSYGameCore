@@ -5,12 +5,15 @@ using BJSYGameCore.UI;
 using System.CodeDom;
 using System.Collections.Generic;
 using UnityEngine.SceneManagement;
-
 namespace BJSYGameCore
 {
     public partial class ResourceManager : Manager, IDisposable, IResourceManager
     {
         #region 公有方法
+        public void Initialize(GlobalManager gameManager)
+        {
+            _gameManager = gameManager;
+        }
         /// <summary>
         /// 异步的加载一个资源。
         /// </summary>
@@ -93,16 +96,16 @@ namespace BJSYGameCore
             removeFromCache(path);
             unloadImp(path);
         }
-        public void loadSceneAsync(string path, LoadSceneMode loadMode, Action<Scene> onComplete)
+        public LoadSceneOperationBase loadSceneAsync(string path, LoadSceneMode loadMode)
         {
-            Scene scene = SceneManager.GetSceneByPath(path);
+            Scene scene = UnityEngine.SceneManagement.SceneManager.GetSceneByPath(path);
             if (scene.isLoaded)
             {
-                onComplete?.Invoke(scene);
+                return null;
             }
             else if (_loadSceneOpDict.ContainsKey(path))
             {
-                _loadSceneOpDict[path].onCompleted += (s) => onComplete?.Invoke(s);
+                return _loadSceneOpDict[path];
             }
             else if (scene.IsValid())
             {
@@ -111,17 +114,17 @@ namespace BJSYGameCore
                 operation.onCompleted += (s) =>
                 {
                     removeLoadSceneOperation(operation);
-                    onComplete?.Invoke(s);
                 };
+                return operation;
             }
             else
             {
-                loadSceneImp(path, onComplete, loadMode);
+                return loadSceneImp(path, loadMode);
             }
         }
         public new void unloadSceneAsync(string path, Action onComplete)
         {
-            Scene scene = SceneManager.GetSceneByPath(path);
+            Scene scene = UnityEngine.SceneManagement.SceneManager.GetSceneByPath(path);
             if (!scene.isLoaded)
             {
                 onComplete?.Invoke();
@@ -239,14 +242,16 @@ namespace BJSYGameCore
 #endif
         }
         #region 属性字段
+        public GlobalManager GameManager => _gameManager;
+        private GlobalManager _gameManager;
         /// <summary>
         /// 正在加载资源的LoadResourceOperation字典，值可能是LoadResouceOperation，也可能是一个List。
         /// 之所以只用object是因为大部分情况下同一个路径下不会有多个有不同类型的资源，在这种情况下不使用List。
         /// </summary>
-        Dictionary<string, object> _loadOpDict = new Dictionary<string, object>();
-        Dictionary<string, object> _unloadOpDict = new Dictionary<string, object>();
-        Dictionary<string, LoadSceneOperationBase> _loadSceneOpDict = new Dictionary<string, LoadSceneOperationBase>();
-        Dictionary<string, LoadSceneOperationBase> _unloadSceneOpDict = new Dictionary<string, LoadSceneOperationBase>();
+        private Dictionary<string, object> _loadOpDict = new Dictionary<string, object>();
+        private Dictionary<string, object> _unloadOpDict = new Dictionary<string, object>();
+        private Dictionary<string, LoadSceneOperationBase> _loadSceneOpDict = new Dictionary<string, LoadSceneOperationBase>();
+        private Dictionary<string, LoadSceneOperationBase> _unloadSceneOpDict = new Dictionary<string, LoadSceneOperationBase>();
         protected const string PATH_RES_PREFIX = "res:";
         #endregion
     }
@@ -303,14 +308,14 @@ namespace BJSYGameCore
         public LoadBuiltinSceneOperation(string path, LoadSceneMode loadMode)
         {
             this.path = path;
-            _op = SceneManager.LoadSceneAsync(path, loadMode);
+            _op = UnityEngine.SceneManagement.SceneManager.LoadSceneAsync(path, loadMode);
             _tcs = new TaskCompletionSource<Scene>();
             _op.completed += OnComplete;
         }
 
         private void OnComplete(AsyncOperation obj)
         {
-            Scene scene = SceneManager.GetSceneByPath(path);
+            Scene scene = UnityEngine.SceneManagement.SceneManager.GetSceneByPath(path);
             _tcs.SetResult(scene);
             Complete(scene);
         }
@@ -328,7 +333,7 @@ namespace BJSYGameCore
         public UnloadBuiltinSceneOperation(string path)
         {
             this.path = path;
-            _op = SceneManager.UnloadSceneAsync(path);
+            _op = UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(path);
             _tcs = new TaskCompletionSource<object>();
             _op.completed += OnComplete;
         }

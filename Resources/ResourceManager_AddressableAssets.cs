@@ -37,7 +37,7 @@ namespace BJSYGameCore
             Addressables.Release(_pathHandleDict[path]);
             _pathHandleDict.Remove(path);
         }
-        protected void loadSceneImp(string path, Action<Scene> onComplete, LoadSceneMode loadSceneMode = LoadSceneMode.Additive, bool activeOnLoad = true, int priority = 100)
+        protected LoadSceneOperationBase loadSceneImp(string path, LoadSceneMode loadSceneMode = LoadSceneMode.Additive, bool activeOnLoad = true, int priority = 100)
         {
             var operation = new LoadAddressableSceneOperation(path, loadSceneMode, activeOnLoad, priority);
             addLoadSceneOperation(operation);
@@ -45,8 +45,8 @@ namespace BJSYGameCore
             {
                 _pathSceneInstanceDict[path] = operation.sceneInstance;
                 removeLoadSceneOperation(operation);
-                onComplete?.Invoke(scene);
             };
+            return operation;
         }
         protected void unloadSceneImp(string path, Action onComplete)
         {
