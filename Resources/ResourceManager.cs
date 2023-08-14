@@ -48,7 +48,7 @@ namespace BJSYGameCore
             }
             else
             {
-                res = await loadImp<T>(path);
+                res = await loadImp<T>(path, dir);
             }
             saveToCache(path, res);
             return res;
@@ -87,6 +87,43 @@ namespace BJSYGameCore
                     saveToCache(path, res);
                     callback?.Invoke(res);
                 });
+            }
+        }
+        public virtual LoadResourceOperationBase loadAsync<T>(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+                throw new ArgumentException("路径不能为空", nameof(path));
+            if (loadFromCache(path, out object cachedRes))
+            {
+                //有缓存资源，直接返回缓存资源
+                return new LoadCompletedResourceOperation(path, typeof(T), cachedRes);
+            }
+            else if (tryGetLoadOperation(path, typeof(T), out LoadResourceOperationBase operation))
+            {
+                //正在加载这个资源，等待加载过程完成并返回，避免重复加载
+                return operation;
+            }
+            else if (path.StartsWith(PATH_RES_PREFIX))
+            {
+                //从资源中加载
+                ResourceRequest request = Resources.LoadAsync(path.Substring(PATH_RES_PREFIX.Length, path.Length - PATH_RES_PREFIX.Length), typeof(T));
+                operation = new LoadResourceOperation(path, typeof(T), request);
+                addLoadOperation(operation);
+                operation.onCompleted += res =>
+                {
+                    removeLoadOperation(operation);
+                    saveToCache(path, res);
+                };
+                return operation;
+            }
+            else
+            {
+                operation = loadImp<T>(path);
+                operation.onCompleted += res =>
+                {
+                    saveToCache(path, res);
+                };
+                return operation;
             }
         }
         public void unload(string path)
@@ -273,13 +310,45 @@ namespace BJSYGameCore
         public override string path => _path;
         public override Type type => _type;
         public override Task task => _tcs.Task;
+        public override float progress => _request.progress;
         public override object resource => _request.asset;
         string _path;
         Type _type;
         ResourceRequest _request;
         TaskCompletionSource<object> _tcs;
     }
-    public abstract class LoadResourceOperationBase
+    public class LoadCompletedResourceOperation : LoadResourceOperationBase
+    {
+        public LoadCompletedResourceOperation(string path, Type type, object resource)
+        {
+            this.path = path;
+            this.type = type;
+            this.resource = resource;
+        }
+
+        public override string path { get; }
+
+        public override Type type { get; }
+
+        public override Task task => Task.FromResult(resource);
+
+        public override float progress => 1;
+
+        public override object resource { get; }
+
+        public override event Action<object> onCompleted
+        {
+            add
+            {
+                value?.Invoke(resource);
+            }
+            remove
+            {
+                // do nothing
+            }
+        }
+    }
+    public abstract class LoadResourceOperationBase : IAsyncOperation
     {
         protected void Complete()
         {
@@ -289,8 +358,20 @@ namespace BJSYGameCore
         public abstract string path { get; }
         public abstract Type type { get; }
         public abstract Task task { get; }
+        public abstract float progress { get; }
         public abstract object resource { get; }
-        public event Action<object> onCompleted;
+        public virtual event Action<object> onCompleted;
+        event Action<object> IAsyncOperation.onComplete
+        {
+            add
+            {
+                onCompleted += value;
+            }
+            remove
+            {
+                onCompleted -= value;
+            }
+        }
     }
     public abstract class LoadSceneOperationBase
     {
@@ -349,5 +430,10 @@ namespace BJSYGameCore
         public override Task task => _tcs.Task;
         AsyncOperation _op;
         TaskCompletionSource<object> _tcs;
+    }
+    public interface IAsyncOperation
+    {
+        float progress { get; }
+        event Action<object> onComplete;
     }
 }

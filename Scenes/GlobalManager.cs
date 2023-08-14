@@ -12,13 +12,13 @@ namespace BJSYGameCore
     /// </summary>
     public class GlobalManager : MonoBehaviour
     {
-        protected void Awake()
+        protected void Start()
         {
-            if (_resourceManager == null)
-                _resourceManager = this.findInstance<ResourceManager>();
-            _resourceManager.Initialize(this);
+            Initialize();
         }
-
+        protected virtual void Initialize()
+        {
+        }
         Dictionary<string, LocalManager> localDic { get; } = new Dictionary<string, LocalManager>();
         /// <summary>
         /// 根场景管理器

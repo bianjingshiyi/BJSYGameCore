@@ -73,7 +73,12 @@ namespace BJSYGameCore
             return local.global.unloadSceneAsync(scenePath, callback);
         }
     }
-    public class Manager<T> : Manager where T : GlobalManager
+    public interface IManager<T>
     {
+        public virtual void Initialize(T gameManager)
+        {
+            this.gameManager = gameManager;
+        }
+        public T gameManager { get; set; }
     }
 }

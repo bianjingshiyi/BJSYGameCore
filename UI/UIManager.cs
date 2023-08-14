@@ -6,12 +6,8 @@ using System;
 
 namespace BJSYGameCore.UI
 {
-    public class UIManager : Manager
+    public partial class UIManager : Manager
     {
-        public T getPanel<T>() where T : UIObject
-        {
-            return GetComponentInChildren<T>(true);
-        }
         /// <summary>
         /// 获取指定类型的UI实例
         /// </summary>
@@ -82,6 +78,7 @@ namespace BJSYGameCore.UI
                 onNothingToReturn?.Invoke();
             }
         }
+        public Canvas canvas;
         /// <summary>
         /// 当前显示的UI的控制器
         /// </summary>

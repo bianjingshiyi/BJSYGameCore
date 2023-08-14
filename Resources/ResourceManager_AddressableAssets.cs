@@ -23,7 +23,18 @@ namespace BJSYGameCore
                 onComplete?.Invoke((T)obj);
             };
         }
-        protected async Task<T> loadImp<T>(string path)
+        protected LoadResourceOperationBase loadImp<T>(string path)
+        {
+            LoadAddressableAssetOperation<T> operation = new LoadAddressableAssetOperation<T>(path, typeof(T));
+            addLoadOperation(operation);
+            operation.onCompleted += obj =>
+            {
+                _pathHandleDict[path] = operation.handle;
+                removeLoadOperation(operation);
+            };
+            return operation;
+        }
+        protected async Task<T> loadImp<T>(string path, string dir)
         {
             LoadAddressableAssetOperation<T> operation = new LoadAddressableAssetOperation<T>(path, typeof(T));
             addLoadOperation(operation);
@@ -126,6 +137,8 @@ namespace BJSYGameCore
             public override Type type { get; }
 
             public override Task task => handle.Task;
+
+            public override float progress => handle.PercentComplete;
 
             public override object resource => handle.Result;
 
