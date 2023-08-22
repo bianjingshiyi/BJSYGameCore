@@ -29,10 +29,10 @@ namespace BJSYGameCore
             LoadSceneOperationBase operation = GameManager.ResourceManager.loadSceneAsync(scenePath, loadMode);
 
             // 在完成事件中，找到SceneController并设置引用
-            operation.onCompleted += scene =>
+            operation.onComplete += scene =>
             {
                 // 在回调函数中，找到SceneController并设置引用
-                ISceneController controller = FindSceneController(scene);
+                ISceneController controller = FindSceneController((Scene)scene);
                 controller.Initialize(GameManager, this); // 假设GameManager是一个单例类
 
                 // 设置场景控制器

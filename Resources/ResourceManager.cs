@@ -144,11 +144,11 @@ namespace BJSYGameCore
             {
                 return _loadSceneOpDict[path];
             }
-            else if (scene.IsValid())
+            else if (IsBuiltinScene(path))
             {
                 LoadBuiltinSceneOperation operation = new LoadBuiltinSceneOperation(path, loadMode);
                 addLoadSceneOperation(operation);
-                operation.onCompleted += (s) =>
+                operation.onComplete += (s) =>
                 {
                     removeLoadSceneOperation(operation);
                 };
@@ -169,13 +169,13 @@ namespace BJSYGameCore
             }
             else if (_unloadSceneOpDict.ContainsKey(path))
             {
-                _unloadSceneOpDict[path].onCompleted += _ => onComplete?.Invoke();
+                _unloadSceneOpDict[path].onComplete += _ => onComplete?.Invoke();
             }
-            else if (scene.IsValid())
+            else if (IsBuiltinScene(path))
             {
                 UnloadBuiltinSceneOperation operation = new UnloadBuiltinSceneOperation(path);
                 addUnloadSceneOperation(operation);
-                operation.onCompleted += _ =>
+                operation.onComplete += _ =>
                 {
                     removeUnloadSceneOperation(operation);
                     onComplete?.Invoke();
@@ -261,6 +261,16 @@ namespace BJSYGameCore
         protected bool removeUnloadSceneOperation(LoadSceneOperationBase operation)
         {
             return _unloadSceneOpDict.Remove(operation.path);
+        }
+        private bool IsBuiltinScene(string scenePath)
+        {
+            int sceneCount = UnityEngine.SceneManagement.SceneManager.sceneCountInBuildSettings;
+            for (int i = 0; i < sceneCount; i++)
+            {
+                if (SceneUtility.GetScenePathByBuildIndex(i) == scenePath)
+                    return true;
+            }
+            return false;
         }
         #endregion
 
@@ -373,16 +383,19 @@ namespace BJSYGameCore
             }
         }
     }
-    public abstract class LoadSceneOperationBase
+    public abstract class LoadSceneOperationBase : IAsyncOperation
     {
         protected void Complete(Scene scene)
         {
-            onCompleted?.Invoke(scene);
+            onComplete?.Invoke(scene);
         }
 
         public abstract string path { get; }
         public abstract Task task { get; }
-        public event Action<Scene> onCompleted;
+
+        public abstract float progress { get; }
+
+        public event Action<object> onComplete;
     }
     public class LoadBuiltinSceneOperation : LoadSceneOperationBase
     {
@@ -404,6 +417,8 @@ namespace BJSYGameCore
         public override string path { get; }
 
         public override Task task => _tcs.Task;
+
+        public override float progress => _op.progress;
 
         AsyncOperation _op;
 
@@ -428,6 +443,8 @@ namespace BJSYGameCore
         public override string path { get; }
 
         public override Task task => _tcs.Task;
+
+        public override float progress => _op.progress;
         AsyncOperation _op;
         TaskCompletionSource<object> _tcs;
     }

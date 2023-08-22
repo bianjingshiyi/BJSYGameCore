@@ -52,7 +52,7 @@ namespace BJSYGameCore
         {
             var operation = new LoadAddressableSceneOperation(path, loadSceneMode, activeOnLoad, priority);
             addLoadSceneOperation(operation);
-            operation.onCompleted += scene =>
+            operation.onComplete += scene =>
             {
                 _pathSceneInstanceDict[path] = operation.sceneInstance;
                 removeLoadSceneOperation(operation);
@@ -64,7 +64,7 @@ namespace BJSYGameCore
             var operation = new UnloadAddressableSceneOperation(path, _pathSceneInstanceDict[path]);
             _pathSceneInstanceDict.Remove(path);
             addUnloadSceneOperation(operation);
-            operation.onCompleted += scene =>
+            operation.onComplete += scene =>
             {
                 removeUnloadSceneOperation(operation);
                 onComplete?.Invoke();
@@ -93,6 +93,7 @@ namespace BJSYGameCore
             public override string path { get; }
 
             public override Task task => _handle.Task;
+            public override float progress => _handle.PercentComplete;
             AsyncOperationHandle<SceneInstance> _handle;
         }
         class LoadAddressableSceneOperation : LoadSceneOperationBase
@@ -112,6 +113,8 @@ namespace BJSYGameCore
             public override string path { get; }
 
             public override Task task => _handle.Task;
+
+            public override float progress => _handle.PercentComplete;
 
             public SceneInstance sceneInstance => _handle.Result;
 
